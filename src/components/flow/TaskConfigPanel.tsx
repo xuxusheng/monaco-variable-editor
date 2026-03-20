@@ -1,6 +1,5 @@
 import { useEffect, useCallback } from "react"
 import Editor from "@monaco-editor/react"
-import type { OnMount } from "@monaco-editor/react"
 import type * as Monaco from "monaco-editor"
 import type { KestraInput } from "@/types/kestra"
 
@@ -37,18 +36,15 @@ export function TaskConfigPanel({
     [nodeId, label, onUpdate],
   )
 
-  const handleMount: OnMount = useCallback(
-    (editor, monaco) => {
-      // Register completion provider for input references
+  const handleMount = useCallback(
+    (_editor: Monaco.editor.IStandaloneCodeEditor, monaco: typeof Monaco) => {
       monaco.languages.registerCompletionItemProvider("yaml", {
         triggerCharacters: ["{", '"'],
         provideCompletionItems(model, position) {
           const lineContent = model.getLineContent(position.lineNumber)
           const textBefore = lineContent.substring(0, position.column - 1)
 
-          // Check if we're in a context where input reference makes sense
           if (!textBefore.includes("{{")) {
-            // Offer to insert {{ inputs.xxx }}
             const range = {
               startLineNumber: position.lineNumber,
               startColumn: position.column,
@@ -72,7 +68,6 @@ export function TaskConfigPanel({
             return { suggestions }
           }
 
-          // User already typed {{, offer completions
           const suggestions: Monaco.languages.CompletionItem[] = inputs.map(
             (input) => ({
               label: `inputs.${input.id}`,
@@ -96,7 +91,6 @@ export function TaskConfigPanel({
     [inputs],
   )
 
-  // Inject panel styles
   useEffect(() => {
     const id = "task-config-panel-styles"
     if (document.getElementById(id)) return
@@ -114,7 +108,6 @@ export function TaskConfigPanel({
 
   return (
     <div className="panel-enter fixed top-0 right-0 h-screen w-[480px] bg-card border-l border-border shadow-xl z-50 flex flex-col">
-      {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-border">
         <div className="flex items-center gap-2">
           <span className="text-lg">⚙️</span>
@@ -128,13 +121,9 @@ export function TaskConfigPanel({
         </button>
       </div>
 
-      {/* Content */}
       <div className="flex-1 overflow-y-auto p-5 space-y-5">
-        {/* Node ID / Label */}
         <div>
-          <label className="text-sm font-medium text-foreground block mb-1.5">
-            任务名称
-          </label>
+          <label className="text-sm font-medium text-foreground block mb-1.5">任务名称</label>
           <input
             type="text"
             value={label}
@@ -144,18 +133,12 @@ export function TaskConfigPanel({
           />
         </div>
 
-        {/* Available inputs hint */}
         {inputs.length > 0 && (
           <div className="bg-muted/50 rounded-md p-3">
-            <p className="text-xs font-medium text-muted-foreground mb-1.5">
-              可引用的全局输入参数：
-            </p>
+            <p className="text-xs font-medium text-muted-foreground mb-1.5">可引用的全局输入参数：</p>
             <div className="flex flex-wrap gap-1.5">
               {inputs.map((input) => (
-                <span
-                  key={input.id}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 text-xs font-mono"
-                >
+                <span key={input.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 text-xs font-mono">
                   {`{{ inputs.${input.id} }}`}
                 </span>
               ))}
@@ -163,11 +146,8 @@ export function TaskConfigPanel({
           </div>
         )}
 
-        {/* YAML Editor */}
         <div>
-          <label className="text-sm font-medium text-foreground block mb-1.5">
-            任务 YAML 配置
-          </label>
+          <label className="text-sm font-medium text-foreground block mb-1.5">任务 YAML 配置</label>
           <div className="rounded-md border border-input overflow-hidden">
             <Editor
               height="400px"
@@ -185,16 +165,12 @@ export function TaskConfigPanel({
                 wordWrap: "on",
                 automaticLayout: true,
                 tabSize: 2,
-                suggest: {
-                  showIcons: true,
-                  preview: true,
-                },
+                suggest: { showIcons: true, preview: true },
               }}
             />
           </div>
           <p className="text-xs text-muted-foreground mt-1.5">
-            输入 <code className="bg-muted px-1 rounded font-mono">{`{{`}</code>{" "}
-            触发输入参数补全
+            输入 <code className="bg-muted px-1 rounded font-mono">{`{{`}</code> 触发输入参数补全
           </p>
         </div>
       </div>

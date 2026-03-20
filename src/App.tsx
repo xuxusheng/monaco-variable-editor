@@ -21,41 +21,32 @@ const INITIAL_VALUE = [
   "",
 ].join("\n")
 
-type Tab = "monaco" | "workflow"
-
 export default function App() {
-  const [tab, setTab] = useState<Tab>("workflow")
+  const [tab, setTab] = useState<"monaco" | "workflow">("workflow")
   const [value, setValue] = useState(INITIAL_VALUE)
   const allVariables = getAllVariables(defaultVariableGroups)
   const parsed = parseVariables(value)
 
+  const tabBtn = (id: "monaco" | "workflow", label: string) => (
+    <button
+      onClick={() => setTab(id)}
+      className={cn(
+        "px-3 py-1 rounded-md text-xs font-medium transition-colors",
+        tab === id
+          ? "bg-background text-foreground shadow-sm"
+          : "text-muted-foreground hover:text-foreground",
+      )}
+    >
+      {label}
+    </button>
+  )
+
   if (tab === "workflow") {
     return (
       <div className="h-screen flex flex-col">
-        {/* Tab bar */}
         <div className="h-10 bg-muted/50 border-b border-border flex items-center px-4 gap-1 shrink-0">
-          <button
-            onClick={() => setTab("monaco")}
-            className={cn(
-              "px-3 py-1 rounded-md text-xs font-medium transition-colors",
-              tab === "monaco"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            📝 变量编辑器
-          </button>
-          <button
-            onClick={() => setTab("workflow")}
-            className={cn(
-              "px-3 py-1 rounded-md text-xs font-medium transition-colors",
-              tab === "workflow"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            🔧 工作流编排
-          </button>
+          {tabBtn("monaco", "📝 变量编辑器")}
+          {tabBtn("workflow", "🔧 工作流编排")}
         </div>
         <div className="flex-1 overflow-hidden">
           <WorkflowEditorPage />
@@ -66,67 +57,33 @@ export default function App() {
 
   return (
     <div className="h-screen flex flex-col">
-      {/* Tab bar */}
       <div className="h-10 bg-muted/50 border-b border-border flex items-center px-4 gap-1 shrink-0">
-        <button
-          onClick={() => setTab("monaco")}
-          className={cn(
-            "px-3 py-1 rounded-md text-xs font-medium transition-colors",
-            tab === "monaco"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          📝 变量编辑器
-        </button>
-        <button
-          onClick={() => setTab("workflow")}
-          className={cn(
-            "px-3 py-1 rounded-md text-xs font-medium transition-colors",
-            tab === "workflow"
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          🔧 工作流编排
-        </button>
+        {tabBtn("monaco", "📝 变量编辑器")}
+        {tabBtn("workflow", "🔧 工作流编排")}
       </div>
 
       <div className="flex-1 overflow-auto">
         <div className="max-w-6xl mx-auto px-6 py-8">
-          {/* Header */}
           <div className="mb-8">
-            <h1 className="text-2xl font-bold tracking-tight">
-              Monaco 变量编辑器
-            </h1>
+            <h1 className="text-2xl font-bold tracking-tight">Monaco 变量编辑器</h1>
             <p className="text-muted-foreground mt-1 text-sm">
               React 19 + Vite 8 + Tailwind CSS v4 + shadcn/ui · 输入{" "}
-              <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">
-                {DOUBLE_BRACE}
-              </code>{" "}
+              <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">{DOUBLE_BRACE}</code>{" "}
               触发变量补全
             </p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
-            {/* Editor */}
             <div>
-              <MonacoVariableEditor
-                value={value}
-                onChange={setValue}
-                height="480px"
-              />
+              <MonacoVariableEditor value={value} onChange={setValue} height="480px" />
             </div>
 
-            {/* Sidebar */}
             <div className="flex flex-col gap-4">
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm font-medium flex items-center gap-2">
                     🔍 解析到的变量
-                    <Badge variant="secondary" className="text-xs">
-                      {parsed.length}
-                    </Badge>
+                    <Badge variant="secondary" className="text-xs">{parsed.length}</Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>

@@ -9,7 +9,7 @@ export interface TaskNodeData {
 }
 
 export const TaskNode = memo(({ data, selected }: NodeProps) => {
-  const d = data as TaskNodeData
+  const d = data as unknown as TaskNodeData
 
   return (
     <div
