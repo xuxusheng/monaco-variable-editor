@@ -7,8 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "copy-monaco": "bash scripts/copy-monaco.sh"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",

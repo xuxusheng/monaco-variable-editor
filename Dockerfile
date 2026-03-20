@@ -10,10 +10,8 @@ RUN npm run build
 FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# 删除默认配置
 RUN rm -f /etc/nginx/conf.d/default.conf
 
-# Gzip 配置
 RUN cat > /etc/nginx/conf.d/gzip.conf << 'EOF'
 gzip on;
 gzip_vary on;
@@ -31,7 +29,6 @@ gzip_types
     font/woff2;
 EOF
 
-# 站点配置
 RUN cat > /etc/nginx/conf.d/app.conf << 'EOF'
 server {
     listen 80;
@@ -49,15 +46,6 @@ server {
     location /assets/ {
         expires 1y;
         add_header Cache-Control "public, immutable";
-    }
-    location /monaco-editor/ {
-        expires 30d;
-        add_header Cache-Control "public";
-    }
-    location ~* \.worker\.js$ {
-        add_header Content-Type "application/javascript";
-        add_header Cross-Origin-Opener-Policy "same-origin";
-        add_header Cross-Origin-Embedder-Policy "require-corp";
     }
 }
 EOF
