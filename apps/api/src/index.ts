@@ -1,4 +1,5 @@
 import { serve } from "@hono/node-server"
+import { serveStatic } from "@hono/node-server/serve-static"
 import { Hono } from "hono"
 import { cors } from "hono/cors"
 import { logger } from "hono/logger"
@@ -10,7 +11,7 @@ const app = new Hono()
 
 // Middleware
 app.use(logger())
-app.use("/*", cors())
+app.use("/api/*", cors())
 
 // tRPC endpoint
 app.all("/api/trpc/*", (c) => {
@@ -25,24 +26,31 @@ app.all("/api/trpc/*", (c) => {
 // Health check
 app.get("/health", (c) => c.json({ status: "ok" }))
 
+// Serve frontend static assets (hashed filenames, never collide with API)
+app.use(
+  "/assets/*",
+  serveStatic({ root: "../web/dist/", rewriteRequestPath: (p) => p }),
+)
+
+// SPA fallback: serve index.html for all other non-API routes
+app.get(
+  "*",
+  serveStatic({ root: "../web/dist/", rewriteRequestPath: () => "/index.html" }),
+)
+
 // Global error handler
 app.onError((err, c) => {
   console.error("Unhandled error:", err)
   return c.json(
-    {
-      error: err.message ?? "Internal Server Error",
-    },
-    err instanceof Error && "status" in err ? (err as any).status : 500,
+    { error: err.message ?? "Internal Server Error" },
+    500,
   )
 })
-
-// 404
-app.notFound((c) => c.json({ error: "Not Found" }, 404))
 
 const port = Number(process.env.PORT) || 3001
 
 const server = serve({ fetch: app.fetch, port }, (info) => {
-  console.log(`🚀 API server running on http://localhost:${info.port}`)
+  console.log(`🚀 Server running on http://localhost:${info.port}`)
 })
 
 // Graceful shutdown
