@@ -17,19 +17,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@v1
         with:
-          version: 9
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
+          node-version: '22'
+          cache: true
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: vp install
+
+      - name: Build
+        run: vp run -r build
 
       - name: 设置 QEMU
         uses: docker/setup-qemu-action@v3
@@ -50,17 +48,31 @@ jobs:
           SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
           echo "tag=${SHORT_SHA}" >> $GITHUB_OUTPUT
 
-      - name: 构建并推送镜像
+      - name: 构建并推送前端镜像
         uses: docker/build-push-action@v6
         with:
           context: .
+          target: web
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
           push: true
           tags: |
-            ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}
-            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}-web:${{ steps.version.outputs.tag }}
+            ${{ env.IMAGE_NAME }}-web:latest
+
+      - name: 构建并推送后端镜像
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: api
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}-api:${{ steps.version.outputs.tag }}
+            ${{ env.IMAGE_NAME }}-api:latest
 
       - name: 准备 Kustomize 环境
         uses: imranismail/setup-kustomize@v2
@@ -75,7 +87,8 @@ jobs:
       - name: 修改镜像版本号
         run: |
           cd gitops/app/$PROJECT_NAME/dev
-          kustomize edit set image ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}
+          kustomize edit set image ${{ env.IMAGE_NAME }}-web:${{ steps.version.outputs.tag }}
+          kustomize edit set image ${{ env.IMAGE_NAME }}-api:${{ steps.version.outputs.tag }}
 
       - name: 提交并推送代码
         uses: stefanzweifel/git-auto-commit-action@v5

@@ -22,6 +22,8 @@ import type { KestraInput } from "@/types/kestra"
 import type { TaskNodeData } from "@/components/flow/TaskNode"
 import { validateTaskConfig } from "@/lib/yamlValidation"
 import { getLayoutedElements } from "@/lib/autoLayout"
+import { trpcClient } from "@/lib/trpc"
+import type { ApiTaskNode, ApiEdge, ApiInput } from "@/types/api"
 
 // Auto-fit the view on mount and window resize
 function FitViewOnMount() {
@@ -263,13 +265,105 @@ export default function WorkflowEditorPage() {
     setNodes((nds) => nds.concat(newNode))
   }, [selectedNodeId, nodes, setNodes, pushHistory])
 
-  const handleSave = useCallback(() => {
-    const blob = new Blob([JSON.stringify({ meta: workflowMeta, inputs, nodes: sortedNodes.map((n) => ({ id: n.id, position: n.position, data: getTaskData(n) })), edges: (edges as Edge[]).map((e) => ({ source: e.source, target: e.target })) }, null, 2)], { type: "application/json" })
-    const a = document.createElement("a")
-    a.href = URL.createObjectURL(blob)
-    a.download = `${workflowMeta.id}.json`
-    a.click()
-  }, [workflowMeta, inputs, sortedNodes, edges])
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
+  const [savedWorkflowId, setSavedWorkflowId] = useState<string | null>(null)
+
+  const handleSaveToApi = useCallback(async () => {
+    setSaveStatus("saving")
+    try {
+      const apiNodes: ApiTaskNode[] = sortedNodes.map((n) => {
+        const d = getTaskData(n)
+        return { id: n.id, label: d.label, taskConfig: d.taskConfig }
+      })
+      const apiEdges: ApiEdge[] = (edges as Edge[]).map((e) => ({ source: e.source, target: e.target }))
+      const apiInputs: ApiInput[] = inputs.map((i) => ({
+        id: i.id,
+        type: i.type,
+        defaults: i.defaults,
+        description: i.description,
+        required: i.required,
+      }))
+
+      if (savedWorkflowId) {
+        await trpcClient.workflow.update({
+          id: savedWorkflowId,
+          name: workflowMeta.id,
+          namespace: workflowMeta.namespace,
+          description: workflowMeta.description,
+          nodes: apiNodes,
+          edges: apiEdges,
+          inputs: apiInputs,
+        })
+      } else {
+        const result = await trpcClient.workflow.create({
+          name: workflowMeta.id,
+          namespace: workflowMeta.namespace,
+          description: workflowMeta.description,
+          nodes: apiNodes,
+          edges: apiEdges,
+          inputs: apiInputs,
+        })
+        setSavedWorkflowId(result.id)
+      }
+      setSaveStatus("saved")
+      setTimeout(() => setSaveStatus("idle"), 2000)
+    } catch (e) {
+      console.error("Save failed:", e)
+      setSaveStatus("error")
+      setTimeout(() => setSaveStatus("idle"), 3000)
+    }
+  }, [sortedNodes, edges, inputs, workflowMeta, savedWorkflowId])
+
+  const handleLoadFromApi = useCallback(async () => {
+    try {
+      const workflows = await trpcClient.workflow.list()
+      if (workflows.length === 0) {
+        alert("API 上暂无已保存的工作流")
+        return
+      }
+      // Simple: load the most recently updated one
+      const latest = workflows[0]
+      const full = await trpcClient.workflow.get(latest.id)
+      if (!full) return
+
+      setSavedWorkflowId(full.id)
+      setWorkflowMeta({ id: full.name, namespace: full.namespace, description: full.description ?? "" })
+
+      // Restore inputs
+      const restoredInputs: KestraInput[] = (full.inputs as ApiInput[]).map((i) => ({
+        id: i.id,
+        type: i.type,
+        defaults: i.defaults,
+        description: i.description,
+        required: i.required,
+      }))
+      setInputs(restoredInputs)
+
+      // Restore nodes
+      const restoredNodes: Node[] = (full.nodes as ApiTaskNode[]).map((n, idx) => ({
+        id: n.id,
+        type: "taskNode",
+        position: n.position ?? { x: 150, y: idx * 150 + 50 },
+        data: { label: n.label, taskConfig: n.taskConfig },
+      }))
+      setNodes(restoredNodes)
+
+      // Restore edges
+      const restoredEdges: Edge[] = (full.edges as ApiEdge[]).map((e, idx) => ({
+        id: `e-${idx}`,
+        source: e.source,
+        target: e.target,
+        animated: true,
+        style: { stroke: "#818cf8" },
+      }))
+      setEdges(restoredEdges)
+
+      setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 100)
+    } catch (e) {
+      console.error("Load failed:", e)
+      alert("从 API 加载失败，请确认后端已启动")
+    }
+  }, [setNodes, setEdges, fitView])
 
   const selectedNode = nodes.find((n) => n.id === selectedNodeId)
 
@@ -305,7 +399,21 @@ export default function WorkflowEditorPage() {
           <input type="text" value={workflowMeta.namespace} onChange={(e) => setWorkflowMeta({ ...workflowMeta, namespace: e.target.value })} className="px-2 py-1 rounded border border-input bg-background text-sm font-mono w-40 focus:outline-none focus:ring-2 focus:ring-ring" />
         </div>
         <div className="flex items-center gap-2 ml-auto">
-          <button onClick={handleSave} className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors">💾 保存</button>
+          <button onClick={handleLoadFromApi} className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors">📂 加载</button>
+          <button
+            onClick={handleSaveToApi}
+            className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${
+              saveStatus === "saving" ? "bg-yellow-100 text-yellow-700" :
+              saveStatus === "saved" ? "bg-green-100 text-green-700" :
+              saveStatus === "error" ? "bg-red-100 text-red-700" :
+              "bg-indigo-500 text-white hover:bg-indigo-600"
+            }`}
+          >
+            {saveStatus === "saving" ? "⏳ 保存中..." :
+             saveStatus === "saved" ? "✅ 已保存" :
+             saveStatus === "error" ? "❌ 失败" :
+             "💾 保存到 API"}
+          </button>
         </div>
       </div>
 
