@@ -1,11 +1,10 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
 
-# Install pnpm
-RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
+RUN corepack enable && corepack prepare pnpm@9 --activate
 
-# Copy workspace config first for better caching
-COPY pnpm-workspace.yaml pnpm-lock.yaml turbo.json package.json ./
+# Copy workspace config for dependency caching
+COPY pnpm-workspace.yaml turbo.json package.json pnpm-lock.yaml ./
 COPY apps/web/package.json ./apps/web/
 COPY apps/api/package.json ./apps/api/
 
@@ -14,16 +13,8 @@ RUN pnpm install --frozen-lockfile
 # Copy source
 COPY . .
 
-# Build
+# Build all packages
 RUN pnpm build
-
-FROM node:22-alpine AS api
-WORKDIR /app
-COPY --from=builder /app/apps/api/dist ./dist
-COPY --from=builder /app/apps/api/package.json ./
-RUN corepack enable && corepack prepare pnpm@9.15.4 --activate && pnpm install --prod
-EXPOSE 3001
-CMD ["node", "dist/index.js"]
 
 FROM nginx:alpine AS web
 COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
@@ -55,10 +46,6 @@ server {
     location /assets/ {
         expires 1y;
         add_header Cache-Control "public, immutable";
-    }
-    location /api/ {
-        proxy_pass http://localhost:3001;
-        proxy_set_header Host $host;
     }
 }
 EOF
