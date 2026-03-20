@@ -2,6 +2,7 @@ import { useEffect, useCallback } from "react"
 import Editor from "@monaco-editor/react"
 import type * as Monaco from "monaco-editor"
 import type { KestraInput } from "@/types/kestra"
+import { setupYamlValidation } from "@/lib/yamlValidation"
 
 interface TaskConfigPanelProps {
   nodeId: string
@@ -37,11 +38,15 @@ export function TaskConfigPanel({
   )
 
   const handleMount = useCallback(
-    (_editor: Monaco.editor.IStandaloneCodeEditor, monaco: typeof Monaco) => {
+    (editor: Monaco.editor.IStandaloneCodeEditor, monaco: typeof Monaco) => {
+      const model = editor.getModel()
+      if (!model) return
+
+      // 1. Input parameter completion
       monaco.languages.registerCompletionItemProvider("yaml", {
         triggerCharacters: ["{", '"'],
-        provideCompletionItems(model, position) {
-          const lineContent = model.getLineContent(position.lineNumber)
+        provideCompletionItems(m, position) {
+          const lineContent = m.getLineContent(position.lineNumber)
           const textBefore = lineContent.substring(0, position.column - 1)
 
           if (!textBefore.includes("{{")) {
@@ -51,9 +56,8 @@ export function TaskConfigPanel({
               endLineNumber: position.lineNumber,
               endColumn: position.column,
             }
-
-            const suggestions: Monaco.languages.CompletionItem[] = inputs.map(
-              (input) => ({
+            return {
+              suggestions: inputs.map((input) => ({
                 label: `{{ inputs.${input.id} }}`,
                 kind: monaco.languages.CompletionItemKind.Variable,
                 insertText: `{{ inputs.${input.id} }}`,
@@ -62,14 +66,12 @@ export function TaskConfigPanel({
                 range,
                 sortText: input.id,
                 filterText: `${input.id} inputs ${input.description || ""}`,
-              }),
-            )
-
-            return { suggestions }
+              })),
+            }
           }
 
-          const suggestions: Monaco.languages.CompletionItem[] = inputs.map(
-            (input) => ({
+          return {
+            suggestions: inputs.map((input) => ({
               label: `inputs.${input.id}`,
               kind: monaco.languages.CompletionItemKind.Variable,
               insertText: `inputs.${input.id} }}`,
@@ -81,12 +83,13 @@ export function TaskConfigPanel({
                 endLineNumber: position.lineNumber,
                 endColumn: position.column,
               },
-            }),
-          )
-
-          return { suggestions }
+            })),
+          }
         },
       })
+
+      // 2. YAML validation (schema + business)
+      setupYamlValidation(monaco, model, inputs)
     },
     [inputs],
   )
@@ -170,7 +173,7 @@ export function TaskConfigPanel({
             />
           </div>
           <p className="text-xs text-muted-foreground mt-1.5">
-            输入 <code className="bg-muted px-1 rounded font-mono">{`{{`}</code> 触发输入参数补全
+            输入 <code className="bg-muted px-1 rounded font-mono">{`{{`}</code> 触发输入参数补全 · 编辑器会自动校验 YAML 结构和业务规则
           </p>
         </div>
       </div>

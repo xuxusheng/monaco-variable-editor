@@ -32,10 +32,45 @@ const INITIAL_NODES: Node[] = [
     type: "taskNode",
     position: { x: 150, y: 50 },
     data: {
-      label: "示例任务",
-      taskConfig: `id: example-task
+      label: "打印日志",
+      taskConfig: `id: print-log
 type: io.kestra.plugin.core.log.Log
 message: "环境: {{ inputs.env }}, 版本: {{ inputs.version }}"`,
+    },
+  },
+  {
+    id: "task_2",
+    type: "taskNode",
+    position: { x: 150, y: 200 },
+    data: {
+      label: "HTTP 请求",
+      taskConfig: `id: api-call
+type: io.kestra.plugin.core.http.Request
+uri: "https://api.example.com/data"
+method: GET
+timeout: PT30S`,
+    },
+  },
+  {
+    id: "task_3",
+    type: "taskNode",
+    position: { x: 150, y: 350 },
+    data: {
+      label: "引用不存在的参数",
+      taskConfig: `id: bad-ref
+type: io.kestra.plugin.core.log.Log
+message: "用户: {{ inputs.nonExistentParam }}"`,
+    },
+  },
+  {
+    id: "task_4",
+    type: "taskNode",
+    position: { x: 150, y: 500 },
+    data: {
+      label: "缺少必填字段",
+      taskConfig: `id: ""
+type: ""
+message: "这个任务缺少 id 和 type"`,
     },
   },
 ]
@@ -43,6 +78,7 @@ message: "环境: {{ inputs.env }}, 版本: {{ inputs.version }}"`,
 const INITIAL_INPUTS: KestraInput[] = [
   { id: "env", type: "STRING", defaults: "dev", description: "运行环境" },
   { id: "version", type: "STRING", defaults: "1.0.0", description: "版本号" },
+  { id: "apiKey", type: "STRING", description: "API 密钥", required: true },
 ]
 
 function getTaskData(node: Node) {
@@ -52,7 +88,11 @@ function getTaskData(node: Node) {
 export default function WorkflowEditorPage() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null)
   const [nodes, setNodes, onNodesChange] = useNodesState(INITIAL_NODES)
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([
+    { id: "e1-2", source: "task_1", target: "task_2", animated: true, style: { stroke: "#818cf8" } },
+    { id: "e2-3", source: "task_2", target: "task_3", animated: true, style: { stroke: "#818cf8" } },
+    { id: "e3-4", source: "task_3", target: "task_4", animated: true, style: { stroke: "#818cf8" } },
+  ])
   const [rightPanel, setRightPanel] = useState<RightPanel>("none")
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [inputs, setInputs] = useState<KestraInput[]>(INITIAL_INPUTS)
