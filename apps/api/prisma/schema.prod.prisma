@@ -1,0 +1,47 @@
+// 生产环境 Prisma Schema（PostgreSQL）
+// 开发用 prisma/schema.prisma（SQLite）
+// Docker 构建时会将此文件复制为 schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Namespace {
+  id              String   @id @default(cuid())
+  name            String
+  kestraNamespace String
+  description     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  workflows Workflow[]
+
+  @@map("namespaces")
+}
+
+model Workflow {
+  id               String   @id @default(cuid())
+  name             String
+  flowId           String
+  namespaceId      String
+  description      String?
+  nodes            Json     @default("[]")
+  edges            Json     @default("[]")
+  inputs           Json     @default("[]")
+  variables        Json     @default("[]")
+  disabled         Boolean  @default(false)
+  publishedVersion Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  namespace Namespace @relation(fields: [namespaceId], references: [id])
+
+  @@unique([namespaceId, flowId])
+  @@map("workflows")
+}
