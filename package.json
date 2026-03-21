@@ -3,8 +3,8 @@
   "private": true,
   "scripts": {
     "dev": "vp run -r dev",
-    "dev:web": "vp run -F @monaco-editor/web dev",
-    "dev:api": "vp run -F @monaco-editor/api dev",
+    "dev:web": "vp run -F @weave/web dev",
+    "dev:api": "vp run -F @weave/api dev",
     "build": "vp run -r build",
     "lint": "vp run -r lint",
     "start": "vp run -r start"
