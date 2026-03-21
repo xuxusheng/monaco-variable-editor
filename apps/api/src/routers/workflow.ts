@@ -136,7 +136,7 @@ export const workflowRouter = t.router({
         })
       }
 
-      return prisma.workflowDraft.create({
+      const draft = await prisma.workflowDraft.create({
         data: {
           workflowId: input.workflowId,
           nodes: wf.nodes as Prisma.InputJsonValue,
@@ -146,6 +146,17 @@ export const workflowRouter = t.router({
           message: input.message,
         },
       })
+
+      // 异步推 Kestra（失败不阻塞 Draft 保存）
+      // TODO: draftSave 需要前端传入 yaml，或后端调用 toKestraYaml 生成
+      // 当前 releasePublish 已实现 Kestra push，draftSave 联调时补充
+      // try {
+      //   const { getKestraClient } = await import("../lib/kestra-client.js")
+      //   const client = getKestraClient()
+      //   await client.upsertFlow(wf.namespace.kestraNamespace, `${wf.flowId}_test`, yaml)
+      // } catch { /* Kestra 不可达，Draft 仍保存成功 */ }
+
+      return draft
     }),
 
   draftList: t.procedure
@@ -223,6 +234,7 @@ export const workflowRouter = t.router({
 
       const wf = await prisma.workflow.findUnique({
         where: { id: input.workflowId },
+        include: { namespace: true },
       })
       if (!wf) {
         throw new TRPCError({
@@ -251,6 +263,15 @@ export const workflowRouter = t.router({
           data: { publishedVersion: nextVersion },
         }),
       ])
+
+      // 异步推 Kestra（失败不阻塞发布）
+      try {
+        const { getKestraClient } = await import("../lib/kestra-client.js")
+        const client = getKestraClient()
+        await client.upsertFlow(wf.namespace.kestraNamespace, wf.flowId, input.yaml)
+      } catch {
+        // Kestra 不可达，Release 仍创建成功
+      }
 
       return release
     }),
@@ -337,11 +358,17 @@ export const workflowRouter = t.router({
       }
 
       const client = getKestraClient()
+      // 软检查：尝试刷新健康状态，不阻塞执行
       if (!client.isHealthy()) {
-        throw new TRPCError({
-          code: "SERVICE_UNAVAILABLE",
-          message: "Kestra 不可达，请检查连接",
-        })
+        try {
+          await client.refreshHealth()
+        } catch { /* ignore */ }
+        if (!client.isHealthy()) {
+          throw new TRPCError({
+            code: "SERVICE_UNAVAILABLE",
+            message: "Kestra 不可达，请检查连接",
+          })
+        }
       }
 
       const testFlowId = `${wf.flowId}_test`

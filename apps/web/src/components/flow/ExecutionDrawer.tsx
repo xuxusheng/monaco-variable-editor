@@ -247,7 +247,7 @@ function LogsTab({ kestraExecId }: { kestraExecId: string }) {
       </div>
       <div className="flex-1 overflow-y-auto font-mono text-xs space-y-0.5">
         {logs.map((log, i) => (
-          <div key={i} className={`flex gap-2 ${levelColor(log.level)}`}>
+          <div key={`${log.timestamp}-${log.level}-${i}`} className={`flex gap-2 ${levelColor(log.level)}`}>
             <span className="text-muted-foreground shrink-0">{log.timestamp?.slice(11, 19) ?? ""}</span>
             <span className="shrink-0 w-10">[{log.level}]</span>
             <span className="break-all">{log.message}</span>

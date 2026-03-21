@@ -103,10 +103,10 @@ export class KestraClient {
   // ─── Flow ───
 
   async upsertFlow(namespace: string, flowId: string, yaml: string): Promise<KestraFlow> {
+    // Kestra PUT API: body 只需要 id + namespace + source
     return this.request("PUT", `/api/v1/flows/${namespace}/${flowId}`, {
       id: flowId,
       namespace,
-      tasks: [],
       source: yaml,
     })
   }

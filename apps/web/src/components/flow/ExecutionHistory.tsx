@@ -104,7 +104,7 @@ function GroupSection({ title, items, onSelect }: {
           >
             <span className="text-sm">{STATE_ICONS[item.state] ?? "❓"}</span>
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-medium truncate">{item.id.slice(0, 8)}</div>
+              <div className="text-xs font-medium truncate">{item.id.slice(0, 12)}</div>
               <div className="text-xs text-muted-foreground">
                 {formatTime(item.createdAt)}
               </div>

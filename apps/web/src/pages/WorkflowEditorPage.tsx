@@ -1,8 +1,23 @@
 import { useCallback, useRef, useMemo, useEffect, memo, useState } from "react"
-import type { TaskRun } from "@/stores/workflow"
+import type { TaskRun, ExecutionSummary } from "@/stores/workflow"
 
 function isTerminalState(state: string): boolean {
   return ["SUCCESS", "WARNING", "FAILED", "KILLED", "CANCELLED", "RETRIED"].includes(state)
+}
+
+/** 将 API 返回的执行记录转为 store 格式 */
+function toExecutionSummary(result: {
+  id: string; kestraExecId: string; state: string; taskRuns: unknown;
+  triggeredBy: string; createdAt: Date | string;
+}): ExecutionSummary {
+  return {
+    id: result.id,
+    kestraExecId: result.kestraExecId,
+    state: result.state,
+    taskRuns: (result.taskRuns ?? []) as unknown as TaskRun[],
+    triggeredBy: result.triggeredBy,
+    createdAt: result.createdAt instanceof Date ? result.createdAt.toISOString() : String(result.createdAt),
+  }
 }
 import { nameToSlug } from "@/lib/slug"
 import {
@@ -746,16 +761,7 @@ export default function WorkflowEditorPage() {
           executionId: currentExecution.id,
         })
         if (result) {
-          setCurrentExecution({
-            id: result.id,
-            kestraExecId: result.kestraExecId,
-            state: result.state,
-            taskRuns: (result.taskRuns ?? []) as unknown as TaskRun[],
-            triggeredBy: result.triggeredBy,
-            createdAt: result.createdAt instanceof Date
-              ? result.createdAt.toISOString()
-              : String(result.createdAt),
-          })
+          setCurrentExecution(toExecutionSummary(result))
           if (isTerminalState(result.state)) {
             setIsExecuting(false)
             if (result.state === "SUCCESS") {
@@ -774,16 +780,7 @@ export default function WorkflowEditorPage() {
   const executeTest = trpc.workflow.executeTest.useMutation({
     onSuccess: (result) => {
       setIsExecuting(true)
-      setCurrentExecution({
-        id: result.id,
-        kestraExecId: result.kestraExecId,
-        state: result.state,
-        taskRuns: (result.taskRuns ?? []) as unknown as TaskRun[],
-        triggeredBy: result.triggeredBy,
-        createdAt: result.createdAt instanceof Date
-          ? result.createdAt.toISOString()
-          : String(result.createdAt),
-      })
+      setCurrentExecution(toExecutionSummary(result))
       toast.success("测试执行已触发")
       setShowInputForm(false)
     },
@@ -793,16 +790,7 @@ export default function WorkflowEditorPage() {
   const executionReplay = trpc.workflow.executionReplay.useMutation({
     onSuccess: (result) => {
       setIsExecuting(true)
-      setCurrentExecution({
-        id: result.id,
-        kestraExecId: result.kestraExecId,
-        state: result.state,
-        taskRuns: (result.taskRuns ?? []) as unknown as TaskRun[],
-        triggeredBy: result.triggeredBy,
-        createdAt: result.createdAt instanceof Date
-          ? result.createdAt.toISOString()
-          : String(result.createdAt),
-      })
+      setCurrentExecution(toExecutionSummary(result))
       toast.success("Replay 已触发")
     },
     onError: (err) => toast.error(`Replay 失败: ${err.message}`),

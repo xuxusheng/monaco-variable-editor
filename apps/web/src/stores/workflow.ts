@@ -171,7 +171,24 @@ export const useWorkflowStore = create<WorkflowState>()(
           node.ui.collapsed = !node.ui.collapsed
         }),
       setIsExecuting: (v) => set({ isExecuting: v }),
-      setCurrentExecution: (exec) => set({ currentExecution: exec }),
+      setCurrentExecution: (exec) =>
+        set((state) => {
+          // 避免无变化时触发重渲染
+          const prev = state.currentExecution
+          if (prev && exec && prev.id === exec.id && prev.state === exec.state) {
+            // 比较 taskRuns 逐项状态
+            const prevMap = new Map(prev.taskRuns.map((tr) => [tr.taskId, tr.state]))
+            const nextMap = new Map(exec.taskRuns.map((tr) => [tr.taskId, tr.state]))
+            let changed = prevMap.size !== nextMap.size
+            if (!changed) {
+              for (const [taskId, st] of nextMap) {
+                if (prevMap.get(taskId) !== st) { changed = true; break }
+              }
+            }
+            if (!changed) return
+          }
+          state.currentExecution = exec
+        }),
       setKestraHealthy: (v) => set({ kestraHealthy: v }),
     })),
     {
