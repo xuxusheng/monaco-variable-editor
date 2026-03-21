@@ -41,10 +41,11 @@ COPY docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
 
 # Copy built frontend (served by Hono)
-COPY --from=builder /app/apps/web/dist ../web/dist
+COPY --from=builder /app/apps/web/dist /web/dist
 
 ENV NODE_ENV=production
 ENV PORT=3001
+ENV STATIC_ROOT=/web/dist/
 EXPOSE 3001
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s \
