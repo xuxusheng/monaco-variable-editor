@@ -65,6 +65,7 @@ import { PublishDialog } from "@/components/flow/PublishDialog"
 import { ExecutionDrawer } from "@/components/flow/ExecutionDrawer"
 import { ExecutionHistory } from "@/components/flow/ExecutionHistory"
 import { ProductionExecHistory } from "@/components/flow/ProductionExecHistory"
+import { NamespaceSettings } from "@/components/flow/NamespaceSettings"
 import { InputValuesForm } from "@/components/flow/InputValuesForm"
 import { ContextMenu as NodeContextMenu } from "@/components/flow/ContextMenu"
 import { getLayoutedElements } from "@/lib/autoLayout"
@@ -74,7 +75,7 @@ import {
   Wrench, Save, Download, FileText, LayoutDashboard,
   ClipboardList, Package, Rocket, Play, Zap,
   History, Copy, FolderOpen, ScrollText, Undo2, Redo2, Trash2,
-  CheckCircle, XCircle, Globe,
+  CheckCircle, XCircle, Globe, Settings,
 } from "lucide-react"
 import { trpc } from "@/lib/trpc"
 import { toast } from "sonner"
@@ -1059,6 +1060,14 @@ export default function WorkflowEditorPage() {
             <Zap className="w-3.5 h-3.5" /> 触发器 ({triggers.length})
           </button>
 
+          <button
+            onClick={() => setRightPanel("settings")}
+            title="命名空间设置"
+            className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors flex items-center gap-1"
+          >
+            <Settings className="w-3.5 h-3.5" /> 设置
+          </button>
+
           <div className="w-px h-5 bg-border" />
 
           <button
@@ -1325,6 +1334,14 @@ export default function WorkflowEditorPage() {
       {rightPanel === "production-executions" && savedWorkflowId && (
         <ProductionExecHistory
           workflowId={savedWorkflowId}
+          onClose={() => setRightPanel("none")}
+        />
+      )}
+
+      {rightPanel === "settings" && (
+        <NamespaceSettings
+          namespaceId={workflowMeta.namespace}
+          namespaceName={workflowMeta.namespace}
           onClose={() => setRightPanel("none")}
         />
       )}

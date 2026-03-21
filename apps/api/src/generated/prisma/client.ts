@@ -76,3 +76,13 @@ export type WorkflowExecution = Prisma.WorkflowExecutionModel
  * 
  */
 export type WorkflowTrigger = Prisma.WorkflowTriggerModel
+/**
+ * Model Variable
+ * 
+ */
+export type Variable = Prisma.VariableModel
+/**
+ * Model Secret
+ * 
+ */
+export type Secret = Prisma.SecretModel

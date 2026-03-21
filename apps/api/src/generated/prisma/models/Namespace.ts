@@ -191,6 +191,8 @@ export type NamespaceWhereInput = {
   createdAt?: Prisma.DateTimeFilter<"Namespace"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Namespace"> | Date | string
   workflows?: Prisma.WorkflowListRelationFilter
+  variables?: Prisma.VariableListRelationFilter
+  secrets?: Prisma.SecretListRelationFilter
 }
 
 export type NamespaceOrderByWithRelationInput = {
@@ -201,6 +203,8 @@ export type NamespaceOrderByWithRelationInput = {
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   workflows?: Prisma.WorkflowOrderByRelationAggregateInput
+  variables?: Prisma.VariableOrderByRelationAggregateInput
+  secrets?: Prisma.SecretOrderByRelationAggregateInput
 }
 
 export type NamespaceWhereUniqueInput = Prisma.AtLeast<{
@@ -214,6 +218,8 @@ export type NamespaceWhereUniqueInput = Prisma.AtLeast<{
   createdAt?: Prisma.DateTimeFilter<"Namespace"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Namespace"> | Date | string
   workflows?: Prisma.WorkflowListRelationFilter
+  variables?: Prisma.VariableListRelationFilter
+  secrets?: Prisma.SecretListRelationFilter
 }, "id">
 
 export type NamespaceOrderByWithAggregationInput = {
@@ -248,6 +254,8 @@ export type NamespaceCreateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   workflows?: Prisma.WorkflowCreateNestedManyWithoutNamespaceInput
+  variables?: Prisma.VariableCreateNestedManyWithoutNamespaceInput
+  secrets?: Prisma.SecretCreateNestedManyWithoutNamespaceInput
 }
 
 export type NamespaceUncheckedCreateInput = {
@@ -258,6 +266,8 @@ export type NamespaceUncheckedCreateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   workflows?: Prisma.WorkflowUncheckedCreateNestedManyWithoutNamespaceInput
+  variables?: Prisma.VariableUncheckedCreateNestedManyWithoutNamespaceInput
+  secrets?: Prisma.SecretUncheckedCreateNestedManyWithoutNamespaceInput
 }
 
 export type NamespaceUpdateInput = {
@@ -268,6 +278,8 @@ export type NamespaceUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   workflows?: Prisma.WorkflowUpdateManyWithoutNamespaceNestedInput
+  variables?: Prisma.VariableUpdateManyWithoutNamespaceNestedInput
+  secrets?: Prisma.SecretUpdateManyWithoutNamespaceNestedInput
 }
 
 export type NamespaceUncheckedUpdateInput = {
@@ -278,6 +290,8 @@ export type NamespaceUncheckedUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   workflows?: Prisma.WorkflowUncheckedUpdateManyWithoutNamespaceNestedInput
+  variables?: Prisma.VariableUncheckedUpdateManyWithoutNamespaceNestedInput
+  secrets?: Prisma.SecretUncheckedUpdateManyWithoutNamespaceNestedInput
 }
 
 export type NamespaceCreateManyInput = {
@@ -365,6 +379,34 @@ export type NamespaceUpdateOneRequiredWithoutWorkflowsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.NamespaceUpdateToOneWithWhereWithoutWorkflowsInput, Prisma.NamespaceUpdateWithoutWorkflowsInput>, Prisma.NamespaceUncheckedUpdateWithoutWorkflowsInput>
 }
 
+export type NamespaceCreateNestedOneWithoutVariablesInput = {
+  create?: Prisma.XOR<Prisma.NamespaceCreateWithoutVariablesInput, Prisma.NamespaceUncheckedCreateWithoutVariablesInput>
+  connectOrCreate?: Prisma.NamespaceCreateOrConnectWithoutVariablesInput
+  connect?: Prisma.NamespaceWhereUniqueInput
+}
+
+export type NamespaceUpdateOneRequiredWithoutVariablesNestedInput = {
+  create?: Prisma.XOR<Prisma.NamespaceCreateWithoutVariablesInput, Prisma.NamespaceUncheckedCreateWithoutVariablesInput>
+  connectOrCreate?: Prisma.NamespaceCreateOrConnectWithoutVariablesInput
+  upsert?: Prisma.NamespaceUpsertWithoutVariablesInput
+  connect?: Prisma.NamespaceWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.NamespaceUpdateToOneWithWhereWithoutVariablesInput, Prisma.NamespaceUpdateWithoutVariablesInput>, Prisma.NamespaceUncheckedUpdateWithoutVariablesInput>
+}
+
+export type NamespaceCreateNestedOneWithoutSecretsInput = {
+  create?: Prisma.XOR<Prisma.NamespaceCreateWithoutSecretsInput, Prisma.NamespaceUncheckedCreateWithoutSecretsInput>
+  connectOrCreate?: Prisma.NamespaceCreateOrConnectWithoutSecretsInput
+  connect?: Prisma.NamespaceWhereUniqueInput
+}
+
+export type NamespaceUpdateOneRequiredWithoutSecretsNestedInput = {
+  create?: Prisma.XOR<Prisma.NamespaceCreateWithoutSecretsInput, Prisma.NamespaceUncheckedCreateWithoutSecretsInput>
+  connectOrCreate?: Prisma.NamespaceCreateOrConnectWithoutSecretsInput
+  upsert?: Prisma.NamespaceUpsertWithoutSecretsInput
+  connect?: Prisma.NamespaceWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.NamespaceUpdateToOneWithWhereWithoutSecretsInput, Prisma.NamespaceUpdateWithoutSecretsInput>, Prisma.NamespaceUncheckedUpdateWithoutSecretsInput>
+}
+
 export type NamespaceCreateWithoutWorkflowsInput = {
   id?: string
   name: string
@@ -372,6 +414,8 @@ export type NamespaceCreateWithoutWorkflowsInput = {
   description?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  variables?: Prisma.VariableCreateNestedManyWithoutNamespaceInput
+  secrets?: Prisma.SecretCreateNestedManyWithoutNamespaceInput
 }
 
 export type NamespaceUncheckedCreateWithoutWorkflowsInput = {
@@ -381,6 +425,8 @@ export type NamespaceUncheckedCreateWithoutWorkflowsInput = {
   description?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
+  variables?: Prisma.VariableUncheckedCreateNestedManyWithoutNamespaceInput
+  secrets?: Prisma.SecretUncheckedCreateNestedManyWithoutNamespaceInput
 }
 
 export type NamespaceCreateOrConnectWithoutWorkflowsInput = {
@@ -406,6 +452,8 @@ export type NamespaceUpdateWithoutWorkflowsInput = {
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  variables?: Prisma.VariableUpdateManyWithoutNamespaceNestedInput
+  secrets?: Prisma.SecretUpdateManyWithoutNamespaceNestedInput
 }
 
 export type NamespaceUncheckedUpdateWithoutWorkflowsInput = {
@@ -415,6 +463,128 @@ export type NamespaceUncheckedUpdateWithoutWorkflowsInput = {
   description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  variables?: Prisma.VariableUncheckedUpdateManyWithoutNamespaceNestedInput
+  secrets?: Prisma.SecretUncheckedUpdateManyWithoutNamespaceNestedInput
+}
+
+export type NamespaceCreateWithoutVariablesInput = {
+  id?: string
+  name: string
+  kestraNamespace: string
+  description?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  workflows?: Prisma.WorkflowCreateNestedManyWithoutNamespaceInput
+  secrets?: Prisma.SecretCreateNestedManyWithoutNamespaceInput
+}
+
+export type NamespaceUncheckedCreateWithoutVariablesInput = {
+  id?: string
+  name: string
+  kestraNamespace: string
+  description?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  workflows?: Prisma.WorkflowUncheckedCreateNestedManyWithoutNamespaceInput
+  secrets?: Prisma.SecretUncheckedCreateNestedManyWithoutNamespaceInput
+}
+
+export type NamespaceCreateOrConnectWithoutVariablesInput = {
+  where: Prisma.NamespaceWhereUniqueInput
+  create: Prisma.XOR<Prisma.NamespaceCreateWithoutVariablesInput, Prisma.NamespaceUncheckedCreateWithoutVariablesInput>
+}
+
+export type NamespaceUpsertWithoutVariablesInput = {
+  update: Prisma.XOR<Prisma.NamespaceUpdateWithoutVariablesInput, Prisma.NamespaceUncheckedUpdateWithoutVariablesInput>
+  create: Prisma.XOR<Prisma.NamespaceCreateWithoutVariablesInput, Prisma.NamespaceUncheckedCreateWithoutVariablesInput>
+  where?: Prisma.NamespaceWhereInput
+}
+
+export type NamespaceUpdateToOneWithWhereWithoutVariablesInput = {
+  where?: Prisma.NamespaceWhereInput
+  data: Prisma.XOR<Prisma.NamespaceUpdateWithoutVariablesInput, Prisma.NamespaceUncheckedUpdateWithoutVariablesInput>
+}
+
+export type NamespaceUpdateWithoutVariablesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  kestraNamespace?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  workflows?: Prisma.WorkflowUpdateManyWithoutNamespaceNestedInput
+  secrets?: Prisma.SecretUpdateManyWithoutNamespaceNestedInput
+}
+
+export type NamespaceUncheckedUpdateWithoutVariablesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  kestraNamespace?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  workflows?: Prisma.WorkflowUncheckedUpdateManyWithoutNamespaceNestedInput
+  secrets?: Prisma.SecretUncheckedUpdateManyWithoutNamespaceNestedInput
+}
+
+export type NamespaceCreateWithoutSecretsInput = {
+  id?: string
+  name: string
+  kestraNamespace: string
+  description?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  workflows?: Prisma.WorkflowCreateNestedManyWithoutNamespaceInput
+  variables?: Prisma.VariableCreateNestedManyWithoutNamespaceInput
+}
+
+export type NamespaceUncheckedCreateWithoutSecretsInput = {
+  id?: string
+  name: string
+  kestraNamespace: string
+  description?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  workflows?: Prisma.WorkflowUncheckedCreateNestedManyWithoutNamespaceInput
+  variables?: Prisma.VariableUncheckedCreateNestedManyWithoutNamespaceInput
+}
+
+export type NamespaceCreateOrConnectWithoutSecretsInput = {
+  where: Prisma.NamespaceWhereUniqueInput
+  create: Prisma.XOR<Prisma.NamespaceCreateWithoutSecretsInput, Prisma.NamespaceUncheckedCreateWithoutSecretsInput>
+}
+
+export type NamespaceUpsertWithoutSecretsInput = {
+  update: Prisma.XOR<Prisma.NamespaceUpdateWithoutSecretsInput, Prisma.NamespaceUncheckedUpdateWithoutSecretsInput>
+  create: Prisma.XOR<Prisma.NamespaceCreateWithoutSecretsInput, Prisma.NamespaceUncheckedCreateWithoutSecretsInput>
+  where?: Prisma.NamespaceWhereInput
+}
+
+export type NamespaceUpdateToOneWithWhereWithoutSecretsInput = {
+  where?: Prisma.NamespaceWhereInput
+  data: Prisma.XOR<Prisma.NamespaceUpdateWithoutSecretsInput, Prisma.NamespaceUncheckedUpdateWithoutSecretsInput>
+}
+
+export type NamespaceUpdateWithoutSecretsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  kestraNamespace?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  workflows?: Prisma.WorkflowUpdateManyWithoutNamespaceNestedInput
+  variables?: Prisma.VariableUpdateManyWithoutNamespaceNestedInput
+}
+
+export type NamespaceUncheckedUpdateWithoutSecretsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  kestraNamespace?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  workflows?: Prisma.WorkflowUncheckedUpdateManyWithoutNamespaceNestedInput
+  variables?: Prisma.VariableUncheckedUpdateManyWithoutNamespaceNestedInput
 }
 
 
@@ -424,10 +594,14 @@ export type NamespaceUncheckedUpdateWithoutWorkflowsInput = {
 
 export type NamespaceCountOutputType = {
   workflows: number
+  variables: number
+  secrets: number
 }
 
 export type NamespaceCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   workflows?: boolean | NamespaceCountOutputTypeCountWorkflowsArgs
+  variables?: boolean | NamespaceCountOutputTypeCountVariablesArgs
+  secrets?: boolean | NamespaceCountOutputTypeCountSecretsArgs
 }
 
 /**
@@ -447,6 +621,20 @@ export type NamespaceCountOutputTypeCountWorkflowsArgs<ExtArgs extends runtime.T
   where?: Prisma.WorkflowWhereInput
 }
 
+/**
+ * NamespaceCountOutputType without action
+ */
+export type NamespaceCountOutputTypeCountVariablesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.VariableWhereInput
+}
+
+/**
+ * NamespaceCountOutputType without action
+ */
+export type NamespaceCountOutputTypeCountSecretsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.SecretWhereInput
+}
+
 
 export type NamespaceSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -456,6 +644,8 @@ export type NamespaceSelect<ExtArgs extends runtime.Types.Extensions.InternalArg
   createdAt?: boolean
   updatedAt?: boolean
   workflows?: boolean | Prisma.Namespace$workflowsArgs<ExtArgs>
+  variables?: boolean | Prisma.Namespace$variablesArgs<ExtArgs>
+  secrets?: boolean | Prisma.Namespace$secretsArgs<ExtArgs>
   _count?: boolean | Prisma.NamespaceCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["namespace"]>
 
@@ -489,6 +679,8 @@ export type NamespaceSelectScalar = {
 export type NamespaceOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "kestraNamespace" | "description" | "createdAt" | "updatedAt", ExtArgs["result"]["namespace"]>
 export type NamespaceInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   workflows?: boolean | Prisma.Namespace$workflowsArgs<ExtArgs>
+  variables?: boolean | Prisma.Namespace$variablesArgs<ExtArgs>
+  secrets?: boolean | Prisma.Namespace$secretsArgs<ExtArgs>
   _count?: boolean | Prisma.NamespaceCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type NamespaceIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -498,6 +690,8 @@ export type $NamespacePayload<ExtArgs extends runtime.Types.Extensions.InternalA
   name: "Namespace"
   objects: {
     workflows: Prisma.$WorkflowPayload<ExtArgs>[]
+    variables: Prisma.$VariablePayload<ExtArgs>[]
+    secrets: Prisma.$SecretPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -901,6 +1095,8 @@ readonly fields: NamespaceFieldRefs;
 export interface Prisma__NamespaceClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   workflows<T extends Prisma.Namespace$workflowsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Namespace$workflowsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$WorkflowPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  variables<T extends Prisma.Namespace$variablesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Namespace$variablesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$VariablePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  secrets<T extends Prisma.Namespace$secretsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Namespace$secretsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SecretPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1350,6 +1546,54 @@ export type Namespace$workflowsArgs<ExtArgs extends runtime.Types.Extensions.Int
   take?: number
   skip?: number
   distinct?: Prisma.WorkflowScalarFieldEnum | Prisma.WorkflowScalarFieldEnum[]
+}
+
+/**
+ * Namespace.variables
+ */
+export type Namespace$variablesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Variable
+   */
+  select?: Prisma.VariableSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Variable
+   */
+  omit?: Prisma.VariableOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.VariableInclude<ExtArgs> | null
+  where?: Prisma.VariableWhereInput
+  orderBy?: Prisma.VariableOrderByWithRelationInput | Prisma.VariableOrderByWithRelationInput[]
+  cursor?: Prisma.VariableWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.VariableScalarFieldEnum | Prisma.VariableScalarFieldEnum[]
+}
+
+/**
+ * Namespace.secrets
+ */
+export type Namespace$secretsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Secret
+   */
+  select?: Prisma.SecretSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Secret
+   */
+  omit?: Prisma.SecretOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.SecretInclude<ExtArgs> | null
+  where?: Prisma.SecretWhereInput
+  orderBy?: Prisma.SecretOrderByWithRelationInput | Prisma.SecretOrderByWithRelationInput[]
+  cursor?: Prisma.SecretWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.SecretScalarFieldEnum | Prisma.SecretScalarFieldEnum[]
 }
 
 /**

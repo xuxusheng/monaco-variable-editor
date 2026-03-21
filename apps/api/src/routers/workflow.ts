@@ -6,6 +6,7 @@ import { t } from "../trpc.js"
 import { prisma } from "../db.js"
 import { createWorkflowSchema, updateWorkflowSchema } from "../types.js"
 import { buildTriggerFlowYaml } from "../lib/trigger-yaml.js"
+import { encrypt, decrypt } from "../lib/crypto.js"
 
 const idSchema = z.object({ id: z.string() })
 
@@ -998,5 +999,202 @@ export const workflowRouter = t.router({
         where: { id: input.id },
         data: { disabled: input.disabled },
       })
+    }),
+
+  // ─── Variable API ───
+
+  variableList: t.procedure
+    .input(z.object({ namespaceId: z.string() }))
+    .query(async ({ input }) => {
+      const items = await prisma.variable.findMany({
+        where: { namespaceId: input.namespaceId },
+        orderBy: { key: "asc" },
+      })
+      return items
+    }),
+
+  variableCreate: t.procedure
+    .input(z.object({
+      namespaceId: z.string(),
+      key: z.string().min(1).max(128).regex(/^[A-Z_][A-Z0-9_]*$/, "Key must be uppercase letters, numbers, and underscores only"),
+      value: z.string().min(1),
+      description: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const existing = await prisma.variable.findUnique({
+        where: { namespaceId_key: { namespaceId: input.namespaceId, key: input.key } },
+      })
+      if (existing) {
+        throw new TRPCError({ code: "CONFLICT", message: "Variable with this key already exists" })
+      }
+
+      const variable = await prisma.variable.create({
+        data: {
+          namespaceId: input.namespaceId,
+          key: input.key,
+          value: input.value,
+          description: input.description,
+        },
+      })
+
+      // Best-effort sync to Kestra namespace variables
+      try {
+        const { getKestraClient } = await import("../lib/kestra-client.js")
+        const client = getKestraClient()
+        const ns = await prisma.namespace.findUnique({ where: { id: input.namespaceId } })
+        if (ns) {
+          const allVars = await prisma.variable.findMany({
+            where: { namespaceId: input.namespaceId },
+          })
+          const vars = Object.fromEntries(allVars.map((v) => [v.key, v.value]))
+          await client.request("POST", `/api/v1/variables/${ns.kestraNamespace}`, vars)
+        }
+      } catch { /* best-effort */ }
+
+      return variable
+    }),
+
+  variableUpdate: t.procedure
+    .input(z.object({
+      id: z.string(),
+      value: z.string().optional(),
+      description: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const variable = await prisma.variable.findUnique({ where: { id: input.id } })
+      if (!variable) throw new TRPCError({ code: "NOT_FOUND", message: "Variable not found" })
+
+      const updated = await prisma.variable.update({
+        where: { id: input.id },
+        data: {
+          ...(input.value !== undefined && { value: input.value }),
+          ...(input.description !== undefined && { description: input.description }),
+        },
+      })
+
+      // Best-effort sync
+      try {
+        const { getKestraClient } = await import("../lib/kestra-client.js")
+        const client = getKestraClient()
+        const ns = await prisma.namespace.findUnique({ where: { id: variable.namespaceId } })
+        if (ns) {
+          const allVars = await prisma.variable.findMany({ where: { namespaceId: variable.namespaceId } })
+          const vars = Object.fromEntries(allVars.map((v) => [v.key, v.value]))
+          await client.request("POST", `/api/v1/variables/${ns.kestraNamespace}`, vars)
+        }
+      } catch { /* best-effort */ }
+
+      return updated
+    }),
+
+  variableDelete: t.procedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input }) => {
+      const variable = await prisma.variable.findUnique({ where: { id: input.id } })
+      if (!variable) throw new TRPCError({ code: "NOT_FOUND", message: "Variable not found" })
+
+      await prisma.variable.delete({ where: { id: input.id } })
+
+      // Best-effort sync — delete specific key from Kestra
+      try {
+        const { getKestraClient } = await import("../lib/kestra-client.js")
+        const client = getKestraClient()
+        const ns = await prisma.namespace.findUnique({ where: { id: variable.namespaceId } })
+        if (ns) {
+          await client.request("DELETE", `/api/v1/variables/${ns.kestraNamespace}/${variable.key}`)
+        }
+      } catch { /* best-effort */ }
+
+      return { success: true }
+    }),
+
+  // ─── Secret API ───
+
+  secretList: t.procedure
+    .input(z.object({ namespaceId: z.string() }))
+    .query(async ({ input }) => {
+      const items = await prisma.secret.findMany({
+        where: { namespaceId: input.namespaceId },
+        orderBy: { key: "asc" },
+      })
+      return items.map((s) => ({
+        id: s.id,
+        key: s.key,
+        maskedValue: s.value.length > 8
+          ? s.value.slice(0, 4) + "••••" + s.value.slice(-4)
+          : "••••••••",
+        description: s.description,
+        createdAt: s.createdAt,
+        updatedAt: s.updatedAt,
+      }))
+    }),
+
+  secretCreate: t.procedure
+    .input(z.object({
+      namespaceId: z.string(),
+      key: z.string().min(1).max(128).regex(/^[A-Z_][A-Z0-9_]*$/, "Key must be uppercase letters, numbers, and underscores only"),
+      value: z.string().min(1),
+      description: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const existing = await prisma.secret.findUnique({
+        where: { namespaceId_key: { namespaceId: input.namespaceId, key: input.key } },
+      })
+      if (existing) {
+        throw new TRPCError({ code: "CONFLICT", message: "Secret with this key already exists" })
+      }
+
+      const encrypted = encrypt(input.value, `${input.namespaceId}::${input.key}`)
+
+      const secret = await prisma.secret.create({
+        data: {
+          namespaceId: input.namespaceId,
+          key: input.key,
+          value: encrypted,
+          description: input.description,
+        },
+      })
+
+      return { id: secret.id, key: secret.key, description: secret.description }
+    }),
+
+  secretUpdate: t.procedure
+    .input(z.object({
+      id: z.string(),
+      value: z.string().optional(),
+      description: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const secret = await prisma.secret.findUnique({ where: { id: input.id } })
+      if (!secret) throw new TRPCError({ code: "NOT_FOUND", message: "Secret not found" })
+
+      const updated = await prisma.secret.update({
+        where: { id: input.id },
+        data: {
+          ...(input.value !== undefined && {
+            value: encrypt(input.value, `${secret.namespaceId}::${secret.key}`),
+          }),
+          ...(input.description !== undefined && { description: input.description }),
+        },
+      })
+
+      return { id: updated.id, key: updated.key, description: updated.description }
+    }),
+
+  secretDelete: t.procedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input }) => {
+      await prisma.secret.delete({ where: { id: input.id } })
+      return { success: true }
+    }),
+
+  secretReveal: t.procedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ input }) => {
+      const secret = await prisma.secret.findUnique({ where: { id: input.id } })
+      if (!secret) throw new TRPCError({ code: "NOT_FOUND", message: "Secret not found" })
+
+      const value = decrypt(secret.value, `${secret.namespaceId}::${secret.key}`)
+      return { value }
     }),
 })

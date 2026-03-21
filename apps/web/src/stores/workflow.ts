@@ -5,7 +5,7 @@ import { temporal } from "zundo"
 import type { WorkflowNode, WorkflowEdge, WorkflowInput } from "@/types/workflow"
 import { FIXTURE_NODES, FIXTURE_EDGES, FIXTURE_INPUTS } from "@/types/fixtures"
 
-type RightPanel = "none" | "task" | "inputs" | "yaml" | "drafts" | "releases" | "executions" | "triggers" | "production-executions"
+type RightPanel = "none" | "task" | "inputs" | "yaml" | "drafts" | "releases" | "executions" | "triggers" | "production-executions" | "settings"
 
 interface WorkflowMeta {
   flowId: string

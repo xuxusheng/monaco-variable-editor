@@ -16,6 +16,8 @@ model Namespace {
   updatedAt       DateTime @updatedAt
 
   workflows Workflow[]
+  variables Variable[]
+  secrets   Secret[]
 
   @@map("namespaces")
 }
@@ -145,4 +147,34 @@ model WorkflowTrigger {
 
   @@index([workflowId])
   @@map("workflow_triggers")
+}
+
+model Variable {
+  id          String   @id @default(cuid())
+  namespaceId String
+  key         String
+  value       String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  namespace   Namespace @relation(fields: [namespaceId], references: [id], onDelete: Cascade)
+
+  @@unique([namespaceId, key])
+  @@map("variables")
+}
+
+model Secret {
+  id          String   @id @default(cuid())
+  namespaceId String
+  key         String
+  value       String  // encrypted
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  namespace   Namespace @relation(fields: [namespaceId], references: [id], onDelete: Cascade)
+
+  @@unique([namespaceId, key])
+  @@map("secrets")
 }

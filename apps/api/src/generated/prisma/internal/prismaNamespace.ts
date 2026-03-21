@@ -390,7 +390,9 @@ export const ModelName = {
   WorkflowRelease: 'WorkflowRelease',
   WorkflowDraftExecution: 'WorkflowDraftExecution',
   WorkflowExecution: 'WorkflowExecution',
-  WorkflowTrigger: 'WorkflowTrigger'
+  WorkflowTrigger: 'WorkflowTrigger',
+  Variable: 'Variable',
+  Secret: 'Secret'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -406,7 +408,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "namespace" | "workflow" | "workflowDraft" | "workflowRelease" | "workflowDraftExecution" | "workflowExecution" | "workflowTrigger"
+    modelProps: "namespace" | "workflow" | "workflowDraft" | "workflowRelease" | "workflowDraftExecution" | "workflowExecution" | "workflowTrigger" | "variable" | "secret"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -928,6 +930,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    Variable: {
+      payload: Prisma.$VariablePayload<ExtArgs>
+      fields: Prisma.VariableFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.VariableFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VariablePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.VariableFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VariablePayload>
+        }
+        findFirst: {
+          args: Prisma.VariableFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VariablePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.VariableFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VariablePayload>
+        }
+        findMany: {
+          args: Prisma.VariableFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VariablePayload>[]
+        }
+        create: {
+          args: Prisma.VariableCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VariablePayload>
+        }
+        createMany: {
+          args: Prisma.VariableCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.VariableCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VariablePayload>[]
+        }
+        delete: {
+          args: Prisma.VariableDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VariablePayload>
+        }
+        update: {
+          args: Prisma.VariableUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VariablePayload>
+        }
+        deleteMany: {
+          args: Prisma.VariableDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.VariableUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.VariableUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VariablePayload>[]
+        }
+        upsert: {
+          args: Prisma.VariableUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VariablePayload>
+        }
+        aggregate: {
+          args: Prisma.VariableAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateVariable>
+        }
+        groupBy: {
+          args: Prisma.VariableGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.VariableGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.VariableCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.VariableCountAggregateOutputType> | number
+        }
+      }
+    }
+    Secret: {
+      payload: Prisma.$SecretPayload<ExtArgs>
+      fields: Prisma.SecretFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.SecretFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecretPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.SecretFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecretPayload>
+        }
+        findFirst: {
+          args: Prisma.SecretFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecretPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.SecretFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecretPayload>
+        }
+        findMany: {
+          args: Prisma.SecretFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecretPayload>[]
+        }
+        create: {
+          args: Prisma.SecretCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecretPayload>
+        }
+        createMany: {
+          args: Prisma.SecretCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.SecretCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecretPayload>[]
+        }
+        delete: {
+          args: Prisma.SecretDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecretPayload>
+        }
+        update: {
+          args: Prisma.SecretUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecretPayload>
+        }
+        deleteMany: {
+          args: Prisma.SecretDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.SecretUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.SecretUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecretPayload>[]
+        }
+        upsert: {
+          args: Prisma.SecretUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$SecretPayload>
+        }
+        aggregate: {
+          args: Prisma.SecretAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateSecret>
+        }
+        groupBy: {
+          args: Prisma.SecretGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SecretGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.SecretCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.SecretCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -1082,6 +1232,32 @@ export const WorkflowTriggerScalarFieldEnum = {
 } as const
 
 export type WorkflowTriggerScalarFieldEnum = (typeof WorkflowTriggerScalarFieldEnum)[keyof typeof WorkflowTriggerScalarFieldEnum]
+
+
+export const VariableScalarFieldEnum = {
+  id: 'id',
+  namespaceId: 'namespaceId',
+  key: 'key',
+  value: 'value',
+  description: 'description',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type VariableScalarFieldEnum = (typeof VariableScalarFieldEnum)[keyof typeof VariableScalarFieldEnum]
+
+
+export const SecretScalarFieldEnum = {
+  id: 'id',
+  namespaceId: 'namespaceId',
+  key: 'key',
+  value: 'value',
+  description: 'description',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type SecretScalarFieldEnum = (typeof SecretScalarFieldEnum)[keyof typeof SecretScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -1308,6 +1484,8 @@ export type GlobalOmitConfig = {
   workflowDraftExecution?: Prisma.WorkflowDraftExecutionOmit
   workflowExecution?: Prisma.WorkflowExecutionOmit
   workflowTrigger?: Prisma.WorkflowTriggerOmit
+  variable?: Prisma.VariableOmit
+  secret?: Prisma.SecretOmit
 }
 
 /* Types for Logging */

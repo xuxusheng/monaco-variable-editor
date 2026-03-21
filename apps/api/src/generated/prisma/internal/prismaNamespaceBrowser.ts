@@ -57,7 +57,9 @@ export const ModelName = {
   WorkflowRelease: 'WorkflowRelease',
   WorkflowDraftExecution: 'WorkflowDraftExecution',
   WorkflowExecution: 'WorkflowExecution',
-  WorkflowTrigger: 'WorkflowTrigger'
+  WorkflowTrigger: 'WorkflowTrigger',
+  Variable: 'Variable',
+  Secret: 'Secret'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -191,6 +193,32 @@ export const WorkflowTriggerScalarFieldEnum = {
 } as const
 
 export type WorkflowTriggerScalarFieldEnum = (typeof WorkflowTriggerScalarFieldEnum)[keyof typeof WorkflowTriggerScalarFieldEnum]
+
+
+export const VariableScalarFieldEnum = {
+  id: 'id',
+  namespaceId: 'namespaceId',
+  key: 'key',
+  value: 'value',
+  description: 'description',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type VariableScalarFieldEnum = (typeof VariableScalarFieldEnum)[keyof typeof VariableScalarFieldEnum]
+
+
+export const SecretScalarFieldEnum = {
+  id: 'id',
+  namespaceId: 'namespaceId',
+  key: 'key',
+  value: 'value',
+  description: 'description',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type SecretScalarFieldEnum = (typeof SecretScalarFieldEnum)[keyof typeof SecretScalarFieldEnum]
 
 
 export const SortOrder = {
