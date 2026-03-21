@@ -7,8 +7,7 @@
     "dev:api": "vp run -F @monaco-editor/api dev",
     "build": "vp run -r build",
     "lint": "vp run -r lint",
-    "start": "vp run -r start",
-    "prepare": "vp config"
+    "start": "vp run -r start"
   },
   "devDependencies": {
     "vite-plus": "catalog:"

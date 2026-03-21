@@ -1,8 +1,10 @@
-FROM node:22-alpine AS builder
+FROM node:22 AS builder
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@9 --activate
-RUN curl -fsSL https://vite.plus | bash
+# 国内镜像源 + 清除代理（容器里没有宿主机的代理）
+ENV http_proxy= https_proxy=
+RUN npm config set registry https://registry.npmmirror.com && \
+    npm install -g pnpm@9 vite-plus
 
 # Copy workspace config for dependency caching
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
@@ -17,26 +19,25 @@ COPY . .
 RUN vp run -r build
 
 # --- Production image ---
-FROM node:22-alpine
+FROM node:22
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@9 --activate
+ENV http_proxy= https_proxy=
+RUN npm config set registry https://registry.npmmirror.com
 
-# Copy workspace config + prod deps
-COPY --from=builder /app/pnpm-workspace.yaml /app/package.json /app/pnpm-lock.yaml ./
-COPY --from=builder /app/apps/api/package.json ./apps/api/
-
-RUN pnpm install --prod --frozen-lockfile
+# Copy api package.json and install prod deps with npm
+COPY --from=builder /app/apps/api/package.json ./
+RUN npm install --omit=dev
 
 # Copy built backend
-COPY --from=builder /app/apps/api/dist ./apps/api/dist
-COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
+COPY --from=builder /app/apps/api/dist ./dist
+COPY --from=builder /app/apps/api/prisma ./prisma
 
 # Copy built frontend (served by Hono)
-COPY --from=builder /app/apps/web/dist ./apps/web/dist
+COPY --from=builder /app/apps/web/dist ../web/dist
 
 ENV NODE_ENV=production
 ENV PORT=3001
 EXPOSE 3001
 USER node
-CMD ["node", "apps/api/dist/index.js"]
+CMD ["node", "dist/index.js"]
