@@ -6,6 +6,7 @@ import { cors } from "hono/cors"
 import { logger } from "hono/logger"
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch"
 import { appRouter } from "./router.js"
+import { createContext } from "./context.js"
 import { prisma } from "./db.js"
 
 const app = new Hono()
@@ -14,15 +15,17 @@ const app = new Hono()
 app.use(logger())
 app.use("/api/*", cors())
 
-// tRPC endpoint
-app.all("/api/trpc/*", (c) => {
+// tRPC sub-router
+const trpcRoute = new Hono().all("*", (c) => {
   return fetchRequestHandler({
     endpoint: "/api/trpc",
     req: c.req.raw,
     router: appRouter,
-    createContext: () => ({ prisma }),
+    createContext: () => createContext(c),
   })
 })
+
+app.route("/api/trpc", trpcRoute)
 
 // Health check
 app.get("/health", (c) => c.json({ status: "ok" }))
