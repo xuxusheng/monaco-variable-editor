@@ -17,6 +17,7 @@
     "jsx": "react-jsx",
 
     /* Path aliases */
+    // baseUrl required by TypeScript for paths resolution
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
