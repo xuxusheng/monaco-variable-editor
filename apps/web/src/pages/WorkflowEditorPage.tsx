@@ -1,4 +1,4 @@
-import { useCallback, useRef, useMemo, useEffect, memo } from "react"
+import { useCallback, useRef, useMemo, useEffect, memo, useState } from "react"
 import {
   ReactFlow,
   Controls,
@@ -19,7 +19,10 @@ import { NodeCreatePanel } from "@/components/flow/NodeCreatePanel"
 import { TaskConfigPanel } from "@/components/flow/TaskConfigPanel"
 import { InputConfigPanel } from "@/components/flow/InputConfigPanel"
 import { KestraYamlPanel } from "@/components/flow/KestraYamlPanel"
+import { ContextMenu as NodeContextMenu } from "@/components/flow/ContextMenu"
 import { getLayoutedElements } from "@/lib/autoLayout"
+import { filterVisibleNodes, filterVisibleEdges, getChildCount } from "@/lib/containerUtils"
+import { isContainer } from "@/types/container"
 import { trpc } from "@/lib/trpc"
 import { toast } from "sonner"
 import { useHotkeys } from "react-hotkeys-hook"
@@ -27,6 +30,7 @@ import type {
   WorkflowNode,
   WorkflowEdge,
   WorkflowInput,
+  EdgeType,
 } from "@/types/workflow"
 import { EDGE_STYLES } from "@/types/workflow"
 import type { KestraInput } from "@/types/kestra"
@@ -38,6 +42,14 @@ import {
   useCanUndo,
   useCanRedo,
 } from "@/stores/workflow"
+
+// ---- 边类型推断 ----
+function inferEdgeType(sourceHandle: string | null): EdgeType {
+  if (sourceHandle === "then" || sourceHandle === "else") return sourceHandle
+  if (sourceHandle?.startsWith("case-")) return "case"
+  if (sourceHandle === "sequence") return "sequence"
+  return "sequence"
+}
 
 // ---- React Flow 自定义类型注册（稳定引用，不随组件重渲染） ----
 const nodeTypes = { workflowNode: WorkflowNodeComponent }
@@ -61,6 +73,9 @@ function toCanvasNodes(wfNodes: WorkflowNode[]): Node[] {
       spec: n.spec,
       containerId: n.containerId,
       sortIndex: n.sortIndex,
+      isContainer: isContainer(n.type),
+      collapsed: n.ui?.collapsed ?? false,
+      childCount: getChildCount(n.id, wfNodes),
     },
   }))
 }
@@ -258,43 +273,55 @@ export default function WorkflowEditorPage() {
   const savedWorkflowId = useWorkflowStore((s) => s.savedWorkflowId)
   const setSavedWorkflowId = useWorkflowStore((s) => s.setSavedWorkflowId)
 
+  // ---- 过滤折叠容器的子节点 ----
+  const visibleWfNodes = useMemo(() => filterVisibleNodes(wfNodes), [wfNodes])
+  const visibleNodeIds = useMemo(
+    () => new Set(visibleWfNodes.map((n) => n.id)),
+    [visibleWfNodes],
+  )
+  const visibleWfEdges = useMemo(
+    () => filterVisibleEdges(wfEdges, visibleNodeIds),
+    [wfEdges, visibleNodeIds],
+  )
+
   // ---- zundo temporal (undo/redo) ----
   const undo = useUndo()
   const redo = useRedo()
   const canUndo = useCanUndo()
   const canRedo = useCanRedo()
 
-  // ---- 画布状态（从业务状态派生） ----
+  // ---- 画布状态（从过滤后的业务状态派生） ----
   const [canvasNodes, setCanvasNodes, onCanvasNodesChange] = useNodesState(
-    toCanvasNodes(wfNodes),
+    toCanvasNodes(visibleWfNodes),
   )
   const [canvasEdges, setCanvasEdges, onCanvasEdgesChange] = useEdgesState(
-    toCanvasEdges(wfEdges),
+    toCanvasEdges(visibleWfEdges),
   )
 
-  // ---- 业务状态变更 → 同步画布 ----
+  // ---- 过滤后的业务状态变更 → 同步画布 ----
   useEffect(() => {
-    setCanvasNodes(toCanvasNodes(wfNodes))
-  }, [wfNodes, setCanvasNodes])
+    setCanvasNodes(toCanvasNodes(visibleWfNodes))
+  }, [visibleWfNodes, setCanvasNodes])
 
   useEffect(() => {
-    setCanvasEdges(toCanvasEdges(wfEdges))
-  }, [wfEdges, setCanvasEdges])
+    setCanvasEdges(toCanvasEdges(visibleWfEdges))
+  }, [visibleWfEdges, setCanvasEdges])
 
   // ---- 排序 ----
   const sortedNodes = useMemo(() => {
     return [...wfNodes].sort((a, b) => a.sortIndex - b.sortIndex)
   }, [wfNodes])
 
-  // ---- 连线 ----
+  // ---- 连线（自动推断边类型） ----
   const onConnect = useCallback(
     (params: Connection) => {
       if (!params.source || !params.target) return
+      const edgeType = inferEdgeType(params.sourceHandle)
       const newEdge: WorkflowEdge = {
         id: genEdgeId(),
         source: params.source,
         target: params.target,
-        type: "sequence",
+        type: edgeType,
       }
       setWfEdges((prev) => [...prev, newEdge])
     },
@@ -310,7 +337,22 @@ export default function WorkflowEditorPage() {
   const onPaneClick = useCallback(() => {
     setSelectedNodeId(null)
     setRightPanel("none")
+    setContextMenu(null)
   }, [setSelectedNodeId, setRightPanel])
+
+  // ---- 右键菜单 ----
+  const [contextMenu, setContextMenu] = useState<{
+    nodeId: string
+    position: { x: number; y: number }
+  } | null>(null)
+
+  const onNodeContextMenu = useCallback(
+    (e: React.MouseEvent, node: Node) => {
+      e.preventDefault()
+      setContextMenu({ nodeId: node.id, position: { x: e.clientX, y: e.clientY } })
+    },
+    [],
+  )
 
   // ---- 拖拽创建节点 ----
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -685,6 +727,7 @@ export default function WorkflowEditorPage() {
             onEdgesChange={onCanvasEdgesChange}
             onConnect={onConnect}
             onNodeClick={onNodeClick}
+            onNodeContextMenu={onNodeContextMenu}
             onPaneClick={onPaneClick}
             onDragOver={onDragOver}
             onDrop={onDrop}
@@ -721,6 +764,43 @@ export default function WorkflowEditorPage() {
           onToggle={() => setPanelOpen(!panelOpen)}
         />
       </div>
+
+      {/* 右键菜单 */}
+      {contextMenu && (() => {
+        const ctxNode = wfNodes.find((n) => n.id === contextMenu.nodeId)
+        if (!ctxNode) return null
+        return (
+          <NodeContextMenu
+            position={contextMenu.position}
+            onClose={() => setContextMenu(null)}
+            onDelete={() => {
+              setSelectedNodeId(contextMenu.nodeId)
+              handleDeleteSelected()
+              setContextMenu(null)
+            }}
+            onDuplicate={() => {
+              setSelectedNodeId(contextMenu.nodeId)
+              handleDuplicate()
+              setContextMenu(null)
+            }}
+            onAddErrors={() => {
+              // errors 边：用户选目标后创建
+              // TODO: M2 后续完善，当前简化为创建一条 errors 边到下一个同级节点
+              toast.info("errors 边：请从节点拖出连线（后续完善目标选择）")
+              setContextMenu(null)
+            }}
+            onAddFinally={() => {
+              toast.info("finally 边：请从节点拖出连线（后续完善目标选择）")
+              setContextMenu(null)
+            }}
+            isContainer={isContainer(ctxNode.type)}
+            onToggleCollapse={() => {
+              useWorkflowStore.getState().toggleCollapse(contextMenu.nodeId)
+              setContextMenu(null)
+            }}
+          />
+        )
+      })()}
 
       {/* 右侧面板 */}
       {rightPanel === "task" && selectedNodeForPanel && (
