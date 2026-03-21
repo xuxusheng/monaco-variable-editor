@@ -1,12 +1,11 @@
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
-  engineType = "library"
 }
 
 datasource db {
-  provider = "sqlite"
-  // ⚠️ URL 在 prisma.config.ts 中配置，开发用 sqlite，上线改为 postgresql
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Namespace {

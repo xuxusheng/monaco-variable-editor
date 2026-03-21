@@ -14,14 +14,9 @@ COPY apps/api/package.json ./apps/api/
 
 RUN pnpm install --frozen-lockfile
 
-# Copy source
+# Copy source and build
 COPY . .
-
-# 用生产环境 Prisma Schema（PostgreSQL）替换开发用的 SQLite 版本
-RUN cp apps/api/prisma/schema.prod.prisma apps/api/prisma/schema.prisma && \
-    cd apps/api && npx prisma generate
-
-# Build
+RUN cd apps/api && npx prisma generate
 RUN vp run -r build
 
 # --- Production image ---
@@ -41,10 +36,6 @@ COPY --from=builder /app/apps/api/prisma ./prisma
 
 # Copy built frontend (served by Hono)
 COPY --from=builder /app/apps/web/dist ../web/dist
-
-# 运行数据库迁移（需要 DATABASE_URL 环境变量）
-# 如果不需要自动迁移，注释掉下面这行
-# RUN npx prisma migrate deploy
 
 ENV NODE_ENV=production
 ENV PORT=3001
