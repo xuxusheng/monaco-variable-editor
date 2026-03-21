@@ -1,9 +1,17 @@
 import { useState } from "react"
-import { X, Save, Eye, EyeOff } from "lucide-react"
+import { Save, Eye, EyeOff } from "lucide-react"
 import { toast } from "sonner"
 import { trpc } from "@/lib/trpc"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
 
 interface SecretEditorProps {
   namespaceId: string
@@ -73,28 +81,17 @@ export function SecretEditor({ namespaceId, editing, onClose, onSaved }: SecretE
   const pending = createMutation.isPending || updateMutation.isPending
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-    >
-      <div className="bg-card rounded-xl shadow-2xl border border-border w-full max-w-lg mx-4 flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
-          <h2 className="text-sm font-semibold">{isEdit ? "编辑密钥" : "添加密钥"}</h2>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-md hover:bg-muted flex items-center justify-center transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{isEdit ? "编辑密钥" : "添加密钥"}</DialogTitle>
+        </DialogHeader>
 
-        {/* Body */}
         <form onSubmit={handleSubmit}>
-          <div className="px-5 py-4 space-y-4">
+          <div className="space-y-4">
             {/* Key */}
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Key</label>
+              <Label className="text-xs text-muted-foreground">Key</Label>
               <Input
                 value={key}
                 onChange={(e) => {
@@ -113,7 +110,7 @@ export function SecretEditor({ namespaceId, editing, onClose, onSaved }: SecretE
 
             {/* Value */}
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Value</label>
+              <Label className="text-xs text-muted-foreground">Value</Label>
               <div className="relative">
                 <Input
                   type={showValue ? "text" : "password"}
@@ -134,7 +131,7 @@ export function SecretEditor({ namespaceId, editing, onClose, onSaved }: SecretE
 
             {/* Description */}
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Description</label>
+              <Label className="text-xs text-muted-foreground">Description</Label>
               <Input
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -143,8 +140,7 @@ export function SecretEditor({ namespaceId, editing, onClose, onSaved }: SecretE
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="flex justify-end gap-2 px-5 py-3 border-t border-border">
+          <DialogFooter className="mt-4">
             <Button type="button" variant="ghost" size="sm" onClick={onClose}>
               取消
             </Button>
@@ -152,9 +148,9 @@ export function SecretEditor({ namespaceId, editing, onClose, onSaved }: SecretE
               <Save className="w-3.5 h-3.5" />
               {pending ? "保存中..." : "保存"}
             </Button>
-          </div>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

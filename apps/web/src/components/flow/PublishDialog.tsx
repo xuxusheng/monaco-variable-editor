@@ -9,6 +9,14 @@ import type { WorkflowNode, WorkflowEdge, WorkflowInput } from "@/types/workflow
 import type { ApiWorkflowVariable } from "@/types/api"
 import { toKestraYaml } from "@/lib/yamlConverter"
 import { Rocket } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 
 interface PublishDialogProps {
   nodes: WorkflowNode[]
@@ -49,29 +57,17 @@ export function PublishDialog({
   }, [name, yaml, onPublish])
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
-      }}
-    >
-      <div className="bg-card rounded-xl shadow-2xl border border-border w-full max-w-lg mx-4 flex flex-col max-h-[80vh]">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-          <div className="flex items-center gap-2">
-            <span className="text-lg"><Rocket className="w-4 h-4" /></span>
-            <h2 className="text-base font-semibold">发布新版本</h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-md hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-          >
-            ✕
-          </button>
-        </div>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Rocket className="w-4 h-4" />
+            发布新版本
+          </DialogTitle>
+        </DialogHeader>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+        <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium mb-1.5">版本名称</label>
             <input
@@ -114,23 +110,16 @@ export function PublishDialog({
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-md text-sm bg-muted hover:bg-muted/80 transition-colors"
-          >
-            取消
-          </button>
-          <button
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>取消</Button>
+          <Button
             onClick={handlePublish}
             disabled={!name.trim() || isPublishing}
-            className="px-4 py-2 rounded-md text-sm font-medium bg-indigo-500 text-white hover:bg-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {isPublishing ? "发布中..." : `发布 v${nextVersion}`}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

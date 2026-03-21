@@ -7,6 +7,14 @@ import { useState, useCallback } from "react"
 import { trpc } from "@/lib/trpc"
 import { toast } from "sonner"
 import { Zap, RefreshCw } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 
 interface TriggerCreateFormProps {
   workflowId: string
@@ -85,29 +93,17 @@ export function TriggerCreateForm({
   ])
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
-      }}
-    >
-      <div className="bg-card rounded-lg shadow-xl w-full max-w-md border border-border">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <div className="flex items-center gap-2">
+    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
             <Zap className="w-4 h-4" />
-            <h2 className="text-base font-semibold">创建触发器</h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-md hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-          >
-            ✕
-          </button>
-        </div>
+            创建触发器
+          </DialogTitle>
+        </DialogHeader>
 
         {/* Body */}
-        <div className="px-5 py-4 space-y-4">
+        <div className="space-y-4">
           {/* Name */}
           <div>
             <label className="block text-sm font-medium mb-1.5">
@@ -222,23 +218,16 @@ export function TriggerCreateForm({
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-md text-sm bg-muted hover:bg-muted/80 transition-colors"
-          >
-            取消
-          </button>
-          <button
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>取消</Button>
+          <Button
             onClick={handleSubmit}
             disabled={createTrigger.isPending}
-            className="px-4 py-2 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {createTrigger.isPending ? "创建中..." : "创建"}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

@@ -3,6 +3,24 @@ import { Plus, Pencil, Trash2, Eye, EyeOff, Key, Inbox } from "lucide-react"
 import { toast } from "sonner"
 import { trpc } from "@/lib/trpc"
 import { Button } from "@/components/ui/button"
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { SecretEditor } from "./SecretEditor"
 
 interface SecretTableProps {
@@ -39,6 +57,11 @@ export function SecretTable({ namespaceId }: SecretTableProps) {
     editing?: { id: string; key: string; description?: string }
   }>({ open: false })
 
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string
+    key: string
+  } | null>(null)
+
   const { data, refetch } = trpc.workflow.secretList.useQuery({ namespaceId })
 
   const deleteMutation = trpc.workflow.secretDelete.useMutation({
@@ -49,9 +72,10 @@ export function SecretTable({ namespaceId }: SecretTableProps) {
     onError: (err) => toast.error(err.message),
   })
 
-  function handleDelete(id: string, key: string) {
-    if (window.confirm(`确定要删除密钥 "${key}" 吗？\n密钥删除后不可恢复！`)) {
-      deleteMutation.mutate({ id })
+  function handleConfirmDelete() {
+    if (deleteTarget) {
+      deleteMutation.mutate({ id: deleteTarget.id })
+      setDeleteTarget(null)
     }
   }
 
@@ -82,59 +106,71 @@ export function SecretTable({ namespaceId }: SecretTableProps) {
           <p className="text-xs text-muted-foreground/70">点击上方"添加"按钮创建第一个密钥</p>
         </div>
       ) : (
-        <div className="divide-y divide-border">
-          {/* Table header */}
-          <div className="grid grid-cols-[1fr_1.5fr_1fr_auto] gap-4 px-5 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            <span>Key</span>
-            <span>Value</span>
-            <span>Description</span>
-            <span className="w-[72px]">Actions</span>
-          </div>
-
-          {items.map((item) => (
-            <div
-              key={item.id}
-              className="grid grid-cols-[1fr_1.5fr_1fr_auto] gap-4 px-5 py-2.5 hover:bg-muted/50 transition-colors group items-center"
-            >
-              {/* Key */}
-              <span className="font-mono text-sm font-medium truncate">{item.key}</span>
-
-              {/* Value (masked / reveal) */}
-              <div className="text-sm text-muted-foreground">
-                <RevealCell id={item.id} />
-              </div>
-
-              {/* Description */}
-              <span className="text-sm text-muted-foreground truncate">
-                {item.description || <span className="text-muted-foreground/50">—</span>}
-              </span>
-
-              {/* Actions */}
-              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={() =>
-                    setEditorState({
-                      open: true,
-                      editing: { id: item.id, key: item.key, description: item.description ?? undefined },
-                    })
-                  }
-                >
-                  <Pencil />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={() => handleDelete(item.id, item.key)}
-                >
-                  <Trash2 className="text-destructive" />
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead>Key</TableHead>
+              <TableHead>Value</TableHead>
+              <TableHead>Description</TableHead>
+              <TableHead className="w-[72px]">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {items.map((item) => (
+              <TableRow key={item.id} className="group">
+                <TableCell className="font-mono text-sm font-medium">{item.key}</TableCell>
+                <TableCell>
+                  <RevealCell id={item.id} />
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {item.description || <span className="text-muted-foreground/50">—</span>}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() =>
+                        setEditorState({
+                          open: true,
+                          editing: { id: item.id, key: item.key, description: item.description ?? undefined },
+                        })
+                      }
+                    >
+                      <Pencil />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => setDeleteTarget({ id: item.id, key: item.key })}
+                    >
+                      <Trash2 className="text-destructive" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>删除密钥</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定要删除密钥 &quot;{deleteTarget?.key}&quot; 吗？密钥删除后不可恢复！
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteTarget(null)}>取消</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={handleConfirmDelete}>
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Editor dialog */}
       {editorState.open && (

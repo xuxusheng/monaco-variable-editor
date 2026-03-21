@@ -9,6 +9,15 @@ import { toast } from "sonner"
 import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, Inbox } from "lucide-react"
 import { VariableEditor } from "./VariableEditor"
 import type { ApiWorkflowVariable } from "@/types/api"
+import { Button } from "@/components/ui/button"
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table"
 
 interface VariableTableProps {
   namespaceId: string
@@ -60,16 +69,16 @@ export function VariableTable({ namespaceId }: VariableTableProps) {
         <h3 className="text-sm font-semibold">
           变量 ({items.length})
         </h3>
-        <button
+        <Button
+          size="sm"
           onClick={() => {
             setEditing(null)
             setShowEditor(true)
           }}
-          className="px-3 py-1.5 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:opacity-90 transition-colors flex items-center gap-1"
         >
           <Plus className="w-3.5 h-3.5" />
           添加
-        </button>
+        </Button>
       </div>
 
       {/* Empty state */}
@@ -83,25 +92,25 @@ export function VariableTable({ namespaceId }: VariableTableProps) {
       {/* Table */}
       {items.length > 0 && (
         <div className="border border-border rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-muted/50 text-left">
-                <th className="px-4 py-2.5 font-medium">Key</th>
-                <th className="px-4 py-2.5 font-medium">Value</th>
-                <th className="px-4 py-2.5 font-medium">Description</th>
-                <th className="px-4 py-2.5 font-medium w-24 text-right">操作</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/50 hover:bg-muted/50">
+                <TableHead>Key</TableHead>
+                <TableHead>Value</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead className="w-24 text-right">操作</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {items.map((v) => {
                 const isExpanded = expandedKey === v.id
                 const truncated =
                   v.value.length > 40 ? v.value.slice(0, 40) + "..." : v.value
 
                 return (
-                  <tr key={v.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-2.5 font-mono text-xs">{v.key}</td>
-                    <td className="px-4 py-2.5">
+                  <TableRow key={v.id}>
+                    <TableCell className="font-mono text-xs">{v.key}</TableCell>
+                    <TableCell>
                       <button
                         onClick={() =>
                           setExpandedKey(isExpanded ? null : v.id)
@@ -117,50 +126,54 @@ export function VariableTable({ namespaceId }: VariableTableProps) {
                             : <ChevronDown className="w-3 h-3 shrink-0" />
                         )}
                       </button>
-                    </td>
-                    <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
                       {v.description || "—"}
-                    </td>
-                    <td className="px-4 py-2.5">
+                    </TableCell>
+                    <TableCell>
                       <div className="flex items-center justify-end gap-1">
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
                           onClick={() => handleEdit(v)}
-                          className="w-7 h-7 rounded-md hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
                           title="编辑"
                         >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
+                          <Pencil />
+                        </Button>
                         {deletingId === v.id ? (
                           <div className="flex items-center gap-1">
-                            <button
+                            <Button
+                              variant="destructive"
+                              size="xs"
                               onClick={() => handleDelete(v.id)}
-                              className="px-2 py-1 rounded text-xs bg-destructive text-destructive-foreground hover:opacity-90 transition-colors"
                             >
                               确认
-                            </button>
-                            <button
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="xs"
                               onClick={() => setDeletingId(null)}
-                              className="px-2 py-1 rounded text-xs bg-muted hover:bg-muted/80 transition-colors"
                             >
                               取消
-                            </button>
+                            </Button>
                           </div>
                         ) : (
-                          <button
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
                             onClick={() => setDeletingId(v.id)}
-                            className="w-7 h-7 rounded-md hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors"
                             title="删除"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                            <Trash2 className="text-destructive" />
+                          </Button>
                         )}
                       </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 )
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
 
