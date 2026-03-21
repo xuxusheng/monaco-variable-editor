@@ -67,25 +67,6 @@ export interface WorkflowVariable {
   description?: string
 }
 
-// ========== React Flow 映射 ==========
-
-export interface FlowCanvasNode {
-  id: string
-  type: "workflowNode"
-  position: { x: number; y: number }
-  data: WorkflowNode
-}
-
-export interface FlowCanvasEdge {
-  id: string
-  source: string
-  target: string
-  type: "workflowEdge"
-  data: { edgeType: EdgeType; label?: string }
-  animated?: boolean
-  style?: React.CSSProperties
-}
-
 // ========== 插件目录 ==========
 
 export interface PluginEntry {
@@ -148,7 +129,9 @@ export const PLUGIN_CATALOG: PluginEntry[] = [
 
 // ========== 颜色映射 ==========
 
-export const CATEGORY_COLORS: Record<string, string> = {
+export type PluginCategory = "flow" | "http" | "script" | "jdbc" | "serdes" | "storage" | "other"
+
+export const CATEGORY_COLORS = {
   flow:    "#818cf8",  // 紫色
   http:    "#3b82f6",  // 蓝色
   script:  "#22c55e",  // 绿色
@@ -156,7 +139,7 @@ export const CATEGORY_COLORS: Record<string, string> = {
   serdes:  "#06b6d4",  // 青色
   storage: "#6b7280",  // 灰色
   other:   "#6366f1",  // 靛蓝
-}
+} satisfies Record<PluginCategory, string>
 
 // 根据节点 type 获取颜色
 export function getNodeColor(type: string): string {

@@ -1,11 +1,12 @@
-import { useState, useCallback, type DragEvent } from "react"
+import { useState, useCallback, useMemo, type DragEvent } from "react"
 import {
   PLUGIN_CATALOG,
   CATEGORY_COLORS,
   type PluginEntry,
+  type PluginCategory,
 } from "@/types/workflow"
 
-const CATEGORY_LABELS: Record<string, string> = {
+const CATEGORY_LABELS: Record<PluginCategory, string> = {
   flow: "控制流",
   http: "HTTP",
   script: "脚本",
@@ -26,20 +27,28 @@ export function NodeCreatePanel({ isOpen, onToggle }: NodeCreatePanelProps) {
     new Set(Object.keys(CATEGORY_LABELS)),
   )
 
-  const filteredPlugins = PLUGIN_CATALOG.filter(
-    (p) =>
-      p.name.includes(search) ||
-      p.type.toLowerCase().includes(search.toLowerCase()),
+  const filteredPlugins = useMemo(
+    () =>
+      PLUGIN_CATALOG.filter(
+        (p) =>
+          p.name.includes(search) ||
+          p.type.toLowerCase().includes(search.toLowerCase()),
+      ),
+    [search],
   )
 
-  const grouped = filteredPlugins.reduce(
-    (acc, plugin) => {
-      const cat = plugin.category
-      if (!acc[cat]) acc[cat] = []
-      acc[cat].push(plugin)
-      return acc
-    },
-    {} as Record<string, PluginEntry[]>,
+  const grouped = useMemo(
+    () =>
+      filteredPlugins.reduce(
+        (acc, plugin) => {
+          const cat = plugin.category
+          if (!acc[cat]) acc[cat] = []
+          acc[cat].push(plugin)
+          return acc
+        },
+        {} as Record<string, PluginEntry[]>,
+      ),
+    [filteredPlugins],
   )
 
   const toggleCategory = useCallback((cat: string) => {

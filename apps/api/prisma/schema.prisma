@@ -10,11 +10,12 @@ datasource db {
 }
 
 model Namespace {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String   @id @default(cuid())
+  name            String
+  kestraNamespace String
+  description     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   workflows Workflow[]
 
@@ -32,11 +33,12 @@ model Workflow {
   inputs           Json     @default("[]")
   variables        Json     @default("[]")
   disabled         Boolean  @default(false)
-  publishedVersion String?
+  publishedVersion Int      @default(0)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
   namespace Namespace @relation(fields: [namespaceId], references: [id])
 
+  @@unique([namespaceId, flowId])
   @@map("workflows")
 }

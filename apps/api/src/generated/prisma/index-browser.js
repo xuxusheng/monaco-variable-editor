@@ -120,6 +120,7 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
 exports.Prisma.NamespaceScalarFieldEnum = {
   id: 'id',
   name: 'name',
+  kestraNamespace: 'kestraNamespace',
   description: 'description',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'

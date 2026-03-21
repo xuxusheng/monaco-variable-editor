@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo, useEffect } from "react"
+import { useState, useCallback, useRef, useMemo, useEffect, memo } from "react"
 import {
   ReactFlow,
   Controls,
@@ -25,34 +25,19 @@ import type {
   WorkflowNode,
   WorkflowEdge,
   WorkflowInput,
-  EdgeType,
 } from "@/types/workflow"
 import { EDGE_STYLES, PLUGIN_CATALOG } from "@/types/workflow"
 import type { KestraInput } from "@/types/kestra"
+import type { ApiWorkflowNode, ApiWorkflowEdge, ApiWorkflowInput } from "@/types/api"
+import { FIXTURE_NODES, FIXTURE_EDGES, FIXTURE_INPUTS } from "@/types/fixtures"
 
-// ---- React Flow 自定义注册 ----
+// ---- React Flow 自定义类型注册（稳定引用，不随组件重渲染） ----
 const nodeTypes = { workflowNode: WorkflowNodeComponent }
 const edgeTypes = { workflowEdge: WorkflowEdgeComponent }
 
-// ---- ID 生成 ----
-let nodeIdCounter = 0
-const getId = () => `node_${Date.now()}_${++nodeIdCounter}`
-const getEdgeId = () => `edge_${Date.now()}_${++nodeIdCounter}`
-
-// ---- FitView ----
-function FitViewOnMount() {
-  const { fitView } = useReactFlow()
-  useEffect(() => {
-    const timer = setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 100)
-    const handleResize = () => fitView({ padding: 0.2, maxZoom: 1 })
-    window.addEventListener("resize", handleResize)
-    return () => {
-      clearTimeout(timer)
-      window.removeEventListener("resize", handleResize)
-    }
-  }, [fitView])
-  return null
-}
+// ---- ID 生成：使用 crypto.randomUUID，无冲突风险 ----
+const genNodeId = () => `node_${crypto.randomUUID().slice(0, 8)}`
+const genEdgeId = () => `edge_${crypto.randomUUID().slice(0, 8)}`
 
 // ========== 数据转换层 ==========
 
@@ -92,59 +77,190 @@ function toCanvasEdges(wfEdges: WorkflowEdge[]): Edge[] {
   })
 }
 
-/** React Flow 节点 → 业务节点（同步 position 到 ui） */
+/** React Flow 节点 → 业务节点（同步 position 到 ui），用 Map 优化到 O(n) */
 function syncPositions(
   wfNodes: WorkflowNode[],
   canvasNodes: Node[],
 ): WorkflowNode[] {
+  const posMap = new Map(canvasNodes.map((c) => [c.id, c.position]))
   return wfNodes.map((n) => {
-    const cn = canvasNodes.find((c) => c.id === n.id)
-    if (!cn) return n
-    return { ...n, ui: { x: cn.position.x, y: cn.position.y } }
+    const pos = posMap.get(n.id)
+    if (!pos) return n
+    return { ...n, ui: { x: pos.x, y: pos.y } }
   })
 }
 
-// ========== 初始数据 ==========
+// ========== YAML 工具函数 ==========
 
-const INITIAL_NODES: WorkflowNode[] = [
-  {
-    id: "node_1",
-    type: "io.kestra.plugin.core.log.Log",
-    name: "打印日志",
-    containerId: null,
-    sortIndex: 0,
-    spec: { message: "环境: {{ inputs.env }}" },
-    ui: { x: 200, y: 50 },
-  },
-  {
-    id: "node_2",
-    type: "io.kestra.plugin.core.http.Request",
-    name: "HTTP 请求",
-    containerId: null,
-    sortIndex: 1,
-    spec: { uri: "https://api.example.com/data", method: "GET" },
-    ui: { x: 200, y: 200 },
-  },
-  {
-    id: "node_3",
-    type: "io.kestra.plugin.scripts.shell.Script",
-    name: "Shell 脚本",
-    containerId: null,
-    sortIndex: 2,
-    spec: { script: "echo 'done'" },
-    ui: { x: 200, y: 350 },
-  },
-]
+/** 从 YAML 字符串解析出 id, type, spec */
+function parseYamlToNodeFields(yaml: string): {
+  id: string
+  type: string
+  spec: Record<string, unknown>
+} {
+  const lines = yaml.split("\n")
+  let id = ""
+  let type = ""
+  const specLines: string[] = []
 
-const INITIAL_EDGES: WorkflowEdge[] = [
-  { id: "edge_1", source: "node_1", target: "node_2", type: "sequence" },
-  { id: "edge_2", source: "node_2", target: "node_3", type: "sequence" },
-]
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (trimmed.startsWith("id:")) {
+      id = trimmed.replace(/^id:\s*/, "").replace(/^["']|["']$/g, "").trim()
+    } else if (trimmed.startsWith("type:")) {
+      type = trimmed.replace(/^type:\s*/, "").replace(/^["']|["']$/g, "").trim()
+    } else if (trimmed.includes(":")) {
+      specLines.push(trimmed)
+    }
+  }
 
-const INITIAL_INPUTS: WorkflowInput[] = [
-  { id: "env", type: "STRING", defaults: "dev", description: "运行环境" },
-  { id: "version", type: "STRING", defaults: "1.0.0", description: "版本号" },
-]
+  // 简单解析 spec：每行 key: value
+  const spec: Record<string, unknown> = {}
+  for (const line of specLines) {
+    const colonIdx = line.indexOf(":")
+    if (colonIdx === -1) continue
+    const key = line.slice(0, colonIdx).trim()
+    let value: unknown = line.slice(colonIdx + 1).trim()
+    // 去除引号
+    if (typeof value === "string") {
+      value = value.replace(/^["']|["']$/g, "")
+    }
+    spec[key] = value
+  }
+
+  return { id, type, spec }
+}
+
+/** WorkflowNode spec → YAML 字符串 */
+function yamlFromSpec(
+  type: string,
+  name: string,
+  spec: Record<string, unknown>,
+): string {
+  const lines: string[] = [`id: ${nameToSlug(name)}`, `type: ${type}`]
+  for (const [key, value] of Object.entries(spec)) {
+    if (typeof value === "string") {
+      // 字符串值加引号（如果含特殊字符）
+      if (value.includes(":") || value.includes("#") || value.includes("{")) {
+        lines.push(`${key}: "${value.replace(/"/g, '\\"')}"`)
+      } else {
+        lines.push(`${key}: ${value}`)
+      }
+    } else if (typeof value === "object" && value !== null) {
+      // 嵌套对象：缩进为 YAML 格式
+      const json = JSON.stringify(value, null, 2)
+      lines.push(`${key}:`)
+      for (const jl of json.split("\n")) {
+        lines.push(`  ${jl}`)
+      }
+    } else {
+      lines.push(`${key}: ${String(value)}`)
+    }
+  }
+  return lines.join("\n")
+}
+
+/** 中文名 → slug id */
+function nameToSlug(name: string): string {
+  return (
+    name
+      .replace(/[^\w\u4e00-\u9fff\u3400-\u4dbf-]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
+      .toLowerCase() || "task"
+  )
+}
+
+// ========== 类型转换层（前端 ↔ API） ==========
+
+function toApiNode(n: WorkflowNode): ApiWorkflowNode {
+  return {
+    id: n.id,
+    type: n.type,
+    name: n.name,
+    description: n.description,
+    containerId: n.containerId,
+    sortIndex: n.sortIndex,
+    spec: n.spec,
+    ui: n.ui,
+  }
+}
+
+function toApiEdge(e: WorkflowEdge): ApiWorkflowEdge {
+  return {
+    id: e.id,
+    source: e.source,
+    target: e.target,
+    type: e.type,
+    label: e.label,
+  }
+}
+
+function toApiInput(i: WorkflowInput): ApiWorkflowInput {
+  return {
+    id: i.id,
+    type: i.type,
+    displayName: i.displayName,
+    description: i.description,
+    required: i.required,
+    defaults: i.defaults,
+    values: i.values,
+  }
+}
+
+function fromApiNode(n: ApiWorkflowNode): WorkflowNode {
+  return {
+    id: n.id,
+    type: n.type,
+    name: n.name,
+    description: n.description,
+    containerId: n.containerId,
+    sortIndex: n.sortIndex,
+    spec: n.spec,
+    ui: n.ui,
+  }
+}
+
+function fromApiEdge(e: ApiWorkflowEdge): WorkflowEdge {
+  return {
+    id: e.id,
+    source: e.source,
+    target: e.target,
+    type: e.type,
+    label: e.label,
+  }
+}
+
+function fromApiInput(i: ApiWorkflowInput): WorkflowInput {
+  return {
+    id: i.id,
+    type: i.type as WorkflowInput["type"],
+    displayName: i.displayName,
+    description: i.description,
+    required: i.required,
+    defaults: i.defaults,
+    values: i.values,
+  }
+}
+
+// ========== FitView 组件 ==========
+
+const FitViewOnMount = memo(function FitViewOnMount() {
+  const { fitView } = useReactFlow()
+  useEffect(() => {
+    const timer = setTimeout(
+      () => fitView({ padding: 0.2, maxZoom: 1 }),
+      100,
+    )
+    const handleResize = () => fitView({ padding: 0.2, maxZoom: 1 })
+    window.addEventListener("resize", handleResize)
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener("resize", handleResize)
+    }
+  }, [fitView])
+  return null
+})
 
 // ========== 主组件 ==========
 
@@ -155,16 +271,16 @@ export default function WorkflowEditorPage() {
   const { fitView, screenToFlowPosition } = useReactFlow()
 
   // ---- 业务状态 ----
-  const [wfNodes, setWfNodes] = useState<WorkflowNode[]>(INITIAL_NODES)
-  const [wfEdges, setWfEdges] = useState<WorkflowEdge[]>(INITIAL_EDGES)
-  const [inputs, setInputs] = useState<WorkflowInput[]>(INITIAL_INPUTS)
+  const [wfNodes, setWfNodes] = useState<WorkflowNode[]>(FIXTURE_NODES)
+  const [wfEdges, setWfEdges] = useState<WorkflowEdge[]>(FIXTURE_EDGES)
+  const [inputs, setInputs] = useState<WorkflowInput[]>(FIXTURE_INPUTS)
 
   // ---- 画布状态（从业务状态派生） ----
   const [canvasNodes, setCanvasNodes, onCanvasNodesChange] = useNodesState(
-    toCanvasNodes(INITIAL_NODES),
+    toCanvasNodes(FIXTURE_NODES),
   )
   const [canvasEdges, setCanvasEdges, onCanvasEdgesChange] = useEdgesState(
-    toCanvasEdges(INITIAL_EDGES),
+    toCanvasEdges(FIXTURE_EDGES),
   )
 
   // ---- 业务状态变更 → 同步画布 ----
@@ -231,7 +347,7 @@ export default function WorkflowEditorPage() {
     })
   }, [wfNodes, wfEdges])
 
-  // ---- 排序：按 containerId 分组，组内按 sortIndex ----
+  // ---- 排序 ----
   const sortedNodes = useMemo(() => {
     return [...wfNodes].sort((a, b) => a.sortIndex - b.sortIndex)
   }, [wfNodes])
@@ -242,7 +358,7 @@ export default function WorkflowEditorPage() {
       if (!params.source || !params.target) return
       pushHistory()
       const newEdge: WorkflowEdge = {
-        id: getEdgeId(),
+        id: genEdgeId(),
         source: params.source,
         target: params.target,
         type: "sequence",
@@ -288,13 +404,12 @@ export default function WorkflowEditorPage() {
         y: event.clientY,
       })
 
-      // 计算 sortIndex：同层最大 + 1
       const maxSort = wfNodes
         .filter((n) => n.containerId === null)
         .reduce((max, n) => Math.max(max, n.sortIndex), -1)
 
       const newNode: WorkflowNode = {
-        id: getId(),
+        id: genNodeId(),
         type,
         name,
         containerId: null,
@@ -308,13 +423,14 @@ export default function WorkflowEditorPage() {
     [pushHistory, screenToFlowPosition, wfNodes],
   )
 
-  // ---- 任务配置更新 ----
+  // ---- 任务配置更新：解析 YAML 回写 spec ----
   const handleTaskUpdate = useCallback(
     (nodeId: string, label: string, taskConfig: string) => {
-      // taskConfig 是 YAML 字符串，我们需要解析它更新 spec
-      // 简单做法：只更新 name，spec 由 TaskConfigPanel 直接处理
+      const { spec } = parseYamlToNodeFields(taskConfig)
       setWfNodes((prev) =>
-        prev.map((n) => (n.id === nodeId ? { ...n, name: label } : n)),
+        prev.map((n) =>
+          n.id === nodeId ? { ...n, name: label, spec } : n,
+        ),
       )
     },
     [],
@@ -324,7 +440,6 @@ export default function WorkflowEditorPage() {
   const handleDeleteSelected = useCallback(() => {
     if (!selectedNodeId) return
     pushHistory()
-    // 重排 sortIndex
     const deletedNode = wfNodes.find((n) => n.id === selectedNodeId)
     setWfNodes((prev) =>
       prev
@@ -362,7 +477,7 @@ export default function WorkflowEditorPage() {
 
     const newNode: WorkflowNode = {
       ...structuredClone(sourceNode),
-      id: getId(),
+      id: genNodeId(),
       name: sourceNode.name + " (副本)",
       sortIndex: maxSort + 1,
       ui: {
@@ -381,7 +496,6 @@ export default function WorkflowEditorPage() {
       canvasEdges,
       "TB",
     )
-    // 同步回业务状态
     setWfNodes((prev) => syncPositions(prev, layoutedNodes))
     setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 50)
   }, [canvasNodes, canvasEdges, pushHistory, fitView])
@@ -395,29 +509,30 @@ export default function WorkflowEditorPage() {
   const handleSaveToApi = useCallback(async () => {
     setSaveStatus("saving")
     try {
-      // 同步画布位置到业务数据
       const currentNodes = syncPositions(wfNodes, canvasNodes)
+      const apiNodes = currentNodes.map(toApiNode)
+      const apiEdges = wfEdges.map(toApiEdge)
+      const apiInputs = inputs.map(toApiInput)
 
       if (savedWorkflowId) {
         await trpcClient.workflow.update({
           id: savedWorkflowId,
           flowId: workflowMeta.flowId,
           name: workflowMeta.name,
-          namespace: workflowMeta.namespace,
           description: workflowMeta.description,
-          nodes: currentNodes as any,
-          edges: wfEdges as any,
-          inputs: inputs as any,
+          nodes: apiNodes,
+          edges: apiEdges,
+          inputs: apiInputs,
         })
       } else {
         const result = await trpcClient.workflow.create({
           flowId: workflowMeta.flowId,
           name: workflowMeta.name,
-          namespace: workflowMeta.namespace,
+          namespaceId: "default", // TODO: M3 用真实的 namespaceId
           description: workflowMeta.description,
-          nodes: currentNodes as any,
-          edges: wfEdges as any,
-          inputs: inputs as any,
+          nodes: apiNodes,
+          edges: apiEdges,
+          inputs: apiInputs,
         })
         setSavedWorkflowId(result.id)
       }
@@ -443,38 +558,41 @@ export default function WorkflowEditorPage() {
 
       setSavedWorkflowId(full.id)
       setWorkflowMeta({
-        flowId: (full as any).flowId ?? full.name,
+        flowId: full.flowId,
         name: full.name,
-        namespace: full.namespace,
+        namespace: workflowMeta.namespace,
         description: full.description ?? "",
       })
 
-      if (full.nodes) setWfNodes(full.nodes as unknown as WorkflowNode[])
-      if (full.edges) setWfEdges(full.edges as unknown as WorkflowEdge[])
-      if ((full as any).inputs)
-        setInputs((full as any).inputs as unknown as WorkflowInput[])
+      if (full.nodes) setWfNodes(full.nodes.map(fromApiNode))
+      if (full.edges) setWfEdges(full.edges.map(fromApiEdge))
+      if (full.inputs) setInputs(full.inputs.map(fromApiInput))
 
       setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 100)
     } catch (e) {
       console.error("Load failed:", e)
       alert("从 API 加载失败，请确认后端已启动")
     }
-  }, [fitView])
+  }, [fitView, workflowMeta.namespace])
 
   // ---- 选中节点数据 ----
   const selectedNode = wfNodes.find((n) => n.id === selectedNodeId)
 
-  // ---- Monaco 兼容：将 WorkflowNode 转为 TaskConfigPanel 需要的格式 ----
+  // ---- TaskConfigPanel 兼容数据 ----
   const selectedNodeForPanel = useMemo(() => {
     if (!selectedNode) return null
     return {
       id: selectedNode.id,
       label: selectedNode.name,
-      taskConfig: yamlFromSpec(selectedNode.type, selectedNode.name, selectedNode.spec),
+      taskConfig: yamlFromSpec(
+        selectedNode.type,
+        selectedNode.name,
+        selectedNode.spec,
+      ),
     }
   }, [selectedNode])
 
-  // Input 兼容转换
+  // Input 兼容转换（给旧面板用，M3 重写面板后删除）
   const kestraInputs: KestraInput[] = useMemo(
     () =>
       inputs.map((i) => ({
@@ -621,31 +739,6 @@ export default function WorkflowEditorPage() {
 
       {/* Canvas */}
       <div className="flex-1 relative">
-        {/* 移动端添加按钮 */}
-        <button
-          onClick={() => {
-            pushHistory()
-            const maxSort = wfNodes
-              .filter((n) => n.containerId === null)
-              .reduce((max, n) => Math.max(max, n.sortIndex), -1)
-            const plugin = PLUGIN_CATALOG[0]
-            const newNode: WorkflowNode = {
-              id: getId(),
-              type: plugin.type,
-              name: plugin.name,
-              containerId: null,
-              sortIndex: maxSort + 1,
-              spec: plugin.defaultSpec ?? {},
-              ui: { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 },
-            }
-            setWfNodes((prev) => [...prev, newNode])
-          }}
-          className="absolute bottom-4 right-4 z-10 w-12 h-12 rounded-full bg-indigo-500 text-white shadow-lg flex items-center justify-center text-xl hover:bg-indigo-600 active:scale-95 transition-all md:hidden"
-          title="添加节点"
-        >
-          +
-        </button>
-
         <div ref={reactFlowWrapper} className="w-full h-full">
           <ReactFlow
             nodes={canvasNodes}
@@ -731,32 +824,4 @@ export default function WorkflowEditorPage() {
       )}
     </div>
   )
-}
-
-// ========== 工具函数 ==========
-
-/** WorkflowNode spec → YAML 字符串（兼容 TaskConfigPanel / KestraYamlPanel） */
-function yamlFromSpec(
-  type: string,
-  name: string,
-  spec: Record<string, unknown>,
-): string {
-  const lines: string[] = [`id: ${nameToId(name)}`, `type: ${type}`]
-  for (const [key, value] of Object.entries(spec)) {
-    if (typeof value === "string") {
-      lines.push(`${key}: "${value}"`)
-    } else {
-      lines.push(`${key}: ${JSON.stringify(value)}`)
-    }
-  }
-  return lines.join("\n")
-}
-
-/** 中文名 → slug id */
-function nameToId(name: string): string {
-  return name
-    .replace(/[^\w\u4e00-\u9fff-]/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
-    .toLowerCase() || "task"
 }

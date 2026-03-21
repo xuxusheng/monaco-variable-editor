@@ -1000,6 +1000,7 @@ export namespace Prisma {
   export type NamespaceMinAggregateOutputType = {
     id: string | null
     name: string | null
+    kestraNamespace: string | null
     description: string | null
     createdAt: Date | null
     updatedAt: Date | null
@@ -1008,6 +1009,7 @@ export namespace Prisma {
   export type NamespaceMaxAggregateOutputType = {
     id: string | null
     name: string | null
+    kestraNamespace: string | null
     description: string | null
     createdAt: Date | null
     updatedAt: Date | null
@@ -1016,6 +1018,7 @@ export namespace Prisma {
   export type NamespaceCountAggregateOutputType = {
     id: number
     name: number
+    kestraNamespace: number
     description: number
     createdAt: number
     updatedAt: number
@@ -1026,6 +1029,7 @@ export namespace Prisma {
   export type NamespaceMinAggregateInputType = {
     id?: true
     name?: true
+    kestraNamespace?: true
     description?: true
     createdAt?: true
     updatedAt?: true
@@ -1034,6 +1038,7 @@ export namespace Prisma {
   export type NamespaceMaxAggregateInputType = {
     id?: true
     name?: true
+    kestraNamespace?: true
     description?: true
     createdAt?: true
     updatedAt?: true
@@ -1042,6 +1047,7 @@ export namespace Prisma {
   export type NamespaceCountAggregateInputType = {
     id?: true
     name?: true
+    kestraNamespace?: true
     description?: true
     createdAt?: true
     updatedAt?: true
@@ -1123,6 +1129,7 @@ export namespace Prisma {
   export type NamespaceGroupByOutputType = {
     id: string
     name: string
+    kestraNamespace: string
     description: string | null
     createdAt: Date
     updatedAt: Date
@@ -1148,6 +1155,7 @@ export namespace Prisma {
   export type NamespaceSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     name?: boolean
+    kestraNamespace?: boolean
     description?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -1158,6 +1166,7 @@ export namespace Prisma {
   export type NamespaceSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     name?: boolean
+    kestraNamespace?: boolean
     description?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -1166,6 +1175,7 @@ export namespace Prisma {
   export type NamespaceSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     name?: boolean
+    kestraNamespace?: boolean
     description?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -1174,12 +1184,13 @@ export namespace Prisma {
   export type NamespaceSelectScalar = {
     id?: boolean
     name?: boolean
+    kestraNamespace?: boolean
     description?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type NamespaceOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "name" | "description" | "createdAt" | "updatedAt", ExtArgs["result"]["namespace"]>
+  export type NamespaceOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "name" | "kestraNamespace" | "description" | "createdAt" | "updatedAt", ExtArgs["result"]["namespace"]>
   export type NamespaceInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     workflows?: boolean | Namespace$workflowsArgs<ExtArgs>
     _count?: boolean | NamespaceCountOutputTypeDefaultArgs<ExtArgs>
@@ -1195,6 +1206,7 @@ export namespace Prisma {
     scalars: $Extensions.GetPayloadResult<{
       id: string
       name: string
+      kestraNamespace: string
       description: string | null
       createdAt: Date
       updatedAt: Date
@@ -1624,6 +1636,7 @@ export namespace Prisma {
   interface NamespaceFieldRefs {
     readonly id: FieldRef<"Namespace", 'String'>
     readonly name: FieldRef<"Namespace", 'String'>
+    readonly kestraNamespace: FieldRef<"Namespace", 'String'>
     readonly description: FieldRef<"Namespace", 'String'>
     readonly createdAt: FieldRef<"Namespace", 'DateTime'>
     readonly updatedAt: FieldRef<"Namespace", 'DateTime'>
@@ -2066,8 +2079,18 @@ export namespace Prisma {
 
   export type AggregateWorkflow = {
     _count: WorkflowCountAggregateOutputType | null
+    _avg: WorkflowAvgAggregateOutputType | null
+    _sum: WorkflowSumAggregateOutputType | null
     _min: WorkflowMinAggregateOutputType | null
     _max: WorkflowMaxAggregateOutputType | null
+  }
+
+  export type WorkflowAvgAggregateOutputType = {
+    publishedVersion: number | null
+  }
+
+  export type WorkflowSumAggregateOutputType = {
+    publishedVersion: number | null
   }
 
   export type WorkflowMinAggregateOutputType = {
@@ -2077,7 +2100,7 @@ export namespace Prisma {
     namespaceId: string | null
     description: string | null
     disabled: boolean | null
-    publishedVersion: string | null
+    publishedVersion: number | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -2089,7 +2112,7 @@ export namespace Prisma {
     namespaceId: string | null
     description: string | null
     disabled: boolean | null
-    publishedVersion: string | null
+    publishedVersion: number | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -2111,6 +2134,14 @@ export namespace Prisma {
     _all: number
   }
 
+
+  export type WorkflowAvgAggregateInputType = {
+    publishedVersion?: true
+  }
+
+  export type WorkflowSumAggregateInputType = {
+    publishedVersion?: true
+  }
 
   export type WorkflowMinAggregateInputType = {
     id?: true
@@ -2191,6 +2222,18 @@ export namespace Prisma {
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
      * 
+     * Select which fields to average
+    **/
+    _avg?: WorkflowAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: WorkflowSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
      * Select which fields to find the minimum value
     **/
     _min?: WorkflowMinAggregateInputType
@@ -2221,6 +2264,8 @@ export namespace Prisma {
     take?: number
     skip?: number
     _count?: WorkflowCountAggregateInputType | true
+    _avg?: WorkflowAvgAggregateInputType
+    _sum?: WorkflowSumAggregateInputType
     _min?: WorkflowMinAggregateInputType
     _max?: WorkflowMaxAggregateInputType
   }
@@ -2236,10 +2281,12 @@ export namespace Prisma {
     inputs: JsonValue
     variables: JsonValue
     disabled: boolean
-    publishedVersion: string | null
+    publishedVersion: number
     createdAt: Date
     updatedAt: Date
     _count: WorkflowCountAggregateOutputType | null
+    _avg: WorkflowAvgAggregateOutputType | null
+    _sum: WorkflowSumAggregateOutputType | null
     _min: WorkflowMinAggregateOutputType | null
     _max: WorkflowMaxAggregateOutputType | null
   }
@@ -2352,7 +2399,7 @@ export namespace Prisma {
       inputs: Prisma.JsonValue
       variables: Prisma.JsonValue
       disabled: boolean
-      publishedVersion: string | null
+      publishedVersion: number
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["workflow"]>
@@ -2789,7 +2836,7 @@ export namespace Prisma {
     readonly inputs: FieldRef<"Workflow", 'Json'>
     readonly variables: FieldRef<"Workflow", 'Json'>
     readonly disabled: FieldRef<"Workflow", 'Boolean'>
-    readonly publishedVersion: FieldRef<"Workflow", 'String'>
+    readonly publishedVersion: FieldRef<"Workflow", 'Int'>
     readonly createdAt: FieldRef<"Workflow", 'DateTime'>
     readonly updatedAt: FieldRef<"Workflow", 'DateTime'>
   }
@@ -3223,6 +3270,7 @@ export namespace Prisma {
   export const NamespaceScalarFieldEnum: {
     id: 'id',
     name: 'name',
+    kestraNamespace: 'kestraNamespace',
     description: 'description',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
@@ -3335,6 +3383,13 @@ export namespace Prisma {
    */
   export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int'>
     
+
+
+  /**
+   * Reference to a field of type 'Float'
+   */
+  export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
+    
   /**
    * Deep Input Types
    */
@@ -3346,6 +3401,7 @@ export namespace Prisma {
     NOT?: NamespaceWhereInput | NamespaceWhereInput[]
     id?: StringFilter<"Namespace"> | string
     name?: StringFilter<"Namespace"> | string
+    kestraNamespace?: StringFilter<"Namespace"> | string
     description?: StringNullableFilter<"Namespace"> | string | null
     createdAt?: DateTimeFilter<"Namespace"> | Date | string
     updatedAt?: DateTimeFilter<"Namespace"> | Date | string
@@ -3355,6 +3411,7 @@ export namespace Prisma {
   export type NamespaceOrderByWithRelationInput = {
     id?: SortOrder
     name?: SortOrder
+    kestraNamespace?: SortOrder
     description?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -3367,6 +3424,7 @@ export namespace Prisma {
     OR?: NamespaceWhereInput[]
     NOT?: NamespaceWhereInput | NamespaceWhereInput[]
     name?: StringFilter<"Namespace"> | string
+    kestraNamespace?: StringFilter<"Namespace"> | string
     description?: StringNullableFilter<"Namespace"> | string | null
     createdAt?: DateTimeFilter<"Namespace"> | Date | string
     updatedAt?: DateTimeFilter<"Namespace"> | Date | string
@@ -3376,6 +3434,7 @@ export namespace Prisma {
   export type NamespaceOrderByWithAggregationInput = {
     id?: SortOrder
     name?: SortOrder
+    kestraNamespace?: SortOrder
     description?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -3390,6 +3449,7 @@ export namespace Prisma {
     NOT?: NamespaceScalarWhereWithAggregatesInput | NamespaceScalarWhereWithAggregatesInput[]
     id?: StringWithAggregatesFilter<"Namespace"> | string
     name?: StringWithAggregatesFilter<"Namespace"> | string
+    kestraNamespace?: StringWithAggregatesFilter<"Namespace"> | string
     description?: StringNullableWithAggregatesFilter<"Namespace"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"Namespace"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Namespace"> | Date | string
@@ -3409,7 +3469,7 @@ export namespace Prisma {
     inputs?: JsonFilter<"Workflow">
     variables?: JsonFilter<"Workflow">
     disabled?: BoolFilter<"Workflow"> | boolean
-    publishedVersion?: StringNullableFilter<"Workflow"> | string | null
+    publishedVersion?: IntFilter<"Workflow"> | number
     createdAt?: DateTimeFilter<"Workflow"> | Date | string
     updatedAt?: DateTimeFilter<"Workflow"> | Date | string
     namespace?: XOR<NamespaceScalarRelationFilter, NamespaceWhereInput>
@@ -3426,7 +3486,7 @@ export namespace Prisma {
     inputs?: SortOrder
     variables?: SortOrder
     disabled?: SortOrder
-    publishedVersion?: SortOrderInput | SortOrder
+    publishedVersion?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     namespace?: NamespaceOrderByWithRelationInput
@@ -3434,6 +3494,7 @@ export namespace Prisma {
 
   export type WorkflowWhereUniqueInput = Prisma.AtLeast<{
     id?: string
+    namespaceId_flowId?: WorkflowNamespaceIdFlowIdCompoundUniqueInput
     AND?: WorkflowWhereInput | WorkflowWhereInput[]
     OR?: WorkflowWhereInput[]
     NOT?: WorkflowWhereInput | WorkflowWhereInput[]
@@ -3446,11 +3507,11 @@ export namespace Prisma {
     inputs?: JsonFilter<"Workflow">
     variables?: JsonFilter<"Workflow">
     disabled?: BoolFilter<"Workflow"> | boolean
-    publishedVersion?: StringNullableFilter<"Workflow"> | string | null
+    publishedVersion?: IntFilter<"Workflow"> | number
     createdAt?: DateTimeFilter<"Workflow"> | Date | string
     updatedAt?: DateTimeFilter<"Workflow"> | Date | string
     namespace?: XOR<NamespaceScalarRelationFilter, NamespaceWhereInput>
-  }, "id">
+  }, "id" | "namespaceId_flowId">
 
   export type WorkflowOrderByWithAggregationInput = {
     id?: SortOrder
@@ -3463,12 +3524,14 @@ export namespace Prisma {
     inputs?: SortOrder
     variables?: SortOrder
     disabled?: SortOrder
-    publishedVersion?: SortOrderInput | SortOrder
+    publishedVersion?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: WorkflowCountOrderByAggregateInput
+    _avg?: WorkflowAvgOrderByAggregateInput
     _max?: WorkflowMaxOrderByAggregateInput
     _min?: WorkflowMinOrderByAggregateInput
+    _sum?: WorkflowSumOrderByAggregateInput
   }
 
   export type WorkflowScalarWhereWithAggregatesInput = {
@@ -3485,7 +3548,7 @@ export namespace Prisma {
     inputs?: JsonWithAggregatesFilter<"Workflow">
     variables?: JsonWithAggregatesFilter<"Workflow">
     disabled?: BoolWithAggregatesFilter<"Workflow"> | boolean
-    publishedVersion?: StringNullableWithAggregatesFilter<"Workflow"> | string | null
+    publishedVersion?: IntWithAggregatesFilter<"Workflow"> | number
     createdAt?: DateTimeWithAggregatesFilter<"Workflow"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Workflow"> | Date | string
   }
@@ -3493,6 +3556,7 @@ export namespace Prisma {
   export type NamespaceCreateInput = {
     id?: string
     name: string
+    kestraNamespace: string
     description?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -3502,6 +3566,7 @@ export namespace Prisma {
   export type NamespaceUncheckedCreateInput = {
     id?: string
     name: string
+    kestraNamespace: string
     description?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -3511,6 +3576,7 @@ export namespace Prisma {
   export type NamespaceUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    kestraNamespace?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -3520,6 +3586,7 @@ export namespace Prisma {
   export type NamespaceUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    kestraNamespace?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -3529,6 +3596,7 @@ export namespace Prisma {
   export type NamespaceCreateManyInput = {
     id?: string
     name: string
+    kestraNamespace: string
     description?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -3537,6 +3605,7 @@ export namespace Prisma {
   export type NamespaceUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    kestraNamespace?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -3545,6 +3614,7 @@ export namespace Prisma {
   export type NamespaceUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    kestraNamespace?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -3560,7 +3630,7 @@ export namespace Prisma {
     inputs?: JsonNullValueInput | InputJsonValue
     variables?: JsonNullValueInput | InputJsonValue
     disabled?: boolean
-    publishedVersion?: string | null
+    publishedVersion?: number
     createdAt?: Date | string
     updatedAt?: Date | string
     namespace: NamespaceCreateNestedOneWithoutWorkflowsInput
@@ -3577,7 +3647,7 @@ export namespace Prisma {
     inputs?: JsonNullValueInput | InputJsonValue
     variables?: JsonNullValueInput | InputJsonValue
     disabled?: boolean
-    publishedVersion?: string | null
+    publishedVersion?: number
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -3592,7 +3662,7 @@ export namespace Prisma {
     inputs?: JsonNullValueInput | InputJsonValue
     variables?: JsonNullValueInput | InputJsonValue
     disabled?: BoolFieldUpdateOperationsInput | boolean
-    publishedVersion?: NullableStringFieldUpdateOperationsInput | string | null
+    publishedVersion?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     namespace?: NamespaceUpdateOneRequiredWithoutWorkflowsNestedInput
@@ -3609,7 +3679,7 @@ export namespace Prisma {
     inputs?: JsonNullValueInput | InputJsonValue
     variables?: JsonNullValueInput | InputJsonValue
     disabled?: BoolFieldUpdateOperationsInput | boolean
-    publishedVersion?: NullableStringFieldUpdateOperationsInput | string | null
+    publishedVersion?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -3625,7 +3695,7 @@ export namespace Prisma {
     inputs?: JsonNullValueInput | InputJsonValue
     variables?: JsonNullValueInput | InputJsonValue
     disabled?: boolean
-    publishedVersion?: string | null
+    publishedVersion?: number
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -3640,7 +3710,7 @@ export namespace Prisma {
     inputs?: JsonNullValueInput | InputJsonValue
     variables?: JsonNullValueInput | InputJsonValue
     disabled?: BoolFieldUpdateOperationsInput | boolean
-    publishedVersion?: NullableStringFieldUpdateOperationsInput | string | null
+    publishedVersion?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -3656,7 +3726,7 @@ export namespace Prisma {
     inputs?: JsonNullValueInput | InputJsonValue
     variables?: JsonNullValueInput | InputJsonValue
     disabled?: BoolFieldUpdateOperationsInput | boolean
-    publishedVersion?: NullableStringFieldUpdateOperationsInput | string | null
+    publishedVersion?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -3718,6 +3788,7 @@ export namespace Prisma {
   export type NamespaceCountOrderByAggregateInput = {
     id?: SortOrder
     name?: SortOrder
+    kestraNamespace?: SortOrder
     description?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -3726,6 +3797,7 @@ export namespace Prisma {
   export type NamespaceMaxOrderByAggregateInput = {
     id?: SortOrder
     name?: SortOrder
+    kestraNamespace?: SortOrder
     description?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -3734,6 +3806,7 @@ export namespace Prisma {
   export type NamespaceMinOrderByAggregateInput = {
     id?: SortOrder
     name?: SortOrder
+    kestraNamespace?: SortOrder
     description?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -3810,9 +3883,25 @@ export namespace Prisma {
     not?: NestedBoolFilter<$PrismaModel> | boolean
   }
 
+  export type IntFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[]
+    notIn?: number[]
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntFilter<$PrismaModel> | number
+  }
+
   export type NamespaceScalarRelationFilter = {
     is?: NamespaceWhereInput
     isNot?: NamespaceWhereInput
+  }
+
+  export type WorkflowNamespaceIdFlowIdCompoundUniqueInput = {
+    namespaceId: string
+    flowId: string
   }
 
   export type WorkflowCountOrderByAggregateInput = {
@@ -3829,6 +3918,10 @@ export namespace Prisma {
     publishedVersion?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+  }
+
+  export type WorkflowAvgOrderByAggregateInput = {
+    publishedVersion?: SortOrder
   }
 
   export type WorkflowMaxOrderByAggregateInput = {
@@ -3853,6 +3946,10 @@ export namespace Prisma {
     publishedVersion?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+  }
+
+  export type WorkflowSumOrderByAggregateInput = {
+    publishedVersion?: SortOrder
   }
   export type JsonWithAggregatesFilter<$PrismaModel = never> =
     | PatchUndefined<
@@ -3882,6 +3979,22 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedBoolFilter<$PrismaModel>
     _max?: NestedBoolFilter<$PrismaModel>
+  }
+
+  export type IntWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[]
+    notIn?: number[]
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntWithAggregatesFilter<$PrismaModel> | number
+    _count?: NestedIntFilter<$PrismaModel>
+    _avg?: NestedFloatFilter<$PrismaModel>
+    _sum?: NestedIntFilter<$PrismaModel>
+    _min?: NestedIntFilter<$PrismaModel>
+    _max?: NestedIntFilter<$PrismaModel>
   }
 
   export type WorkflowCreateNestedManyWithoutNamespaceInput = {
@@ -3946,6 +4059,14 @@ export namespace Prisma {
 
   export type BoolFieldUpdateOperationsInput = {
     set?: boolean
+  }
+
+  export type IntFieldUpdateOperationsInput = {
+    set?: number
+    increment?: number
+    decrement?: number
+    multiply?: number
+    divide?: number
   }
 
   export type NamespaceUpdateOneRequiredWithoutWorkflowsNestedInput = {
@@ -4096,6 +4217,33 @@ export namespace Prisma {
     _max?: NestedBoolFilter<$PrismaModel>
   }
 
+  export type NestedIntWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[]
+    notIn?: number[]
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntWithAggregatesFilter<$PrismaModel> | number
+    _count?: NestedIntFilter<$PrismaModel>
+    _avg?: NestedFloatFilter<$PrismaModel>
+    _sum?: NestedIntFilter<$PrismaModel>
+    _min?: NestedIntFilter<$PrismaModel>
+    _max?: NestedIntFilter<$PrismaModel>
+  }
+
+  export type NestedFloatFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel>
+    in?: number[]
+    notIn?: number[]
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatFilter<$PrismaModel> | number
+  }
+
   export type WorkflowCreateWithoutNamespaceInput = {
     id?: string
     name: string
@@ -4106,7 +4254,7 @@ export namespace Prisma {
     inputs?: JsonNullValueInput | InputJsonValue
     variables?: JsonNullValueInput | InputJsonValue
     disabled?: boolean
-    publishedVersion?: string | null
+    publishedVersion?: number
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -4121,7 +4269,7 @@ export namespace Prisma {
     inputs?: JsonNullValueInput | InputJsonValue
     variables?: JsonNullValueInput | InputJsonValue
     disabled?: boolean
-    publishedVersion?: string | null
+    publishedVersion?: number
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -4165,7 +4313,7 @@ export namespace Prisma {
     inputs?: JsonFilter<"Workflow">
     variables?: JsonFilter<"Workflow">
     disabled?: BoolFilter<"Workflow"> | boolean
-    publishedVersion?: StringNullableFilter<"Workflow"> | string | null
+    publishedVersion?: IntFilter<"Workflow"> | number
     createdAt?: DateTimeFilter<"Workflow"> | Date | string
     updatedAt?: DateTimeFilter<"Workflow"> | Date | string
   }
@@ -4173,6 +4321,7 @@ export namespace Prisma {
   export type NamespaceCreateWithoutWorkflowsInput = {
     id?: string
     name: string
+    kestraNamespace: string
     description?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -4181,6 +4330,7 @@ export namespace Prisma {
   export type NamespaceUncheckedCreateWithoutWorkflowsInput = {
     id?: string
     name: string
+    kestraNamespace: string
     description?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -4205,6 +4355,7 @@ export namespace Prisma {
   export type NamespaceUpdateWithoutWorkflowsInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    kestraNamespace?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -4213,6 +4364,7 @@ export namespace Prisma {
   export type NamespaceUncheckedUpdateWithoutWorkflowsInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
+    kestraNamespace?: StringFieldUpdateOperationsInput | string
     description?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -4228,7 +4380,7 @@ export namespace Prisma {
     inputs?: JsonNullValueInput | InputJsonValue
     variables?: JsonNullValueInput | InputJsonValue
     disabled?: boolean
-    publishedVersion?: string | null
+    publishedVersion?: number
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -4243,7 +4395,7 @@ export namespace Prisma {
     inputs?: JsonNullValueInput | InputJsonValue
     variables?: JsonNullValueInput | InputJsonValue
     disabled?: BoolFieldUpdateOperationsInput | boolean
-    publishedVersion?: NullableStringFieldUpdateOperationsInput | string | null
+    publishedVersion?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -4258,7 +4410,7 @@ export namespace Prisma {
     inputs?: JsonNullValueInput | InputJsonValue
     variables?: JsonNullValueInput | InputJsonValue
     disabled?: BoolFieldUpdateOperationsInput | boolean
-    publishedVersion?: NullableStringFieldUpdateOperationsInput | string | null
+    publishedVersion?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -4273,7 +4425,7 @@ export namespace Prisma {
     inputs?: JsonNullValueInput | InputJsonValue
     variables?: JsonNullValueInput | InputJsonValue
     disabled?: BoolFieldUpdateOperationsInput | boolean
-    publishedVersion?: NullableStringFieldUpdateOperationsInput | string | null
+    publishedVersion?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }

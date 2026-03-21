@@ -119,17 +119,17 @@ export const updateWorkflowSchema = z.object({
   id: z.string(),
   name: z.string().min(1).optional(),
   flowId: z.string().min(1).optional(),
-  namespaceId: z.string().min(1).optional(),
   description: z.string().optional(),
   nodes: z.array(workflowNodeSchema).optional(),
   edges: z.array(workflowEdgeSchema).optional(),
   inputs: z.array(workflowInputSchema).optional(),
   variables: z.array(workflowVariableSchema).optional(),
   disabled: z.boolean().optional(),
-  publishedVersion: z.string().optional(),
+  publishedVersion: z.number().int().optional(),
 })
 
 export const createNamespaceSchema = z.object({
   name: z.string().min(1),
+  kestraNamespace: z.string().min(1),
   description: z.string().optional(),
 })
