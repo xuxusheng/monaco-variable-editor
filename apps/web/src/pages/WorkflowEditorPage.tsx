@@ -64,6 +64,7 @@ import { ReleaseHistory } from "@/components/flow/ReleaseHistory"
 import { PublishDialog } from "@/components/flow/PublishDialog"
 import { ExecutionDrawer } from "@/components/flow/ExecutionDrawer"
 import { ExecutionHistory } from "@/components/flow/ExecutionHistory"
+import { ProductionExecHistory } from "@/components/flow/ProductionExecHistory"
 import { InputValuesForm } from "@/components/flow/InputValuesForm"
 import { ContextMenu as NodeContextMenu } from "@/components/flow/ContextMenu"
 import { getLayoutedElements } from "@/lib/autoLayout"
@@ -73,7 +74,7 @@ import {
   Wrench, Save, Download, FileText, LayoutDashboard,
   ClipboardList, Package, Rocket, Play, Zap,
   History, Copy, FolderOpen, ScrollText, Undo2, Redo2, Trash2,
-  CheckCircle, XCircle,
+  CheckCircle, XCircle, Globe,
 } from "lucide-react"
 import { trpc } from "@/lib/trpc"
 import { toast } from "sonner"
@@ -1095,6 +1096,14 @@ export default function WorkflowEditorPage() {
           >
             <History className="w-3.5 h-3.5" /> 执行
           </button>
+
+          <button
+            onClick={() => setRightPanel("production-executions")}
+            title="生产执行"
+            className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors flex items-center gap-1"
+          >
+            <Globe className="w-3.5 h-3.5" /> 生产执行
+          </button>
         </div>
       </div>
 
@@ -1309,6 +1318,13 @@ export default function WorkflowEditorPage() {
             setCurrentExecution(exec)
             setRightPanel("none")
           }}
+          onClose={() => setRightPanel("none")}
+        />
+      )}
+
+      {rightPanel === "production-executions" && savedWorkflowId && (
+        <ProductionExecHistory
+          workflowId={savedWorkflowId}
           onClose={() => setRightPanel("none")}
         />
       )}
