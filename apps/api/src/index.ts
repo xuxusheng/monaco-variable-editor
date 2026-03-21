@@ -72,12 +72,68 @@ const server = serve({ fetch: app.fetch, port }, (info) => {
 // Graceful shutdown
 function shutdown(signal: string) {
   console.log(`\n${signal} received, shutting down...`);
+  clearInterval(syncTimer);
   server.close(async () => {
     await prisma.$disconnect();
     console.log("Server closed");
     process.exit(0);
   });
 }
+
+// ─── SyncExecutions cron (every 10 min) ───
+
+const TERMINAL_STATES = ["SUCCESS", "WARNING", "FAILED", "KILLED", "CANCELLED", "RETRIED"]
+const SYNC_INTERVAL = 10 * 60 * 1000 // 10 minutes
+
+async function syncRunningExecutions() {
+  const kestraUrl = process.env.KESTRA_URL
+  if (!kestraUrl) return
+
+  try {
+    const { getKestraClient } = await import("./lib/kestra-client.js")
+    const client = getKestraClient()
+
+    const running = await prisma.workflowDraftExecution.findMany({
+      where: { state: { notIn: TERMINAL_STATES } },
+    })
+
+    if (running.length === 0) return
+
+    console.log(`[sync] Syncing ${running.length} running execution(s)...`)
+
+    const results = await Promise.allSettled(
+      running.map(async (exec) => {
+        const kestraExec = await client.getExecution(exec.kestraExecId)
+        if (kestraExec.state.current !== exec.state) {
+          await prisma.workflowDraftExecution.update({
+            where: { id: exec.id },
+            data: {
+              state: kestraExec.state.current,
+              taskRuns: (kestraExec.taskRunList ?? []) as any,
+              startedAt: kestraExec.state.startDate
+                ? new Date(kestraExec.state.startDate)
+                : exec.startedAt,
+              endedAt: kestraExec.state.endDate
+                ? new Date(kestraExec.state.endDate)
+                : undefined,
+            },
+          })
+          console.log(`[sync] ${exec.id}: ${exec.state} → ${kestraExec.state.current}`)
+        }
+      }),
+    )
+
+    const failed = results.filter((r) => r.status === "rejected").length
+    if (failed > 0) {
+      console.warn(`[sync] ${failed}/${running.length} sync failed`)
+    }
+  } catch (e) {
+    console.error("[sync] Cron job error:", e)
+  }
+}
+
+// Start sync timer (skip first 30s to let server boot)
+const syncTimer = setInterval(syncRunningExecutions, SYNC_INTERVAL)
 
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT", () => shutdown("SIGINT"));
