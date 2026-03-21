@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo, useEffect, memo } from "react"
+import { useCallback, useRef, useMemo, useEffect, memo } from "react"
 import {
   ReactFlow,
   Controls,
@@ -21,6 +21,8 @@ import { InputConfigPanel } from "@/components/flow/InputConfigPanel"
 import { KestraYamlPanel } from "@/components/flow/KestraYamlPanel"
 import { getLayoutedElements } from "@/lib/autoLayout"
 import { trpc } from "@/lib/trpc"
+import { toast } from "sonner"
+import { useHotkeys } from "react-hotkeys-hook"
 import type {
   WorkflowNode,
   WorkflowEdge,
@@ -29,7 +31,13 @@ import type {
 import { EDGE_STYLES } from "@/types/workflow"
 import type { KestraInput } from "@/types/kestra"
 import type { ApiWorkflowNode, ApiWorkflowEdge, ApiWorkflowInput } from "@/types/api"
-import { FIXTURE_NODES, FIXTURE_EDGES, FIXTURE_INPUTS } from "@/types/fixtures"
+import {
+  useWorkflowStore,
+  useUndo,
+  useRedo,
+  useCanUndo,
+  useCanRedo,
+} from "@/stores/workflow"
 
 // ---- React Flow 自定义类型注册（稳定引用，不随组件重渲染） ----
 const nodeTypes = { workflowNode: WorkflowNodeComponent }
@@ -47,7 +55,13 @@ function toCanvasNodes(wfNodes: WorkflowNode[]): Node[] {
     id: n.id,
     type: "workflowNode" as const,
     position: n.ui ?? { x: 150, y: 50 },
-    data: n as unknown as Record<string, unknown>,
+    data: {
+      label: n.name,
+      type: n.type,
+      spec: n.spec,
+      containerId: n.containerId,
+      sortIndex: n.sortIndex,
+    },
   }))
 }
 
@@ -177,7 +191,7 @@ function fromApiNode(n: ApiWorkflowNode): WorkflowNode {
     description: n.description,
     containerId: n.containerId,
     sortIndex: n.sortIndex,
-    spec: n.spec,
+    spec: n.spec ?? {},
     ui: n.ui,
   }
 }
@@ -195,7 +209,7 @@ function fromApiEdge(e: ApiWorkflowEdge): WorkflowEdge {
 function fromApiInput(i: ApiWorkflowInput): WorkflowInput {
   return {
     id: i.id,
-    type: i.type as WorkflowInput["type"],
+    type: i.type,
     displayName: i.displayName,
     description: i.description,
     required: i.required,
@@ -204,16 +218,13 @@ function fromApiInput(i: ApiWorkflowInput): WorkflowInput {
   }
 }
 
-// ========== FitView 组件 ==========
+// ========== FitView 工具（首次加载自适应） ==========
 
 const FitViewOnMount = memo(function FitViewOnMount() {
   const { fitView } = useReactFlow()
   useEffect(() => {
-    const timer = setTimeout(
-      () => fitView({ padding: 0.2, maxZoom: 1 }),
-      100,
-    )
-    const handleResize = () => fitView({ padding: 0.2, maxZoom: 1 })
+    const timer = setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 200)
+    const handleResize = () => fitView({ padding: 0.2, maxZoom: 1, duration: 200 })
     window.addEventListener("resize", handleResize)
     return () => {
       clearTimeout(timer)
@@ -225,23 +236,40 @@ const FitViewOnMount = memo(function FitViewOnMount() {
 
 // ========== 主组件 ==========
 
-type RightPanel = "none" | "task" | "inputs" | "yaml"
-
 export default function WorkflowEditorPage() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null)
   const { fitView, screenToFlowPosition } = useReactFlow()
 
-  // ---- 业务状态 ----
-  const [wfNodes, setWfNodes] = useState<WorkflowNode[]>(FIXTURE_NODES)
-  const [wfEdges, setWfEdges] = useState<WorkflowEdge[]>(FIXTURE_EDGES)
-  const [inputs, setInputs] = useState<WorkflowInput[]>(FIXTURE_INPUTS)
+  // ---- Zustand store ----
+  const wfNodes = useWorkflowStore((s) => s.nodes)
+  const setWfNodes = useWorkflowStore((s) => s.setNodes)
+  const wfEdges = useWorkflowStore((s) => s.edges)
+  const setWfEdges = useWorkflowStore((s) => s.setEdges)
+  const inputs = useWorkflowStore((s) => s.inputs)
+  const setInputs = useWorkflowStore((s) => s.setInputs)
+  const rightPanel = useWorkflowStore((s) => s.rightPanel)
+  const setRightPanel = useWorkflowStore((s) => s.setRightPanel)
+  const selectedNodeId = useWorkflowStore((s) => s.selectedNodeId)
+  const setSelectedNodeId = useWorkflowStore((s) => s.setSelectedNodeId)
+  const panelOpen = useWorkflowStore((s) => s.panelOpen)
+  const setPanelOpen = useWorkflowStore((s) => s.setPanelOpen)
+  const workflowMeta = useWorkflowStore((s) => s.workflowMeta)
+  const setWorkflowMeta = useWorkflowStore((s) => s.setWorkflowMeta)
+  const savedWorkflowId = useWorkflowStore((s) => s.savedWorkflowId)
+  const setSavedWorkflowId = useWorkflowStore((s) => s.setSavedWorkflowId)
+
+  // ---- zundo temporal (undo/redo) ----
+  const undo = useUndo()
+  const redo = useRedo()
+  const canUndo = useCanUndo()
+  const canRedo = useCanRedo()
 
   // ---- 画布状态（从业务状态派生） ----
   const [canvasNodes, setCanvasNodes, onCanvasNodesChange] = useNodesState(
-    toCanvasNodes(FIXTURE_NODES),
+    toCanvasNodes(wfNodes),
   )
   const [canvasEdges, setCanvasEdges, onCanvasEdgesChange] = useEdgesState(
-    toCanvasEdges(FIXTURE_EDGES),
+    toCanvasEdges(wfEdges),
   )
 
   // ---- 业务状态变更 → 同步画布 ----
@@ -253,61 +281,6 @@ export default function WorkflowEditorPage() {
     setCanvasEdges(toCanvasEdges(wfEdges))
   }, [wfEdges, setCanvasEdges])
 
-  // ---- UI 状态 ----
-  const [rightPanel, setRightPanel] = useState<RightPanel>("none")
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
-  const [panelOpen, setPanelOpen] = useState(true)
-  const [workflowMeta, setWorkflowMeta] = useState({
-    flowId: "my-workflow",
-    name: "我的工作流",
-    namespace: "company.team",
-    description: "",
-  })
-
-  // ---- Undo/Redo ----
-  const [history, setHistory] = useState<
-    Array<{ nodes: WorkflowNode[]; edges: WorkflowEdge[] }>
-  >([])
-  const [redoStack, setRedoStack] = useState<
-    Array<{ nodes: WorkflowNode[]; edges: WorkflowEdge[] }>
-  >([])
-
-  const pushHistory = useCallback(() => {
-    setHistory((h) => [
-      ...h.slice(-20),
-      { nodes: structuredClone(wfNodes), edges: structuredClone(wfEdges) },
-    ])
-    setRedoStack([])
-  }, [wfNodes, wfEdges])
-
-  const undo = useCallback(() => {
-    setHistory((h) => {
-      if (h.length === 0) return h
-      const prev = h[h.length - 1]
-      setRedoStack((r) => [
-        ...r,
-        { nodes: structuredClone(wfNodes), edges: structuredClone(wfEdges) },
-      ])
-      setWfNodes(prev.nodes)
-      setWfEdges(prev.edges)
-      return h.slice(0, -1)
-    })
-  }, [wfNodes, wfEdges])
-
-  const redo = useCallback(() => {
-    setRedoStack((r) => {
-      if (r.length === 0) return r
-      const next = r[r.length - 1]
-      setHistory((h) => [
-        ...h,
-        { nodes: structuredClone(wfNodes), edges: structuredClone(wfEdges) },
-      ])
-      setWfNodes(next.nodes)
-      setWfEdges(next.edges)
-      return r.slice(0, -1)
-    })
-  }, [wfNodes, wfEdges])
-
   // ---- 排序 ----
   const sortedNodes = useMemo(() => {
     return [...wfNodes].sort((a, b) => a.sortIndex - b.sortIndex)
@@ -317,7 +290,6 @@ export default function WorkflowEditorPage() {
   const onConnect = useCallback(
     (params: Connection) => {
       if (!params.source || !params.target) return
-      pushHistory()
       const newEdge: WorkflowEdge = {
         id: genEdgeId(),
         source: params.source,
@@ -326,19 +298,19 @@ export default function WorkflowEditorPage() {
       }
       setWfEdges((prev) => [...prev, newEdge])
     },
-    [pushHistory],
+    [setWfEdges],
   )
 
   // ---- 节点选中 ----
   const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
     setSelectedNodeId(node.id)
     setRightPanel("task")
-  }, [])
+  }, [setSelectedNodeId, setRightPanel])
 
   const onPaneClick = useCallback(() => {
     setSelectedNodeId(null)
     setRightPanel("none")
-  }, [])
+  }, [setSelectedNodeId, setRightPanel])
 
   // ---- 拖拽创建节点 ----
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -357,8 +329,6 @@ export default function WorkflowEditorPage() {
         name: string
         defaultSpec?: Record<string, unknown>
       }
-
-      pushHistory()
 
       const position = screenToFlowPosition({
         x: event.clientX,
@@ -381,7 +351,7 @@ export default function WorkflowEditorPage() {
 
       setWfNodes((prev) => [...prev, newNode])
     },
-    [pushHistory, screenToFlowPosition, wfNodes],
+    [screenToFlowPosition, wfNodes, setWfNodes],
   )
 
   // ---- 任务配置更新：解析 YAML 回写 spec ----
@@ -394,13 +364,12 @@ export default function WorkflowEditorPage() {
         ),
       )
     },
-    [],
+    [setWfNodes],
   )
 
   // ---- 删除选中节点 ----
   const handleDeleteSelected = useCallback(() => {
     if (!selectedNodeId) return
-    pushHistory()
     const deletedNode = wfNodes.find((n) => n.id === selectedNodeId)
     setWfNodes((prev) =>
       prev
@@ -423,14 +392,13 @@ export default function WorkflowEditorPage() {
     )
     setSelectedNodeId(null)
     setRightPanel("none")
-  }, [selectedNodeId, wfNodes, pushHistory])
+  }, [selectedNodeId, wfNodes, setWfNodes, setWfEdges, setSelectedNodeId, setRightPanel])
 
   // ---- 复制节点 ----
   const handleDuplicate = useCallback(() => {
     if (!selectedNodeId) return
     const sourceNode = wfNodes.find((n) => n.id === selectedNodeId)
     if (!sourceNode) return
-    pushHistory()
 
     const maxSort = wfNodes
       .filter((n) => n.containerId === sourceNode.containerId)
@@ -447,11 +415,10 @@ export default function WorkflowEditorPage() {
       },
     }
     setWfNodes((prev) => [...prev, newNode])
-  }, [selectedNodeId, wfNodes, pushHistory])
+  }, [selectedNodeId, wfNodes, setWfNodes])
 
   // ---- 自动布局 ----
   const handleAutoLayout = useCallback(() => {
-    pushHistory()
     const { nodes: layoutedNodes } = getLayoutedElements(
       canvasNodes,
       canvasEdges,
@@ -459,11 +426,17 @@ export default function WorkflowEditorPage() {
     )
     setWfNodes((prev) => syncPositions(prev, layoutedNodes))
     setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 50)
-  }, [canvasNodes, canvasEdges, pushHistory, fitView])
+  }, [canvasNodes, canvasEdges, setWfNodes, fitView])
 
-  // ---- 保存/加载（tRPC useUtils — 官方推荐的 imperative 方式） ----
+  // ---- 键盘快捷键 ----
+  useHotkeys("mod+z", () => undo(), { enabled: canUndo })
+  useHotkeys("mod+shift+z", () => redo(), { enabled: canRedo })
+  useHotkeys("delete, backspace", () => handleDeleteSelected(), {
+    enabled: !!selectedNodeId,
+  })
+
+  // ---- 保存/加载（tRPC useUtils） ----
   const utils = trpc.useUtils()
-  const [savedWorkflowId, setSavedWorkflowId] = useState<string | null>(null)
 
   const createWorkflow = trpc.workflow.create.useMutation({
     onSuccess: (result) => {
@@ -498,14 +471,14 @@ export default function WorkflowEditorPage() {
       createWorkflow.mutate({
         flowId: workflowMeta.flowId,
         name: workflowMeta.name,
-        namespaceId: "default", // TODO: M3 用真实的 namespaceId
+        namespaceId: "default",
         description: workflowMeta.description,
         nodes: apiNodes,
         edges: apiEdges,
         inputs: apiInputs,
       })
     }
-  }, [wfNodes, wfEdges, inputs, workflowMeta, savedWorkflowId, canvasNodes, createWorkflow, updateWorkflow])
+  }, [wfNodes, wfEdges, inputs, workflowMeta, savedWorkflowId, canvasNodes, createWorkflow, updateWorkflow, setSavedWorkflowId])
 
   const saveStatus = createWorkflow.isPending || updateWorkflow.isPending
     ? "saving"
@@ -518,7 +491,7 @@ export default function WorkflowEditorPage() {
   const handleLoadFromApi = useCallback(async () => {
     const workflows = await utils.workflow.list.fetch()
     if (!workflows || workflows.length === 0) {
-      alert("API 上暂无已保存的工作流")
+      toast.warning("API 上暂无已保存的工作流")
       return
     }
     const latest = workflows[0]
@@ -538,7 +511,7 @@ export default function WorkflowEditorPage() {
     if (full.inputs) setInputs((full.inputs as unknown as ApiWorkflowInput[]).map(fromApiInput))
 
     setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 100)
-  }, [workflowMeta.namespace, fitView, utils])
+  }, [workflowMeta.namespace, fitView, utils, setSavedWorkflowId, setWorkflowMeta, setWfNodes, setWfEdges, setInputs])
 
   // ---- 选中节点数据 ----
   const selectedNode = wfNodes.find((n) => n.id === selectedNodeId)
@@ -591,16 +564,16 @@ export default function WorkflowEditorPage() {
         </div>
         <div className="flex items-center gap-1">
           <button
-            onClick={undo}
-            disabled={history.length === 0}
+            onClick={() => undo()}
+            disabled={!canUndo}
             className="w-7 h-7 rounded-md text-sm flex items-center justify-center hover:bg-muted disabled:opacity-30"
             title="撤销"
           >
             ↩️
           </button>
           <button
-            onClick={redo}
-            disabled={redoStack.length === 0}
+            onClick={() => redo()}
+            disabled={!canRedo}
             className="w-7 h-7 rounded-md text-sm flex items-center justify-center hover:bg-muted disabled:opacity-30"
             title="重做"
           >
