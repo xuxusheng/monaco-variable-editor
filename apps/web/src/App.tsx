@@ -9,7 +9,7 @@ import { ReactFlowProvider } from "@xyflow/react"
 import WorkflowEditorPage from "@/pages/WorkflowEditorPage"
 import { cn } from "@/lib/utils"
 import { trpc } from "@/lib/trpc"
-import { Wrench, FileText, Code } from "lucide-react"
+import { Wrench, FileText, Code, Search, HelpCircle } from "lucide-react"
 import { Toaster } from "sonner"
 
 function getBaseUrl() {
@@ -97,13 +97,13 @@ function AppContent() {
 
             <div className="flex flex-col gap-3">
               <div className="rounded-lg border border-border p-4">
-                <h3 className="text-sm font-medium mb-2">🔍 变量 ({parsed.length})</h3>
+                <h3 className="text-sm font-medium mb-2 flex items-center gap-1"><Search className="w-4 h-4" /> 变量 ({parsed.length})</h3>
                 <div className="flex flex-col gap-1">
                   {parsed.map((v, i) => {
                     const item = allVariables.find((a) => a.value === v.variable)
                     return (
                       <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded bg-muted/50 text-sm">
-                        <span>{item?.icon ?? "❓"}</span>
+                        <span>{item?.icon ?? <HelpCircle className="w-4 h-4" />}</span>
                         <span className="font-medium text-primary">{item?.label ?? v.variable}</span>
                       </div>
                     )

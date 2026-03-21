@@ -115,6 +115,10 @@ export class KestraClient {
     return this.request("GET", `/api/v1/flows/${namespace}/${flowId}`)
   }
 
+  async deleteFlow(namespace: string, flowId: string): Promise<void> {
+    await this.request("DELETE", `/api/v1/flows/${namespace}/${flowId}`)
+  }
+
   // ─── Execution ───
 
   async triggerExecution(

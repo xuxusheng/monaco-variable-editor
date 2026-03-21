@@ -55,6 +55,8 @@ import { WorkflowNode as WorkflowNodeComponent } from "@/components/flow/Workflo
 import { WorkflowEdge as WorkflowEdgeComponent } from "@/components/flow/WorkflowEdge"
 import { NodeCreatePanel } from "@/components/flow/NodeCreatePanel"
 import { TaskConfigPanel } from "@/components/flow/TaskConfigPanel"
+import { TriggerPanel } from "@/components/flow/TriggerPanel"
+import { TriggerCreateForm } from "@/components/flow/TriggerCreateForm"
 import { InputConfigPanel } from "@/components/flow/InputConfigPanel"
 import { KestraYamlPanel } from "@/components/flow/KestraYamlPanel"
 import { DraftHistory } from "@/components/flow/DraftHistory"
@@ -69,8 +71,9 @@ import { filterVisibleNodes, filterVisibleEdges, getChildCount } from "@/lib/con
 import { isContainer } from "@/types/container"
 import {
   Wrench, Save, Download, FileText, LayoutDashboard,
-  ClipboardList, Package, Rocket, Play,
+  ClipboardList, Package, Rocket, Play, Zap,
   History, Copy, FolderOpen, ScrollText, Undo2, Redo2, Trash2,
+  CheckCircle, XCircle,
 } from "lucide-react"
 import { trpc } from "@/lib/trpc"
 import { toast } from "sonner"
@@ -310,6 +313,8 @@ export default function WorkflowEditorPage() {
   const setWorkflowMeta = useWorkflowStore((s) => s.setWorkflowMeta)
   const savedWorkflowId = useWorkflowStore((s) => s.savedWorkflowId)
   const setSavedWorkflowId = useWorkflowStore((s) => s.setSavedWorkflowId)
+  const triggers = useWorkflowStore((s) => s.triggers)
+  const setTriggers = useWorkflowStore((s) => s.setTriggers)
 
   // ---- 过滤折叠容器的子节点 ----
   const visibleWfNodes = useMemo(() => filterVisibleNodes(wfNodes), [wfNodes])
@@ -670,6 +675,23 @@ export default function WorkflowEditorPage() {
     { workflowId: savedWorkflowId! },
     { enabled: !!savedWorkflowId },
   )
+  const { data: triggersData } = trpc.workflow.triggerList.useQuery(
+    { workflowId: savedWorkflowId! },
+    { enabled: !!savedWorkflowId },
+  )
+  useEffect(() => {
+    if (triggersData) {
+      setTriggers(triggersData.map((t) => ({
+        id: t.id,
+        name: t.name,
+        type: t.type as "schedule" | "webhook",
+        config: t.config as Record<string, unknown>,
+        kestraFlowId: t.kestraFlowId,
+        disabled: t.disabled,
+        createdAt: t.createdAt instanceof Date ? t.createdAt.toISOString() : String(t.createdAt),
+      })))
+    }
+  }, [triggersData, setTriggers])
 
   // Sync query data (drafts/releases fetched via tRPC, displayed directly)
 
@@ -757,6 +779,7 @@ export default function WorkflowEditorPage() {
   const kestraHealthy = useWorkflowStore((s) => s.kestraHealthy)
   const setKestraHealthy = useWorkflowStore((s) => s.setKestraHealthy)
   const [showInputForm, setShowInputForm] = useState(false)
+  const [showTriggerForm, setShowTriggerForm] = useState(false)
 
   // Kestra health check (on mount + every 5 min)
   useEffect(() => {
@@ -787,9 +810,9 @@ export default function WorkflowEditorPage() {
           if (isTerminalState(result.state)) {
             setIsExecuting(false)
             if (result.state === "SUCCESS") {
-              toast.success("执行完成 ✅")
+              toast.success("执行完成")
             } else if (result.state === "FAILED") {
-              toast.error("执行失败 ❌")
+              toast.error("执行失败")
             }
           }
         }
@@ -960,7 +983,7 @@ export default function WorkflowEditorPage() {
           )}
           {lastSavedAt && !hasUnsavedChanges && (
             <span className="text-xs text-muted-foreground">
-              ✅ {new Date(lastSavedAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}
+              <CheckCircle className="w-3.5 h-3.5 inline" /> {new Date(lastSavedAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}
             </span>
           )}
 
@@ -986,9 +1009,9 @@ export default function WorkflowEditorPage() {
             {saveStatus === "saving"
               ? "⏳ 保存中..."
               : saveStatus === "saved"
-                ? "✅ 已保存"
+                ? <span className="flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5" /> 已保存</span>
                 : saveStatus === "error"
-                  ? "❌ 失败"
+                  ? <span className="flex items-center gap-1"><XCircle className="w-3.5 h-3.5" /> 失败</span>
                   : <span className="flex items-center gap-1"><Save className="w-3.5 h-3.5" /> 保存</span>}
           </button>
 
@@ -1026,6 +1049,13 @@ export default function WorkflowEditorPage() {
             className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors flex items-center gap-1"
           >
             <Package className="w-3.5 h-3.5" /> 版本 ({releases.length})
+          </button>
+          <button
+            onClick={() => setRightPanel("triggers")}
+            title="触发器"
+            className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors flex items-center gap-1"
+          >
+            <Zap className="w-3.5 h-3.5" /> 触发器 ({triggers.length})
           </button>
 
           <div className="w-px h-5 bg-border" />
@@ -1223,6 +1253,12 @@ export default function WorkflowEditorPage() {
           onClose={() => setRightPanel("none")}
         />
       )}
+      {rightPanel === "triggers" && savedWorkflowId && (
+        <TriggerPanel
+          workflowId={savedWorkflowId}
+          onCreate={() => setShowTriggerForm(true)}
+        />
+      )}
       {showPublishDialog && (
         <PublishDialog
           nodes={wfNodes}
@@ -1235,6 +1271,18 @@ export default function WorkflowEditorPage() {
           isPublishing={releasePublish.isPending}
           onPublish={handlePublish}
           onClose={() => setShowPublishDialog(false)}
+        />
+      )}
+
+      {showTriggerForm && savedWorkflowId && (
+        <TriggerCreateForm
+          workflowId={savedWorkflowId}
+          releases={releases.map((r) => ({ id: r.id, version: r.version, name: r.name }))}
+          onClose={() => setShowTriggerForm(false)}
+          onCreated={() => {
+            setShowTriggerForm(false)
+            utils.workflow.triggerList.invalidate({ workflowId: savedWorkflowId })
+          }}
         />
       )}
 
@@ -1264,6 +1312,7 @@ export default function WorkflowEditorPage() {
           onClose={() => setRightPanel("none")}
         />
       )}
+
     </div>
   )
 }

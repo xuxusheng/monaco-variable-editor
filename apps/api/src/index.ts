@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { timingSafeEqual } from "node:crypto";
 import type { Prisma } from "./generated/prisma/client.js";
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
@@ -30,6 +31,83 @@ app.route("/api/trpc", trpcRoute);
 
 // Health check
 app.get("/health", (c) => c.json({ status: "ok" }));
+
+// Webhook endpoint
+app.post("/api/webhook/:workflowId/:triggerName", async (c) => {
+  const { workflowId, triggerName } = c.req.param()
+
+  const trigger = await prisma.workflowTrigger.findFirst({
+    where: {
+      workflowId,
+      kestraFlowId: triggerName,
+      type: "webhook",
+      disabled: false,
+    },
+    include: {
+      workflow: { include: { namespace: true } },
+    },
+  })
+
+  if (!trigger) {
+    return c.json({ error: "Trigger not found or disabled" }, 404)
+  }
+
+  // Verify webhook secret (constant-time comparison)
+  const secret = c.req.header("X-Webhook-Secret")
+  const config = trigger.config as Record<string, unknown>
+  const expected = String(config.secret ?? "")
+  if (!expected || typeof config.secret !== "string") {
+    return c.json({ error: "Webhook secret not configured" }, 500)
+  }
+  const got = secret ?? ""
+  if (!got || got.length !== expected.length || !timingSafeEqual(Buffer.from(got), Buffer.from(expected))) {
+    return c.json({ error: "Invalid webhook secret" }, 401)
+  }
+
+  // Trigger execution via Kestra
+  let executionId: string
+  let state: string
+  let startDate: string | undefined
+  try {
+    const { getKestraClient } = await import("./lib/kestra-client.js")
+    const client = getKestraClient()
+    const execution = await client.triggerExecution(
+      trigger.workflow.namespace.kestraNamespace,
+      trigger.kestraFlowId,
+    )
+    executionId = execution.id
+    state = execution.state.current
+    startDate = execution.state.startDate
+  } catch (e) {
+    console.error("Webhook Kestra trigger failed:", e)
+    return c.json({ error: "Failed to trigger execution" }, 502)
+  }
+
+  // Async: create WorkflowExecution record (fire-and-forget)
+  const latestRelease = await prisma.workflowRelease.findFirst({
+    where: { workflowId },
+    orderBy: { version: "desc" },
+    select: { id: true },
+  })
+
+  if (latestRelease) {
+    prisma.workflowExecution.create({
+      data: {
+        workflowId,
+        releaseId: latestRelease.id,
+        kestraExecId: executionId,
+        inputValues: {} as Prisma.InputJsonValue,
+        state,
+        triggeredBy: `webhook:${triggerName}`,
+        startedAt: startDate ? new Date(startDate) : undefined,
+      },
+    }).catch((e: unknown) => {
+      console.error("Failed to create WorkflowExecution:", e)
+    })
+  }
+
+  return c.json({ executionId, state })
+})
 
 // --- Static assets ---
 const STATIC_ROOT = process.env.STATIC_ROOT || "/web/dist/";
@@ -97,35 +175,71 @@ async function syncRunningExecutions() {
       where: { state: { notIn: ["SUCCESS", "WARNING", "FAILED", "KILLED", "CANCELLED", "RETRIED"] } },
     })
 
-    if (running.length === 0) return
+    if (running.length > 0) {
+      console.log(`[sync] Syncing ${running.length} running execution(s)...`)
 
-    console.log(`[sync] Syncing ${running.length} running execution(s)...`)
+      const results = await Promise.allSettled(
+        running.map(async (exec) => {
+          const kestraExec = await client.getExecution(exec.kestraExecId)
+          if (kestraExec.state.current !== exec.state) {
+            await prisma.workflowDraftExecution.update({
+              where: { id: exec.id },
+              data: {
+                state: kestraExec.state.current,
+                taskRuns: (kestraExec.taskRunList ?? []) as unknown as Prisma.InputJsonValue,
+                startedAt: kestraExec.state.startDate
+                  ? new Date(kestraExec.state.startDate)
+                  : exec.startedAt,
+                endedAt: kestraExec.state.endDate
+                  ? new Date(kestraExec.state.endDate)
+                  : undefined,
+              },
+            })
+            console.log(`[sync] ${exec.id}: ${exec.state} → ${kestraExec.state.current}`)
+          }
+        }),
+      )
 
-    const results = await Promise.allSettled(
-      running.map(async (exec) => {
-        const kestraExec = await client.getExecution(exec.kestraExecId)
-        if (kestraExec.state.current !== exec.state) {
-          await prisma.workflowDraftExecution.update({
-            where: { id: exec.id },
-            data: {
-              state: kestraExec.state.current,
-              taskRuns: (kestraExec.taskRunList ?? []) as unknown as Prisma.InputJsonValue,
-              startedAt: kestraExec.state.startDate
-                ? new Date(kestraExec.state.startDate)
-                : exec.startedAt,
-              endedAt: kestraExec.state.endDate
-                ? new Date(kestraExec.state.endDate)
-                : undefined,
-            },
-          })
-          console.log(`[sync] ${exec.id}: ${exec.state} → ${kestraExec.state.current}`)
-        }
-      }),
-    )
+      const failed = results.filter((r) => r.status === "rejected").length
+      if (failed > 0) {
+        console.warn(`[sync] ${failed}/${running.length} draft sync failed`)
+      }
+    }
 
-    const failed = results.filter((r) => r.status === "rejected").length
-    if (failed > 0) {
-      console.warn(`[sync] ${failed}/${running.length} sync failed`)
+    // Also sync WorkflowExecution (production)
+    const prodRunning = await prisma.workflowExecution.findMany({
+      where: { state: { notIn: ["SUCCESS", "WARNING", "FAILED", "KILLED", "CANCELLED", "RETRIED"] } },
+    })
+
+    if (prodRunning.length > 0) {
+      console.log(`[sync] Syncing ${prodRunning.length} running production execution(s)...`)
+
+      const prodResults = await Promise.allSettled(
+        prodRunning.map(async (exec) => {
+          const kestraExec = await client.getExecution(exec.kestraExecId)
+          if (kestraExec.state.current !== exec.state) {
+            await prisma.workflowExecution.update({
+              where: { id: exec.id },
+              data: {
+                state: kestraExec.state.current,
+                taskRuns: (kestraExec.taskRunList ?? []) as unknown as Prisma.InputJsonValue,
+                startedAt: kestraExec.state.startDate
+                  ? new Date(kestraExec.state.startDate)
+                  : exec.startedAt,
+                endedAt: kestraExec.state.endDate
+                  ? new Date(kestraExec.state.endDate)
+                  : undefined,
+              },
+            })
+            console.log(`[sync][prod] ${exec.id}: ${exec.state} → ${kestraExec.state.current}`)
+          }
+        }),
+      )
+
+      const prodFailed = prodResults.filter((r) => r.status === "rejected").length
+      if (prodFailed > 0) {
+        console.warn(`[sync] ${prodFailed}/${prodRunning.length} production sync failed`)
+      }
     }
   } catch (e) {
     console.error("[sync] Cron job error:", e)

@@ -5,7 +5,7 @@ import { temporal } from "zundo"
 import type { WorkflowNode, WorkflowEdge, WorkflowInput } from "@/types/workflow"
 import { FIXTURE_NODES, FIXTURE_EDGES, FIXTURE_INPUTS } from "@/types/fixtures"
 
-type RightPanel = "none" | "task" | "inputs" | "yaml" | "drafts" | "releases" | "executions"
+type RightPanel = "none" | "task" | "inputs" | "yaml" | "drafts" | "releases" | "executions" | "triggers"
 
 interface WorkflowMeta {
   flowId: string
@@ -48,6 +48,16 @@ interface ExecutionSummary {
   endedAt?: string
 }
 
+interface TriggerSummary {
+  id: string
+  name: string
+  type: "schedule" | "webhook"
+  config: Record<string, unknown>
+  kestraFlowId: string
+  disabled: boolean
+  createdAt: string
+}
+
 interface WorkflowState {
   // Data
   nodes: WorkflowNode[]
@@ -75,6 +85,10 @@ interface WorkflowState {
   currentExecution: ExecutionSummary | null
   kestraHealthy: boolean
 
+  // Trigger
+  triggers: TriggerSummary[]
+  setTriggers: (triggers: TriggerSummary[]) => void
+
   // Actions
   setNodes: (
     updater: WorkflowNode[] | ((prev: WorkflowNode[]) => WorkflowNode[]),
@@ -101,7 +115,7 @@ interface WorkflowState {
   setKestraHealthy: (v: boolean) => void
 }
 
-export type { WorkflowMeta, DraftSummary, ReleaseSummary, TaskRun, ExecutionSummary, WorkflowState }
+export type { WorkflowMeta, DraftSummary, ReleaseSummary, TaskRun, ExecutionSummary, TriggerSummary, WorkflowState }
 
 export const useWorkflowStore = create<WorkflowState>()(
   temporal(
@@ -136,6 +150,9 @@ export const useWorkflowStore = create<WorkflowState>()(
       isExecuting: false,
       currentExecution: null,
       kestraHealthy: false,
+
+      // Trigger
+      triggers: [],
 
       // Actions
       setNodes: (updater) =>
@@ -193,6 +210,7 @@ export const useWorkflowStore = create<WorkflowState>()(
           state.currentExecution = exec
         }),
       setKestraHealthy: (v) => set({ kestraHealthy: v }),
+      setTriggers: (triggers) => set({ triggers }),
     })),
     {
       limit: 50,
