@@ -20,7 +20,8 @@ import { TaskConfigPanel } from "@/components/flow/TaskConfigPanel"
 import { InputConfigPanel } from "@/components/flow/InputConfigPanel"
 import { KestraYamlPanel } from "@/components/flow/KestraYamlPanel"
 import { getLayoutedElements } from "@/lib/autoLayout"
-import { trpcClient } from "@/lib/trpc"
+import { trpc, trpcProxy } from "@/lib/trpc"
+import { useQueryClient } from "@tanstack/react-query"
 import type {
   WorkflowNode,
   WorkflowEdge,
@@ -461,80 +462,85 @@ export default function WorkflowEditorPage() {
     setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 50)
   }, [canvasNodes, canvasEdges, pushHistory, fitView])
 
-  // ---- 保存/加载 ----
-  const [saveStatus, setSaveStatus] = useState<
-    "idle" | "saving" | "saved" | "error"
-  >("idle")
+  // ---- 保存/加载（tRPC + React Query hooks） ----
+  const queryClient = useQueryClient()
   const [savedWorkflowId, setSavedWorkflowId] = useState<string | null>(null)
 
-  const handleSaveToApi = useCallback(async () => {
-    setSaveStatus("saving")
-    try {
-      const currentNodes = syncPositions(wfNodes, canvasNodes)
-      const apiNodes = currentNodes.map(toApiNode)
-      const apiEdges = wfEdges.map(toApiEdge)
-      const apiInputs = inputs.map(toApiInput)
+  const createWorkflow = trpc.workflow.create.useMutation({
+    onSuccess: (result) => {
+      setSavedWorkflowId(result.id)
+      queryClient.invalidateQueries({ queryKey: [["workflow", "list"]] })
+    },
+  })
 
-      if (savedWorkflowId) {
-        await trpcClient.workflow.update.mutate({
-          id: savedWorkflowId,
-          flowId: workflowMeta.flowId,
-          name: workflowMeta.name,
-          description: workflowMeta.description,
-          nodes: apiNodes,
-          edges: apiEdges,
-          inputs: apiInputs,
-        })
-      } else {
-        const result = await trpcClient.workflow.create.mutate({
-          flowId: workflowMeta.flowId,
-          name: workflowMeta.name,
-          namespaceId: "default", // TODO: M3 用真实的 namespaceId
-          description: workflowMeta.description,
-          nodes: apiNodes,
-          edges: apiEdges,
-          inputs: apiInputs,
-        })
-        setSavedWorkflowId(result.id)
-      }
-      setSaveStatus("saved")
-      setTimeout(() => setSaveStatus("idle"), 2000)
-    } catch (e) {
-      console.error("Save failed:", e)
-      setSaveStatus("error")
-      setTimeout(() => setSaveStatus("idle"), 3000)
+  const updateWorkflow = trpc.workflow.update.useMutation({
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [["workflow", "list"]] })
+    },
+  })
+
+
+  const handleSaveToApi = useCallback(async () => {
+    const currentNodes = syncPositions(wfNodes, canvasNodes)
+    const apiNodes = currentNodes.map(toApiNode)
+    const apiEdges = wfEdges.map(toApiEdge)
+    const apiInputs = inputs.map(toApiInput)
+
+    if (savedWorkflowId) {
+      updateWorkflow.mutate({
+        id: savedWorkflowId,
+        flowId: workflowMeta.flowId,
+        name: workflowMeta.name,
+        description: workflowMeta.description,
+        nodes: apiNodes,
+        edges: apiEdges,
+        inputs: apiInputs,
+      })
+    } else {
+      createWorkflow.mutate({
+        flowId: workflowMeta.flowId,
+        name: workflowMeta.name,
+        namespaceId: "default", // TODO: M3 用真实的 namespaceId
+        description: workflowMeta.description,
+        nodes: apiNodes,
+        edges: apiEdges,
+        inputs: apiInputs,
+      })
     }
-  }, [wfNodes, wfEdges, inputs, workflowMeta, savedWorkflowId, canvasNodes])
+  }, [wfNodes, wfEdges, inputs, workflowMeta, savedWorkflowId, canvasNodes, createWorkflow, updateWorkflow])
+
+  const saveStatus = createWorkflow.isPending || updateWorkflow.isPending
+    ? "saving"
+    : createWorkflow.isSuccess || updateWorkflow.isSuccess
+      ? "saved"
+      : createWorkflow.isError || updateWorkflow.isError
+        ? "error"
+        : "idle"
 
   const handleLoadFromApi = useCallback(async () => {
-    try {
-      const workflows = await trpcClient.workflow.list.query()
-      if (workflows.length === 0) {
-        alert("API 上暂无已保存的工作流")
-        return
-      }
-      const latest = workflows[0]
-      const full = await trpcClient.workflow.get.query({ id: latest.id })
-      if (!full) return
-
-      setSavedWorkflowId(full.id)
-      setWorkflowMeta({
-        flowId: full.flowId,
-        name: full.name,
-        namespace: workflowMeta.namespace,
-        description: full.description ?? "",
-      })
-
-      if (full.nodes) setWfNodes((full.nodes as unknown as ApiWorkflowNode[]).map(fromApiNode))
-      if (full.edges) setWfEdges((full.edges as unknown as ApiWorkflowEdge[]).map(fromApiEdge))
-      if (full.inputs) setInputs((full.inputs as unknown as ApiWorkflowInput[]).map(fromApiInput))
-
-      setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 100)
-    } catch (e) {
-      console.error("Load failed:", e)
-      alert("从 API 加载失败，请确认后端已启动")
+    const workflows = await trpcProxy.workflow.list.query()
+    if (!workflows || workflows.length === 0) {
+      alert("API 上暂无已保存的工作流")
+      return
     }
-  }, [fitView, workflowMeta.namespace])
+    const latest = workflows[0]
+    const full = await trpcProxy.workflow.get.query({ id: latest.id })
+    if (!full) return
+
+    setSavedWorkflowId(full.id)
+    setWorkflowMeta({
+      flowId: full.flowId,
+      name: full.name,
+      namespace: workflowMeta.namespace,
+      description: full.description ?? "",
+    })
+
+    if (full.nodes) setWfNodes((full.nodes as unknown as ApiWorkflowNode[]).map(fromApiNode))
+    if (full.edges) setWfEdges((full.edges as unknown as ApiWorkflowEdge[]).map(fromApiEdge))
+    if (full.inputs) setInputs((full.inputs as unknown as ApiWorkflowInput[]).map(fromApiInput))
+
+    setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 100)
+  }, [workflowMeta.namespace, fitView])
 
   // ---- 选中节点数据 ----
   const selectedNode = wfNodes.find((n) => n.id === selectedNodeId)

@@ -1,11 +1,42 @@
 import { useState } from "react"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { httpBatchLink } from "@trpc/client"
+import superjson from "superjson"
 import { MonacoVariableEditor } from "@/components/monaco-variable-editor"
 import { parseVariables, getAllVariables, defaultVariableGroups } from "@/types/variables"
 import { ReactFlowProvider } from "@xyflow/react"
 import WorkflowEditorPage from "@/pages/WorkflowEditorPage"
 import { cn } from "@/lib/utils"
+import { trpc } from "@/lib/trpc"
+
+function getBaseUrl() {
+  if (typeof window !== "undefined") return ""
+  return "http://localhost:3001"
+}
 
 export default function App() {
+  const [queryClient] = useState(() => new QueryClient())
+  const [trpcClient] = useState(() =>
+    trpc.createClient({
+      links: [
+        httpBatchLink({
+          url: `${getBaseUrl()}/api/trpc`,
+          transformer: superjson,
+        }),
+      ],
+    }),
+  )
+
+  return (
+    <trpc.Provider client={trpcClient} queryClient={queryClient}>
+      <QueryClientProvider client={queryClient}>
+        <AppContent />
+      </QueryClientProvider>
+    </trpc.Provider>
+  )
+}
+
+function AppContent() {
   const [tab, setTab] = useState<"monaco" | "workflow">("workflow")
   const [value, setValue] = useState("")
   const allVariables = getAllVariables(defaultVariableGroups)
