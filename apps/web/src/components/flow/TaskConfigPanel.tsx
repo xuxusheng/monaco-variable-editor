@@ -3,6 +3,7 @@ import Editor from "@monaco-editor/react"
 import type * as Monaco from "monaco-editor"
 import type { KestraInput } from "@/types/kestra"
 import { setupYamlValidation } from "@/lib/yamlValidation"
+import { Settings } from "lucide-react"
 
 interface TaskConfigPanelProps {
   nodeId: string
@@ -113,7 +114,7 @@ export function TaskConfigPanel({
     <div className="panel-enter fixed top-0 right-0 h-screen w-full md:w-[480px] bg-card border-l border-border shadow-xl z-50 flex flex-col">
       <div className="flex items-center justify-between px-5 py-4 border-b border-border">
         <div className="flex items-center gap-2">
-          <span className="text-lg">⚙️</span>
+          <span className="text-lg"><Settings className="w-4 h-4" /></span>
           <h2 className="text-base font-semibold">任务配置</h2>
         </div>
         <button

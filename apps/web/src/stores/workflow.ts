@@ -45,6 +45,7 @@ interface ExecutionSummary {
   taskRuns: TaskRun[]
   triggeredBy: string
   createdAt: string
+  endedAt?: string
 }
 
 interface WorkflowState {
@@ -185,6 +186,8 @@ export const useWorkflowStore = create<WorkflowState>()(
                 if (prevMap.get(taskId) !== st) { changed = true; break }
               }
             }
+            // 终态变化或时间戳更新
+            if (!changed && prev.endedAt !== exec.endedAt) changed = true
             if (!changed) return
           }
           state.currentExecution = exec

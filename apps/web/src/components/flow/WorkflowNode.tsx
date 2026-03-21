@@ -5,6 +5,10 @@ import { getNodeColor } from "@/types/workflow"
 import { getOutputHandles } from "@/types/container"
 import { useWorkflowStore } from "@/stores/workflow"
 import type { TaskRun } from "@/stores/workflow"
+import {
+  Clock, Loader, CheckCircle, XCircle, AlertTriangle,
+  XOctagon, Ban, HelpCircle, Package,
+} from "lucide-react"
 
 // ========== Execution state colors ==========
 const STATE_STYLES: Record<string, { border: string; glow: string; pulse?: boolean }> = {
@@ -100,7 +104,7 @@ export const WorkflowNode = memo(({ data, selected, id }: NodeProps) => {
         {/* 折叠时显示子任务摘要 */}
         {d.collapsed && d.childCount > 0 && (
           <div className="text-xs text-muted-foreground mt-2 pt-2 border-t border-dashed" style={{ borderColor: `${color}44` }}>
-            📦 {d.childCount} 个子任务
+            <Package className="w-3.5 h-3.5" /> {d.childCount} 个子任务
           </div>
         )}
 
@@ -197,15 +201,15 @@ export const WorkflowNode = memo(({ data, selected, id }: NodeProps) => {
 
 WorkflowNode.displayName = "WorkflowNode"
 
-function execStateIcon(state: string): string {
-  const icons: Record<string, string> = {
-    CREATED: "⏳",
-    RUNNING: "🔄",
-    SUCCESS: "✅",
-    FAILED: "❌",
-    WARNING: "⚠️",
-    KILLED: "💀",
-    CANCELLED: "🚫",
+function execStateIcon(state: string): React.ReactNode {
+  const icons: Record<string, React.ReactNode> = {
+    CREATED: <Clock className="w-3.5 h-3.5 text-muted-foreground" />,
+    RUNNING: <Loader className="w-3.5 h-3.5 text-blue-500 animate-spin" />,
+    SUCCESS: <CheckCircle className="w-3.5 h-3.5 text-green-500" />,
+    FAILED: <XCircle className="w-3.5 h-3.5 text-red-500" />,
+    WARNING: <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />,
+    KILLED: <XOctagon className="w-3.5 h-3.5 text-gray-500" />,
+    CANCELLED: <Ban className="w-3.5 h-3.5 text-gray-500" />,
   }
-  return icons[state] ?? "❓"
+  return icons[state] ?? <HelpCircle className="w-3.5 h-3.5 text-muted-foreground" />
 }

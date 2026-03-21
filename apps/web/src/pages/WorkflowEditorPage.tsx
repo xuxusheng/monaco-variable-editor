@@ -8,15 +8,32 @@ function isTerminalState(state: string): boolean {
 /** 将 API 返回的执行记录转为 store 格式 */
 function toExecutionSummary(result: {
   id: string; kestraExecId: string; state: string; taskRuns: unknown;
-  triggeredBy: string; createdAt: Date | string;
+  triggeredBy: string; createdAt: Date | string; endedAt?: Date | string | null;
 }): ExecutionSummary {
+  // 规范化 taskRuns：数据库存的是完整 KestraTaskRun（state 是嵌套对象），
+  // 前端期望扁平的 state: string
+  const raw = (result.taskRuns ?? []) as Record<string, unknown>[]
+  const taskRuns: TaskRun[] = raw.map((tr) => ({
+    id: String(tr.id ?? ""),
+    taskId: String(tr.taskId ?? ""),
+    state: typeof tr.state === "string"
+      ? tr.state
+      : String((tr.state as Record<string, unknown>)?.current ?? "UNKNOWN"),
+    startDate: tr.startDate ? String(tr.startDate) : undefined,
+    endDate: tr.endDate ? String(tr.endDate) : undefined,
+    attempts: typeof tr.attempts === "number" ? tr.attempts : undefined,
+    outputs: tr.outputs as Record<string, unknown> | undefined,
+  }))
   return {
     id: result.id,
     kestraExecId: result.kestraExecId,
     state: result.state,
-    taskRuns: (result.taskRuns ?? []) as unknown as TaskRun[],
+    taskRuns,
     triggeredBy: result.triggeredBy,
     createdAt: result.createdAt instanceof Date ? result.createdAt.toISOString() : String(result.createdAt),
+    endedAt: (result as Record<string, unknown>).endedAt
+      ? String((result as Record<string, unknown>).endedAt)
+      : undefined,
   }
 }
 import { nameToSlug } from "@/lib/slug"
@@ -50,6 +67,11 @@ import { ContextMenu as NodeContextMenu } from "@/components/flow/ContextMenu"
 import { getLayoutedElements } from "@/lib/autoLayout"
 import { filterVisibleNodes, filterVisibleEdges, getChildCount } from "@/lib/containerUtils"
 import { isContainer } from "@/types/container"
+import {
+  Wrench, Save, Download, FileText, LayoutDashboard,
+  ClipboardList, Package, Rocket, Play,
+  History, Copy, FolderOpen, ScrollText, Undo2, Redo2, Trash2,
+} from "lucide-react"
 import { trpc } from "@/lib/trpc"
 import { toast } from "sonner"
 import { useHotkeys } from "react-hotkeys-hook"
@@ -839,7 +861,9 @@ export default function WorkflowEditorPage() {
       {/* Top bar */}
       <div className="h-11 md:h-12 border-b border-border bg-card flex items-center justify-between px-2 md:px-4 shrink-0">
         <div className="flex items-center gap-1 md:gap-2">
-          <h1 className="text-sm md:text-base font-semibold">🔧 工作流</h1>
+          <h1 className="text-sm md:text-base font-semibold flex items-center gap-1.5">
+            <Wrench className="w-4 h-4" /> 工作流
+          </h1>
           <span className="text-[10px] md:text-xs text-muted-foreground bg-muted px-1.5 md:px-2 py-0.5 rounded hidden sm:inline">
             {wfNodes.length} 节点 · {wfEdges.length} 连线
           </span>
@@ -851,7 +875,7 @@ export default function WorkflowEditorPage() {
             className="w-7 h-7 rounded-md text-sm flex items-center justify-center hover:bg-muted disabled:opacity-30"
             title="撤销"
           >
-            ↩️
+            <Undo2 className="w-4 h-4" />
           </button>
           <button
             onClick={() => redo()}
@@ -859,28 +883,28 @@ export default function WorkflowEditorPage() {
             className="w-7 h-7 rounded-md text-sm flex items-center justify-center hover:bg-muted disabled:opacity-30"
             title="重做"
           >
-            ↪️
+            <Redo2 className="w-4 h-4" />
           </button>
           <button
             onClick={() => setRightPanel("inputs")}
             className="w-7 h-7 rounded-md text-sm flex items-center justify-center hover:bg-muted"
             title="输入参数"
           >
-            📥
+            <Download className="w-4 h-4" />
           </button>
           <button
             onClick={() => setRightPanel("yaml")}
             className="w-7 h-7 rounded-md text-sm flex items-center justify-center hover:bg-muted"
             title="YAML"
           >
-            📄
+            <FileText className="w-4 h-4" />
           </button>
           <button
             onClick={handleAutoLayout}
             className="w-7 h-7 rounded-md text-sm flex items-center justify-center hover:bg-muted"
             title="自动布局"
           >
-            📐
+            <LayoutDashboard className="w-4 h-4" />
           </button>
           {selectedNodeId && (
             <button
@@ -888,7 +912,7 @@ export default function WorkflowEditorPage() {
               className="w-7 h-7 rounded-md text-sm flex items-center justify-center hover:bg-muted"
               title="复制节点"
             >
-              📋
+              <Copy className="w-4 h-4" />
             </button>
           )}
           {selectedNodeId && (
@@ -897,7 +921,7 @@ export default function WorkflowEditorPage() {
               className="w-7 h-7 rounded-md text-sm flex items-center justify-center hover:bg-red-50"
               title="删除"
             >
-              🗑️
+              <Trash2 className="w-4 h-4 text-red-500" />
             </button>
           )}
         </div>
@@ -945,7 +969,7 @@ export default function WorkflowEditorPage() {
             onClick={handleLoadFromApi}
             className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors"
           >
-            📂 加载
+            <FolderOpen className="w-3.5 h-3.5" /> 加载
           </button>
           <button
             onClick={handleSaveToApi}
@@ -965,7 +989,7 @@ export default function WorkflowEditorPage() {
                 ? "✅ 已保存"
                 : saveStatus === "error"
                   ? "❌ 失败"
-                  : "💾 保存"}
+                  : <span className="flex items-center gap-1"><Save className="w-3.5 h-3.5" /> 保存</span>}
           </button>
 
           <div className="w-px h-5 bg-border" />
@@ -973,17 +997,17 @@ export default function WorkflowEditorPage() {
           <button
             onClick={() => handleSaveDraft()}
             disabled={!savedWorkflowId || draftSave.isPending}
-            title={!savedWorkflowId ? "请先点击「💾 保存」创建工作流" : "保存当前编辑状态为草稿快照"}
-            className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors disabled:opacity-50"
+            title={!savedWorkflowId ? "请先点击「保存」创建工作流" : "保存当前编辑状态为草稿快照"}
+            className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors disabled:opacity-50 flex items-center gap-1"
           >
-            📜 存草稿
+            <ScrollText className="w-3.5 h-3.5" /> 存草稿
           </button>
           <button
             onClick={() => setRightPanel("drafts")}
-            title={!savedWorkflowId ? "请先点击「💾 保存」创建工作流" : "查看草稿历史"}
-            className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors"
+            title={!savedWorkflowId ? "请先点击「保存」创建工作流" : "查看草稿历史"}
+            className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors flex items-center gap-1"
           >
-            📋 草稿 ({drafts.length})
+            <ClipboardList className="w-3.5 h-3.5" /> 草稿 ({drafts.length})
           </button>
 
           <div className="w-px h-5 bg-border" />
@@ -991,17 +1015,17 @@ export default function WorkflowEditorPage() {
           <button
             onClick={() => setShowPublishDialog(true)}
             disabled={!savedWorkflowId || releasePublish.isPending}
-            title={!savedWorkflowId ? "请先点击「💾 保存」创建工作流" : "发布当前工作流为新版本"}
-            className="px-2 py-1 rounded-md text-xs font-medium bg-emerald-500 text-white hover:bg-emerald-600 transition-colors disabled:opacity-50"
+            title={!savedWorkflowId ? "请先点击「保存」创建工作流" : "发布当前工作流为新版本"}
+            className="px-2 py-1 rounded-md text-xs font-medium bg-emerald-500 text-white hover:bg-emerald-600 transition-colors disabled:opacity-50 flex items-center gap-1"
           >
-            🚀 发布 v{publishedVersion + 1}
+            <Rocket className="w-3.5 h-3.5" /> 发布 v{publishedVersion + 1}
           </button>
           <button
             onClick={() => setRightPanel("releases")}
-            title={!savedWorkflowId ? "请先点击「💾 保存」创建工作流" : "查看已发布版本"}
-            className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors"
+            title={!savedWorkflowId ? "请先点击「保存」创建工作流" : "查看已发布版本"}
+            className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors flex items-center gap-1"
           >
-            📦 版本 ({releases.length})
+            <Package className="w-3.5 h-3.5" /> 版本 ({releases.length})
           </button>
 
           <div className="w-px h-5 bg-border" />
@@ -1012,9 +1036,9 @@ export default function WorkflowEditorPage() {
               rightPanel === "yaml"
                 ? "bg-indigo-500 text-white"
                 : "bg-muted hover:bg-muted/80"
-            }`}
+            } flex items-center gap-1`}
           >
-            📄 YAML
+            <FileText className="w-3.5 h-3.5" /> YAML
           </button>
 
           <div className="w-px h-5 bg-border" />
@@ -1029,17 +1053,17 @@ export default function WorkflowEditorPage() {
             onClick={handleExecuteTest}
             disabled={!savedWorkflowId || !kestraHealthy || isExecuting}
             title={!savedWorkflowId ? "请先保存工作流" : !kestraHealthy ? "Kestra 未连接" : "运行测试"}
-            className="px-2 py-1 rounded-md text-xs font-medium bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 transition-colors"
+            className="px-2 py-1 rounded-md text-xs font-medium bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 transition-colors flex items-center gap-1"
           >
-            ▶ 运行
+            <Play className="w-3.5 h-3.5" /> 运行
           </button>
 
           <button
             onClick={() => setRightPanel("executions")}
             title="执行历史"
-            className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors"
+            className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors flex items-center gap-1"
           >
-            📋 执行
+            <History className="w-3.5 h-3.5" /> 执行
           </button>
         </div>
       </div>

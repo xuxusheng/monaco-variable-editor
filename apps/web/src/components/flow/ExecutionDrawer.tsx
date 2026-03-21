@@ -9,19 +9,23 @@ import { toast } from "sonner"
 import { trpc } from "@/lib/trpc"
 import { useWorkflowStore } from "@/stores/workflow"
 import type { TaskRun } from "@/stores/workflow"
+import {
+  Clock, Loader, CheckCircle, XCircle, AlertTriangle,
+  XOctagon, Ban, Pause, ListTodo, RefreshCw, HelpCircle,
+} from "lucide-react"
 
-const STATE_ICONS: Record<string, string> = {
-  CREATED: "⏳",
-  RUNNING: "🔄",
-  SUCCESS: "✅",
-  FAILED: "❌",
-  WARNING: "⚠️",
-  KILLED: "💀",
-  CANCELLED: "🚫",
-  PAUSED: "⏸️",
-  QUEUED: "📋",
-  RETRYING: "🔄",
-  RESTARTED: "🔄",
+const STATE_ICONS: Record<string, React.ReactNode> = {
+  CREATED: <Clock className="w-4 h-4 text-muted-foreground" />,
+  RUNNING: <Loader className="w-4 h-4 text-blue-500 animate-spin" />,
+  SUCCESS: <CheckCircle className="w-4 h-4 text-green-500" />,
+  FAILED: <XCircle className="w-4 h-4 text-red-500" />,
+  WARNING: <AlertTriangle className="w-4 h-4 text-amber-500" />,
+  KILLED: <XOctagon className="w-4 h-4 text-gray-500" />,
+  CANCELLED: <Ban className="w-4 h-4 text-gray-500" />,
+  PAUSED: <Pause className="w-4 h-4 text-yellow-500" />,
+  QUEUED: <ListTodo className="w-4 h-4 text-muted-foreground" />,
+  RETRYING: <RefreshCw className="w-4 h-4 text-blue-500 animate-spin" />,
+  RESTARTED: <RefreshCw className="w-4 h-4 text-blue-500 animate-spin" />,
 }
 
 const STATE_COLORS: Record<string, string> = {
@@ -78,7 +82,7 @@ export function ExecutionDrawer({ onClose, onReplay }: ExecutionDrawerProps) {
         <div className="flex items-center gap-3">
           <span className="text-sm font-semibold">执行详情</span>
           <span className={`text-xs font-medium px-2 py-0.5 rounded ${STATE_COLORS[currentExecution.state] ?? "text-muted-foreground"}`}>
-            {STATE_ICONS[currentExecution.state] ?? "❓"} {currentExecution.state}
+            {STATE_ICONS[currentExecution.state] ?? <HelpCircle className="w-4 h-4 text-muted-foreground" />} {currentExecution.state}
           </span>
           {isExecuting && (
             <span className="text-xs text-blue-500 animate-pulse">执行中...</span>
@@ -188,7 +192,7 @@ function TasksTab({ execution, isExecuting, onReplay }: {
           key={tr.id}
           className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-muted/50 group"
         >
-          <span className="text-base shrink-0">{STATE_ICONS[tr.state] ?? "❓"}</span>
+          <span className="text-base shrink-0">{STATE_ICONS[tr.state] ?? <HelpCircle className="w-4 h-4 text-muted-foreground" />}</span>
           <span className="text-sm font-medium truncate flex-1">{tr.taskId}</span>
           <span className={`text-xs ${STATE_COLORS[tr.state] ?? ""}`}>{tr.state}</span>
           <span className="text-xs text-muted-foreground w-14 text-right shrink-0">
@@ -203,7 +207,7 @@ function TasksTab({ execution, isExecuting, onReplay }: {
               onClick={() => onReplay(tr.id)}
               className="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 opacity-0 group-hover:opacity-100 transition-opacity"
             >
-              🔄 重跑
+              <RefreshCw className="w-3 h-3 mr-1" />重跑
             </button>
           )}
         </div>
