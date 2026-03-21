@@ -1,4 +1,5 @@
 import { useState } from "react"
+import type React from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { httpBatchLink } from "@trpc/client"
 import superjson from "superjson"
@@ -8,6 +9,7 @@ import { ReactFlowProvider } from "@xyflow/react"
 import WorkflowEditorPage from "@/pages/WorkflowEditorPage"
 import { cn } from "@/lib/utils"
 import { trpc } from "@/lib/trpc"
+import { Wrench, FileText, Code } from "lucide-react"
 import { Toaster } from "sonner"
 
 function getBaseUrl() {
@@ -44,7 +46,7 @@ function AppContent() {
   const allVariables = getAllVariables(defaultVariableGroups)
   const parsed = parseVariables(value)
 
-  const tabBtn = (id: "monaco" | "workflow", label: string) => (
+  const tabBtn = (id: "monaco" | "workflow", label: React.ReactNode) => (
     <button
       onClick={() => setTab(id)}
       className={cn(
@@ -60,8 +62,8 @@ function AppContent() {
     return (
       <div className="h-screen flex flex-col">
         <div className="h-9 bg-muted/50 border-b border-border flex items-center px-3 gap-1 shrink-0">
-          {tabBtn("monaco", "📝 编辑器")}
-          {tabBtn("workflow", "🔧 工作流")}
+          {tabBtn("monaco", <><Code className="w-3.5 h-3.5 inline" /> 编辑器</>)}
+          {tabBtn("workflow", <><Wrench className="w-3.5 h-3.5 inline" /> 工作流</>)}
         </div>
         <div className="flex-1 overflow-hidden">
           <ReactFlowProvider>
@@ -75,8 +77,8 @@ function AppContent() {
   return (
     <div className="h-screen flex flex-col">
       <div className="h-9 bg-muted/50 border-b border-border flex items-center px-3 gap-1 shrink-0">
-        {tabBtn("monaco", "📝 编辑器")}
-        {tabBtn("workflow", "🔧 工作流")}
+        {tabBtn("monaco", <><Code className="w-3.5 h-3.5 inline" /> 编辑器</>)}
+        {tabBtn("workflow", <><Wrench className="w-3.5 h-3.5 inline" /> 工作流</>)}
       </div>
 
       <div className="flex-1 overflow-auto">
@@ -111,7 +113,7 @@ function AppContent() {
               </div>
 
               <div className="rounded-lg border border-border p-4">
-                <h3 className="text-sm font-medium mb-2">📄 实际值</h3>
+                <h3 className="text-sm font-medium mb-2"><FileText className="w-4 h-4 inline" /> 实际值</h3>
                 <pre className="text-xs text-muted-foreground bg-muted/50 p-2 rounded overflow-auto max-h-32 whitespace-pre-wrap break-all font-mono">
                   {value || "空"}
                 </pre>

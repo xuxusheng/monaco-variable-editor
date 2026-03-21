@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server"
 import { z } from "zod"
+import { parse as parseYaml } from "yaml"
 import { Prisma } from "../generated/prisma/client.js"
 import { t } from "../trpc.js"
 import { prisma } from "../db.js"
@@ -206,8 +207,7 @@ export const workflowRouter = t.router({
     .mutation(async ({ input }) => {
       // YAML 轻量校验
       try {
-        const { parse } = await import("yaml")
-        const parsed = parse(input.yaml)
+        const parsed = parseYaml(input.yaml)
         if (!parsed || typeof parsed !== "object") {
           throw new TRPCError({
             code: "BAD_REQUEST",
@@ -298,6 +298,17 @@ export const workflowRouter = t.router({
         })
       }
 
+      const wf = await prisma.workflow.findUnique({
+        where: { id: release.workflowId },
+        include: { namespace: true },
+      })
+      if (!wf) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: `Workflow ${release.workflowId} not found`,
+        })
+      }
+
       // 事务：先更新 Workflow（用户画布立即恢复），再创建 Draft 记录
       const [draft] = await prisma.$transaction([
         prisma.workflowDraft.create({
@@ -320,6 +331,15 @@ export const workflowRouter = t.router({
           },
         }),
       ])
+
+      // 异步推 Kestra（失败不阻塞）
+      try {
+        const { getKestraClient } = await import("../lib/kestra-client.js")
+        const client = getKestraClient()
+        await client.upsertFlow(wf.namespace.kestraNamespace, wf.flowId, release.yaml)
+      } catch {
+        // Kestra 不可达，本地回滚仍成功
+      }
 
       return draft
     }),
@@ -608,17 +628,9 @@ export const workflowRouter = t.router({
     const { getKestraClient } = await import("../lib/kestra-client.js")
 
     const client = getKestraClient()
-    const terminalStates = [
-      "SUCCESS",
-      "WARNING",
-      "FAILED",
-      "KILLED",
-      "CANCELLED",
-      "RETRIED",
-    ]
 
     const running = await prisma.workflowDraftExecution.findMany({
-      where: { state: { notIn: terminalStates } },
+      where: { state: { notIn: ["SUCCESS", "WARNING", "FAILED", "KILLED", "CANCELLED", "RETRIED"] } },
     })
 
     const results = await Promise.allSettled(

@@ -8,6 +8,7 @@ import Editor from "@monaco-editor/react"
 import type { WorkflowNode, WorkflowEdge, WorkflowInput } from "@/types/workflow"
 import type { ApiWorkflowVariable } from "@/types/api"
 import { toKestraYaml } from "@/lib/yamlConverter"
+import { Rocket } from "lucide-react"
 
 interface PublishDialogProps {
   nodes: WorkflowNode[]
@@ -58,7 +59,7 @@ export function PublishDialog({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-2">
-            <span className="text-lg">🚀</span>
+            <span className="text-lg"><Rocket className="w-4 h-4" /></span>
             <h2 className="text-base font-semibold">发布新版本</h2>
           </div>
           <button

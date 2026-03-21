@@ -6,6 +6,7 @@
 import { useCallback, useState } from "react"
 import { toast } from "sonner"
 import Editor from "@monaco-editor/react"
+import { Inbox, Copy, Package } from "lucide-react"
 
 interface ReleaseEntry {
   id: string
@@ -58,7 +59,7 @@ export function ReleaseHistory({
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-border">
         <div className="flex items-center gap-2">
-          <span className="text-lg">📦</span>
+          <span className="text-lg"><Package className="w-4 h-4" /></span>
           <h2 className="text-base font-semibold">
             {viewYaml ? `v${viewYaml.version} YAML` : "版本历史"}
           </h2>
@@ -90,7 +91,7 @@ export function ReleaseHistory({
                 onClick={() => handleCopyYaml(viewYaml.yaml)}
                 className="px-3 py-1.5 rounded-md bg-indigo-500 text-white text-xs font-medium hover:bg-indigo-600 transition-colors"
               >
-                📋 复制
+                <Copy className="w-3.5 h-3.5" /> 复制
               </button>
             </div>
             <div className="flex-1">
@@ -114,10 +115,10 @@ export function ReleaseHistory({
           </div>
         ) : releases.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground px-6 text-center">
-            <span className="text-3xl mb-3">📭</span>
+            <Inbox className="w-10 h-10 text-muted-foreground mb-3" />
             <p className="text-sm font-medium mb-1">暂无发布版本</p>
             <p className="text-xs text-muted-foreground/70">
-              点击工具栏「🚀 发布」创建第一个版本
+              点击工具栏「发布」创建第一个版本
             </p>
           </div>
         ) : (

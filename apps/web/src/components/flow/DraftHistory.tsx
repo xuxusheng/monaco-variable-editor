@@ -5,6 +5,7 @@
 
 import { useCallback } from "react"
 import { toast } from "sonner"
+import { Inbox } from "lucide-react"
 
 interface DraftEntry {
   id: string
@@ -56,7 +57,7 @@ export function DraftHistory({ drafts, onRollback, onClose }: DraftHistoryProps)
       <div className="flex-1 overflow-y-auto">
         {drafts.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground px-6 text-center">
-            <span className="text-3xl mb-3">📭</span>
+            <Inbox className="w-10 h-10 text-muted-foreground mb-3" />
             <p className="text-sm font-medium mb-1">暂无草稿记录</p>
             <p className="text-xs text-muted-foreground/70">
               点击工具栏「📜 存草稿」保存当前编辑状态

@@ -1,5 +1,6 @@
 import { useState } from "react"
 import type { KestraInput } from "@/types/kestra"
+import { Download } from "lucide-react"
 
 interface InputConfigPanelProps {
   inputs: KestraInput[]
@@ -40,7 +41,7 @@ export function InputConfigPanel({ inputs, onUpdate, onClose }: InputConfigPanel
     <div className="panel-enter fixed top-0 right-0 h-screen w-full md:w-[480px] bg-card border-l border-border shadow-xl z-50 flex flex-col">
       <div className="flex items-center justify-between px-5 py-4 border-b border-border">
         <div className="flex items-center gap-2">
-          <span className="text-lg">📥</span>
+          <span className="text-lg"><Download className="w-4 h-4" /></span>
           <h2 className="text-base font-semibold">全局输入参数</h2>
         </div>
         <button

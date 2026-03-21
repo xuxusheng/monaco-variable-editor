@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react"
+import { Copy, FolderOpen, AlertTriangle, Trash2 } from "lucide-react"
 
 interface ContextMenuProps {
   /** 菜单位置 */
@@ -58,12 +59,12 @@ export function ContextMenu({
       style={{ left: position.x, top: position.y }}
     >
       <MenuItem onClick={onDuplicate}>
-        📋 复制节点
+        <Copy className="w-3.5 h-3.5" /> 复制节点
       </MenuItem>
 
       {isContainer && onToggleCollapse && (
         <MenuItem onClick={onToggleCollapse}>
-          📂 折叠/展开
+          <FolderOpen className="w-3.5 h-3.5" /> 折叠/展开
         </MenuItem>
       )}
 
@@ -71,7 +72,7 @@ export function ContextMenu({
 
       {onAddErrors && (
         <MenuItem onClick={onAddErrors}>
-          ⚠️ 添加错误处理
+          <AlertTriangle className="w-3.5 h-3.5" /> 添加错误处理
         </MenuItem>
       )}
 
@@ -84,7 +85,7 @@ export function ContextMenu({
       <div className="my-1 border-t border-border" />
 
       <MenuItem onClick={onDelete} className="text-red-600 hover:bg-red-50">
-        🗑️ 删除
+        <Trash2 className="w-3.5 h-3.5" /> 删除
       </MenuItem>
     </div>
   )

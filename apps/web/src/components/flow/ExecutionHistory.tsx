@@ -6,15 +6,19 @@
 
 import { trpc } from "@/lib/trpc"
 import type { ExecutionSummary } from "@/stores/workflow"
+import {
+  Clock, Loader, CheckCircle, XCircle, AlertTriangle,
+  XOctagon, Ban, History, Inbox, HelpCircle,
+} from "lucide-react"
 
-const STATE_ICONS: Record<string, string> = {
-  CREATED: "⏳",
-  RUNNING: "🔄",
-  SUCCESS: "🟢",
-  FAILED: "🔴",
-  WARNING: "🟡",
-  KILLED: "💀",
-  CANCELLED: "🚫",
+const STATE_ICONS: Record<string, React.ReactNode> = {
+  CREATED: <Clock className="w-3.5 h-3.5 text-muted-foreground" />,
+  RUNNING: <Loader className="w-3.5 h-3.5 text-blue-500 animate-spin" />,
+  SUCCESS: <CheckCircle className="w-3.5 h-3.5 text-green-500" />,
+  FAILED: <XCircle className="w-3.5 h-3.5 text-red-500" />,
+  WARNING: <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />,
+  KILLED: <XOctagon className="w-3.5 h-3.5 text-gray-500" />,
+  CANCELLED: <Ban className="w-3.5 h-3.5 text-gray-500" />,
 }
 
 interface ExecutionHistoryProps {
@@ -39,7 +43,9 @@ export function ExecutionHistory({ workflowId, onSelect, onClose }: ExecutionHis
     <div className="w-72 md:w-80 h-full bg-card border-l border-border flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-        <h3 className="text-sm font-semibold">📋 执行历史</h3>
+        <h3 className="text-sm font-semibold flex items-center gap-1.5">
+          <History className="w-4 h-4" /> 执行历史
+        </h3>
         <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-lg leading-none">✕</button>
       </div>
 
@@ -49,7 +55,7 @@ export function ExecutionHistory({ workflowId, onSelect, onClose }: ExecutionHis
           <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">加载中...</div>
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground px-6 text-center">
-            <span className="text-3xl mb-3">📭</span>
+            <Inbox className="w-10 h-10 text-muted-foreground mb-3" />
             <p className="text-sm font-medium mb-1">暂无执行记录</p>
             <p className="text-xs text-muted-foreground/70">
               点击工具栏「▶ 运行测试」开始执行
@@ -102,7 +108,7 @@ function GroupSection({ title, items, onSelect }: {
             }
             className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-muted/50 text-left"
           >
-            <span className="text-sm">{STATE_ICONS[item.state] ?? "❓"}</span>
+            <span className="text-sm">{STATE_ICONS[item.state] ?? <HelpCircle className="w-3.5 h-3.5 text-muted-foreground" />}</span>
             <div className="flex-1 min-w-0">
               <div className="text-xs font-medium truncate">{item.id.slice(0, 12)}</div>
               <div className="text-xs text-muted-foreground">

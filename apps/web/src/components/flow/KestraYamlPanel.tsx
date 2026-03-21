@@ -10,6 +10,7 @@ import type { WorkflowNode, WorkflowEdge, WorkflowInput } from "@/types/workflow
 import type { ApiWorkflowVariable } from "@/types/api"
 import { toKestraYaml, fromKestraYaml } from "@/lib/yamlConverter"
 import { toast } from "sonner"
+import { FileText, Copy, Save } from "lucide-react"
 
 interface KestraYamlPanelProps {
   nodes: WorkflowNode[]
@@ -89,7 +90,7 @@ export function KestraYamlPanel({
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-border">
         <div className="flex items-center gap-2">
-          <span className="text-lg">📄</span>
+          <span className="text-lg"><FileText className="w-4 h-4" /></span>
           <h2 className="text-base font-semibold">
             {mode === "preview" ? "Kestra YAML" : "导入 YAML"}
           </h2>
@@ -175,13 +176,13 @@ export function KestraYamlPanel({
               onClick={handleCopy}
               className="px-3 py-1.5 rounded-md bg-muted hover:bg-muted/80 text-sm transition-colors"
             >
-              📋 复制
+              <Copy className="w-3.5 h-3.5" /> 复制
             </button>
             <button
               onClick={handleDownload}
               className="px-3 py-1.5 rounded-md bg-indigo-500 text-white text-sm font-medium hover:bg-indigo-600 transition-colors"
             >
-              💾 下载 .yaml
+              <Save className="w-3.5 h-3.5" /> 下载 .yaml
             </button>
           </>
         ) : (

@@ -1,4 +1,5 @@
 import "dotenv/config";
+import type { Prisma } from "./generated/prisma/client.js";
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono } from "hono";
@@ -82,7 +83,6 @@ function shutdown(signal: string) {
 
 // ─── SyncExecutions cron (every 10 min) ───
 
-const TERMINAL_STATES = ["SUCCESS", "WARNING", "FAILED", "KILLED", "CANCELLED", "RETRIED"]
 const SYNC_INTERVAL = 10 * 60 * 1000 // 10 minutes
 
 async function syncRunningExecutions() {
@@ -94,7 +94,7 @@ async function syncRunningExecutions() {
     const client = getKestraClient()
 
     const running = await prisma.workflowDraftExecution.findMany({
-      where: { state: { notIn: TERMINAL_STATES } },
+      where: { state: { notIn: ["SUCCESS", "WARNING", "FAILED", "KILLED", "CANCELLED", "RETRIED"] } },
     })
 
     if (running.length === 0) return
@@ -109,7 +109,7 @@ async function syncRunningExecutions() {
             where: { id: exec.id },
             data: {
               state: kestraExec.state.current,
-              taskRuns: (kestraExec.taskRunList ?? []) as any,
+              taskRuns: (kestraExec.taskRunList ?? []) as unknown as Prisma.InputJsonValue,
               startedAt: kestraExec.state.startDate
                 ? new Date(kestraExec.state.startDate)
                 : exec.startedAt,

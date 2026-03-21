@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, type DragEvent } from "react"
+import { Package } from "lucide-react"
 import {
   PLUGIN_CATALOG,
   CATEGORY_COLORS,
@@ -78,7 +79,7 @@ export function NodeCreatePanel({ isOpen, onToggle }: NodeCreatePanelProps) {
         className="absolute left-3 top-3 z-10 w-9 h-9 rounded-lg bg-card border border-border shadow-sm flex items-center justify-center text-sm hover:bg-muted transition-colors"
         title="插件面板"
       >
-        📦
+        <Package className="w-4 h-4" />
       </button>
     )
   }
