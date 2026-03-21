@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
 
 env:
-  PROJECT_NAME: ${{ github.event.repository.name }}
-  IMAGE_NAME: ${{ vars.DOCKER_IMAGE || 'registry.cn-hongkong.aliyuncs.com/xusheng/monaco-variable-editor' }}
+  PROJECT_NAME: weave
+  IMAGE_NAME: registry.cn-hongkong.aliyuncs.com/xusheng/weave
 
 jobs:
   build-and-deploy:
