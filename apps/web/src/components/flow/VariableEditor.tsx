@@ -5,7 +5,18 @@
 import { useState, useCallback } from "react"
 import { trpc } from "@/lib/trpc"
 import { toast } from "sonner"
-import { X, Save } from "lucide-react"
+import { Save } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Button } from "@/components/ui/button"
 
 interface VariableEditorProps {
   namespaceId: string
@@ -91,91 +102,63 @@ export function VariableEditor({
   }, [key, value, description, editing, namespaceId, createVar, updateVar])
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
-      }}
-    >
-      <div className="bg-card rounded-lg shadow-xl w-full max-w-md border border-border">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <h2 className="text-base font-semibold">
-            {editing ? "编辑变量" : "创建变量"}
-          </h2>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-md hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{editing ? "编辑变量" : "创建变量"}</DialogTitle>
+        </DialogHeader>
 
-        {/* Body */}
-        <div className="px-5 py-4 space-y-4">
+        <div className="space-y-4">
           {/* Key */}
-          <div>
-            <label className="block text-sm font-medium mb-1.5">
+          <div className="space-y-1.5">
+            <Label>
               Key <span className="text-destructive">*</span>
-            </label>
-            <input
-              type="text"
+            </Label>
+            <Input
               value={key}
               onChange={(e) => handleKeyChange(e.target.value)}
               placeholder="MY_VARIABLE"
               disabled={!!editing}
-              className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
             />
             {keyError && (
-              <p className="text-xs text-destructive mt-1">{keyError}</p>
+              <p className="text-xs text-destructive">{keyError}</p>
             )}
           </div>
 
           {/* Value */}
-          <div>
-            <label className="block text-sm font-medium mb-1.5">
+          <div className="space-y-1.5">
+            <Label>
               Value <span className="text-destructive">*</span>
-            </label>
-            <textarea
+            </Label>
+            <Textarea
               value={value}
               onChange={(e) => setValue(e.target.value)}
               placeholder="变量值"
               rows={4}
-              className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-y"
             />
           </div>
 
           {/* Description */}
-          <div>
-            <label className="block text-sm font-medium mb-1.5">Description</label>
-            <input
-              type="text"
+          <div className="space-y-1.5">
+            <Label>Description</Label>
+            <Input
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="变量描述（可选）"
-              className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-md text-sm bg-muted hover:bg-muted/80 transition-colors"
-          >
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose}>
             取消
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={isPending}
-            className="px-4 py-2 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
-          >
+          </Button>
+          <Button onClick={handleSubmit} disabled={isPending}>
             <Save className="w-3.5 h-3.5" />
             {isPending ? "保存中..." : "保存"}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

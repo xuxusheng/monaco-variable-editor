@@ -1,5 +1,5 @@
 /**
- * NamespaceSettings — 命名空间设置面板
+ * NamespaceSettings — 项目空间设置面板
  * Tabs: Variables, Secrets, API Key
  */
 
@@ -7,6 +7,8 @@ import { useState } from "react"
 import { Settings, X, Copy, RefreshCw, Eye, EyeOff, Key } from "lucide-react"
 import { toast } from "sonner"
 import { trpc } from "@/lib/trpc"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Button } from "@/components/ui/button"
 import { VariableTable } from "./VariableTable"
 import { SecretTable } from "./SecretTable"
 
@@ -16,75 +18,39 @@ interface NamespaceSettingsProps {
   onClose: () => void
 }
 
-type Tab = "variables" | "secrets" | "apikey"
-
 export function NamespaceSettings({ namespaceId, namespaceName, onClose }: NamespaceSettingsProps) {
-  const [activeTab, setActiveTab] = useState<Tab>("variables")
-
   return (
     <div className="w-96 border-l border-border bg-card flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2">
           <Settings className="w-4 h-4 text-muted-foreground" />
-          <span className="text-sm font-medium">命名空间设置</span>
+          <span className="text-sm font-medium">项目空间设置</span>
           <span className="text-xs text-muted-foreground">({namespaceName})</span>
         </div>
-        <button
-          onClick={onClose}
-          className="p-1 rounded hover:bg-muted transition-colors"
-          title="关闭"
-        >
+        <Button variant="ghost" size="icon-sm" onClick={onClose} title="关闭">
           <X className="w-4 h-4" />
-        </button>
+        </Button>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-border">
-        <button
-          onClick={() => setActiveTab("variables")}
-          className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
-            activeTab === "variables"
-              ? "border-b-2 border-primary text-primary"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          变量
-        </button>
-        <button
-          onClick={() => setActiveTab("secrets")}
-          className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
-            activeTab === "secrets"
-              ? "border-b-2 border-primary text-primary"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          密钥
-        </button>
-        <button
-          onClick={() => setActiveTab("apikey")}
-          className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
-            activeTab === "apikey"
-              ? "border-b-2 border-primary text-primary"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          API Key
-        </button>
-      </div>
+      <Tabs defaultValue="variables" className="flex-1 flex flex-col min-h-0">
+        <TabsList variant="line" className="w-full rounded-none border-b border-border">
+          <TabsTrigger value="variables" className="flex-1 text-xs">变量</TabsTrigger>
+          <TabsTrigger value="secrets" className="flex-1 text-xs">密钥</TabsTrigger>
+          <TabsTrigger value="apikey" className="flex-1 text-xs">API Key</TabsTrigger>
+        </TabsList>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4">
-        {activeTab === "variables" && (
+        <TabsContent value="variables" className="flex-1 overflow-y-auto p-4">
           <VariableTable namespaceId={namespaceId} />
-        )}
-        {activeTab === "secrets" && (
+        </TabsContent>
+        <TabsContent value="secrets" className="flex-1 overflow-y-auto p-4">
           <SecretTable namespaceId={namespaceId} />
-        )}
-        {activeTab === "apikey" && (
+        </TabsContent>
+        <TabsContent value="apikey" className="flex-1 overflow-y-auto p-4">
           <ApiKeyPanel namespaceId={namespaceId} />
-        )}
-      </div>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
@@ -172,32 +138,36 @@ function ApiKeyPanel({ namespaceId }: { namespaceId: string }) {
                 ? (apiKey ?? "—")
                 : (maskedKey ?? "—")}
           </div>
-          <button
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={() => setRevealed(!revealed)}
-            className="p-1.5 rounded hover:bg-muted transition-colors"
             title={revealed ? "隐藏" : "显示"}
           >
             {revealed ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={handleCopy}
             disabled={!apiKey}
-            className="p-1.5 rounded hover:bg-muted transition-colors disabled:opacity-50"
             title="复制"
           >
             <Copy className="w-3.5 h-3.5" />
-          </button>
+          </Button>
         </div>
 
         {/* Regenerate */}
-        <button
+        <Button
+          variant="destructive"
+          size="sm"
+          className="w-full"
           onClick={handleRegenerate}
           disabled={regenerateMutation.isPending}
-          className="w-full px-3 py-1.5 rounded-md text-xs font-medium bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${regenerateMutation.isPending ? "animate-spin" : ""}`} />
           重新生成
-        </button>
+        </Button>
 
         {/* Usage hint */}
         <p className="text-xs text-muted-foreground">
