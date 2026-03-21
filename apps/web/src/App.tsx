@@ -8,6 +8,7 @@ import { ReactFlowProvider } from "@xyflow/react"
 import WorkflowEditorPage from "@/pages/WorkflowEditorPage"
 import { cn } from "@/lib/utils"
 import { trpc } from "@/lib/trpc"
+import { Toaster } from "sonner"
 
 function getBaseUrl() {
   if (typeof window !== "undefined") return ""
@@ -30,6 +31,7 @@ export default function App() {
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
+        <Toaster position="bottom-right" richColors closeButton />
         <AppContent />
       </QueryClientProvider>
     </trpc.Provider>
