@@ -117,9 +117,9 @@ export function NodeCreatePanel({ isOpen, onToggle }: NodeCreatePanelProps) {
             >
               <span
                 className="w-2 h-2 rounded-full"
-                style={{ background: CATEGORY_COLORS[cat] ?? CATEGORY_COLORS.other }}
+                style={{ background: CATEGORY_COLORS[cat as PluginCategory] ?? CATEGORY_COLORS.other }}
               />
-              {CATEGORY_LABELS[cat] ?? cat}
+              {CATEGORY_LABELS[cat as PluginCategory] ?? cat}
               <span className="ml-auto text-[10px]">
                 {expandedCategories.has(cat) ? "▾" : "▸"}
               </span>

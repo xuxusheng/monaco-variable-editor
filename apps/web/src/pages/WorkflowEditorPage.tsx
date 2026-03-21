@@ -47,7 +47,7 @@ function toCanvasNodes(wfNodes: WorkflowNode[]): Node[] {
     id: n.id,
     type: "workflowNode" as const,
     position: n.ui ?? { x: 150, y: 50 },
-    data: n,
+    data: n as unknown as Record<string, unknown>,
   }))
 }
 

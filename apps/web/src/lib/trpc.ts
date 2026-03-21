@@ -33,7 +33,7 @@ export const trpcClient = {
     create: (input: {
       flowId: string
       name: string
-      namespace: string
+      namespaceId: string
       description?: string
       nodes: ApiWorkflowNode[]
       edges: ApiWorkflowEdge[]
