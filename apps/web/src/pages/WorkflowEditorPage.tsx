@@ -20,8 +20,7 @@ import { TaskConfigPanel } from "@/components/flow/TaskConfigPanel"
 import { InputConfigPanel } from "@/components/flow/InputConfigPanel"
 import { KestraYamlPanel } from "@/components/flow/KestraYamlPanel"
 import { getLayoutedElements } from "@/lib/autoLayout"
-import { trpc, trpcProxy } from "@/lib/trpc"
-import { useQueryClient } from "@tanstack/react-query"
+import { trpc } from "@/lib/trpc"
 import type {
   WorkflowNode,
   WorkflowEdge,
@@ -462,25 +461,24 @@ export default function WorkflowEditorPage() {
     setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 50)
   }, [canvasNodes, canvasEdges, pushHistory, fitView])
 
-  // ---- 保存/加载（tRPC + React Query hooks） ----
-  const queryClient = useQueryClient()
+  // ---- 保存/加载（tRPC useUtils — 官方推荐的 imperative 方式） ----
+  const utils = trpc.useUtils()
   const [savedWorkflowId, setSavedWorkflowId] = useState<string | null>(null)
 
   const createWorkflow = trpc.workflow.create.useMutation({
     onSuccess: (result) => {
       setSavedWorkflowId(result.id)
-      queryClient.invalidateQueries({ queryKey: [["workflow", "list"]] })
+      utils.workflow.list.invalidate()
     },
   })
 
   const updateWorkflow = trpc.workflow.update.useMutation({
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [["workflow", "list"]] })
+      utils.workflow.list.invalidate()
     },
   })
 
-
-  const handleSaveToApi = useCallback(async () => {
+  const handleSaveToApi = useCallback(() => {
     const currentNodes = syncPositions(wfNodes, canvasNodes)
     const apiNodes = currentNodes.map(toApiNode)
     const apiEdges = wfEdges.map(toApiEdge)
@@ -518,13 +516,13 @@ export default function WorkflowEditorPage() {
         : "idle"
 
   const handleLoadFromApi = useCallback(async () => {
-    const workflows = await trpcProxy.workflow.list.query()
+    const workflows = await utils.workflow.list.fetch()
     if (!workflows || workflows.length === 0) {
       alert("API 上暂无已保存的工作流")
       return
     }
     const latest = workflows[0]
-    const full = await trpcProxy.workflow.get.query({ id: latest.id })
+    const full = await utils.workflow.get.fetch({ id: latest.id })
     if (!full) return
 
     setSavedWorkflowId(full.id)
@@ -540,7 +538,7 @@ export default function WorkflowEditorPage() {
     if (full.inputs) setInputs((full.inputs as unknown as ApiWorkflowInput[]).map(fromApiInput))
 
     setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 100)
-  }, [workflowMeta.namespace, fitView])
+  }, [workflowMeta.namespace, fitView, utils])
 
   // ---- 选中节点数据 ----
   const selectedNode = wfNodes.find((n) => n.id === selectedNodeId)
