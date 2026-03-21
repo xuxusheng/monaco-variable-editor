@@ -1,63 +1,135 @@
 import { z } from "zod"
 
-// Kestra task node
-export const taskNodeSchema = z.object({
+// ========== 边类型枚举 ==========
+export const edgeTypeSchema = z.enum([
+  "sequence",
+  "containment",
+  "then",
+  "else",
+  "case",
+  "errors",
+  "finally",
+])
+export type EdgeType = z.infer<typeof edgeTypeSchema>
+
+// ========== 节点 Schema ==========
+export const workflowNodeSchema = z.object({
   id: z.string(),
-  label: z.string(),
-  taskConfig: z.string(),
-  position: z
+  type: z.string(),
+  name: z.string(),
+  description: z.string().optional(),
+  containerId: z.string().nullable(),
+  sortIndex: z.number(),
+  spec: z.record(z.unknown()),
+  ui: z
     .object({
       x: z.number(),
       y: z.number(),
+      collapsed: z.boolean().optional(),
     })
     .optional(),
 })
+export type WorkflowNode = z.infer<typeof workflowNodeSchema>
 
-// Kestra edge (connection between tasks)
-export const edgeSchema = z.object({
+// ========== 边 Schema ==========
+export const workflowEdgeSchema = z.object({
+  id: z.string(),
   source: z.string(),
   target: z.string(),
+  type: edgeTypeSchema,
+  label: z.string().optional(),
 })
+export type WorkflowEdge = z.infer<typeof workflowEdgeSchema>
 
-// Kestra input parameter
-export const inputSchema = z.object({
+// ========== Input 类型枚举 ==========
+export const workflowInputTypeSchema = z.enum([
+  "STRING",
+  "INT",
+  "FLOAT",
+  "BOOL",
+  "SELECT",
+  "MULTISELECT",
+  "DATE",
+  "DATETIME",
+  "TIME",
+  "DURATION",
+  "ARRAY",
+  "JSON",
+  "YAML",
+  "FILE",
+  "URI",
+  "SECRET",
+])
+export type WorkflowInputType = z.infer<typeof workflowInputTypeSchema>
+
+// ========== Input Schema ==========
+export const workflowInputSchema = z.object({
   id: z.string(),
-  type: z.enum(["STRING", "INT", "FLOAT", "BOOLEAN", "DATETIME", "DATE", "TIME", "DURATION", "FILE", "JSON", "URI", "ARRAY"]),
-  defaults: z.string().optional(),
+  type: workflowInputTypeSchema,
+  displayName: z.string().optional(),
   description: z.string().optional(),
   required: z.boolean().optional(),
+  defaults: z.unknown().optional(),
+  values: z.array(z.string()).optional(),
+  allowCustomValue: z.boolean().optional(),
+  itemType: z.string().optional(),
+  allowedFileExtensions: z.array(z.string()).optional(),
+  validator: z
+    .object({
+      regex: z.string(),
+      message: z.string(),
+    })
+    .optional(),
 })
+export type WorkflowInput = z.infer<typeof workflowInputSchema>
 
-// Workflow create input
+// ========== Variable 类型枚举 ==========
+export const variableTypeSchema = z.enum([
+  "STRING",
+  "NUMBER",
+  "BOOLEAN",
+  "JSON",
+])
+export type VariableType = z.infer<typeof variableTypeSchema>
+
+// ========== Variable Schema ==========
+export const workflowVariableSchema = z.object({
+  key: z.string(),
+  value: z.string(),
+  type: variableTypeSchema,
+  description: z.string().optional(),
+})
+export type WorkflowVariable = z.infer<typeof workflowVariableSchema>
+
+// ========== CRUD Schema ==========
+
 export const createWorkflowSchema = z.object({
   name: z.string().min(1),
-  namespace: z.string().default("company.team"),
+  flowId: z.string().min(1),
+  namespaceId: z.string().min(1),
   description: z.string().optional(),
-  nodes: z.array(taskNodeSchema).default([]),
-  edges: z.array(edgeSchema).default([]),
-  inputs: z.array(inputSchema).default([]),
+  nodes: z.array(workflowNodeSchema).default([]),
+  edges: z.array(workflowEdgeSchema).default([]),
+  inputs: z.array(workflowInputSchema).default([]),
+  variables: z.array(workflowVariableSchema).default([]),
+  disabled: z.boolean().default(false),
 })
 
-// Workflow update input
 export const updateWorkflowSchema = z.object({
   id: z.string(),
   name: z.string().min(1).optional(),
-  namespace: z.string().optional(),
+  flowId: z.string().min(1).optional(),
+  namespaceId: z.string().min(1).optional(),
   description: z.string().optional(),
-  nodes: z.array(taskNodeSchema).optional(),
-  edges: z.array(edgeSchema).optional(),
-  inputs: z.array(inputSchema).optional(),
+  nodes: z.array(workflowNodeSchema).optional(),
+  edges: z.array(workflowEdgeSchema).optional(),
+  inputs: z.array(workflowInputSchema).optional(),
+  variables: z.array(workflowVariableSchema).optional(),
+  disabled: z.boolean().optional(),
+  publishedVersion: z.string().optional(),
 })
 
-// Generate YAML input
-export const generateYamlSchema = z.object({
-  workflowId: z.string(),
-  namespace: z.string(),
-  nodes: z.array(taskNodeSchema),
-  edges: z.array(edgeSchema),
-  inputs: z.array(inputSchema),
+export const createNamespaceSchema = z.object({
+  name: z.string().min(1),
+  description: z.string().optional(),
 })
-
-export type TaskNode = z.infer<typeof taskNodeSchema>
-export type Edge = z.infer<typeof edgeSchema>
-export type Input = z.infer<typeof inputSchema>
