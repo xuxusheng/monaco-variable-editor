@@ -36,7 +36,45 @@ model Workflow {
   updatedAt        DateTime @updatedAt
 
   namespace Namespace @relation(fields: [namespaceId], references: [id])
+  drafts   WorkflowDraft[]
+  releases WorkflowRelease[]
 
   @@unique([namespaceId, flowId])
   @@map("workflows")
+}
+
+model WorkflowDraft {
+  id         String   @id @default(cuid())
+  workflowId String
+  nodes      Json
+  edges      Json
+  inputs     Json
+  variables  Json
+  message    String?
+  createdAt  DateTime @default(now())
+
+  workflow   Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([workflowId, createdAt(sort: Desc)])
+  @@map("workflow_drafts")
+}
+
+model WorkflowRelease {
+  id          String   @id @default(cuid())
+  workflowId  String
+  version     Int
+  name        String
+  nodes       Json
+  edges       Json
+  inputs      Json
+  variables   Json
+  yaml        String
+  publishedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  workflow    Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@unique([workflowId, version])
+  @@index([workflowId, version(sort: Desc)])
+  @@map("workflow_releases")
 }

@@ -17,8 +17,8 @@
 
 import * as runtime from "@prisma/client/runtime/index-browser"
 
-export type * from '../models'
-export type * from './prismaNamespace'
+export type * from '../models.js'
+export type * from './prismaNamespace.js'
 
 export const Decimal = runtime.Decimal
 
@@ -52,7 +52,9 @@ export const AnyNull = runtime.AnyNull
 
 export const ModelName = {
   Namespace: 'Namespace',
-  Workflow: 'Workflow'
+  Workflow: 'Workflow',
+  WorkflowDraft: 'WorkflowDraft',
+  WorkflowRelease: 'WorkflowRelease'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -100,6 +102,37 @@ export const WorkflowScalarFieldEnum = {
 } as const
 
 export type WorkflowScalarFieldEnum = (typeof WorkflowScalarFieldEnum)[keyof typeof WorkflowScalarFieldEnum]
+
+
+export const WorkflowDraftScalarFieldEnum = {
+  id: 'id',
+  workflowId: 'workflowId',
+  nodes: 'nodes',
+  edges: 'edges',
+  inputs: 'inputs',
+  variables: 'variables',
+  message: 'message',
+  createdAt: 'createdAt'
+} as const
+
+export type WorkflowDraftScalarFieldEnum = (typeof WorkflowDraftScalarFieldEnum)[keyof typeof WorkflowDraftScalarFieldEnum]
+
+
+export const WorkflowReleaseScalarFieldEnum = {
+  id: 'id',
+  workflowId: 'workflowId',
+  version: 'version',
+  name: 'name',
+  nodes: 'nodes',
+  edges: 'edges',
+  inputs: 'inputs',
+  variables: 'variables',
+  yaml: 'yaml',
+  publishedAt: 'publishedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type WorkflowReleaseScalarFieldEnum = (typeof WorkflowReleaseScalarFieldEnum)[keyof typeof WorkflowReleaseScalarFieldEnum]
 
 
 export const SortOrder = {

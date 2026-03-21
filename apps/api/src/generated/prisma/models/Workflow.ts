@@ -9,8 +9,8 @@
  * 🟢 You can import this file directly.
  */
 import type * as runtime from "@prisma/client/runtime/client"
-import type * as $Enums from "../enums"
-import type * as Prisma from "../internal/prismaNamespace"
+import type * as $Enums from "../enums.js"
+import type * as Prisma from "../internal/prismaNamespace.js"
 
 /**
  * Model Workflow
@@ -265,6 +265,8 @@ export type WorkflowWhereInput = {
   createdAt?: Prisma.DateTimeFilter<"Workflow"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Workflow"> | Date | string
   namespace?: Prisma.XOR<Prisma.NamespaceScalarRelationFilter, Prisma.NamespaceWhereInput>
+  drafts?: Prisma.WorkflowDraftListRelationFilter
+  releases?: Prisma.WorkflowReleaseListRelationFilter
 }
 
 export type WorkflowOrderByWithRelationInput = {
@@ -282,6 +284,8 @@ export type WorkflowOrderByWithRelationInput = {
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   namespace?: Prisma.NamespaceOrderByWithRelationInput
+  drafts?: Prisma.WorkflowDraftOrderByRelationAggregateInput
+  releases?: Prisma.WorkflowReleaseOrderByRelationAggregateInput
 }
 
 export type WorkflowWhereUniqueInput = Prisma.AtLeast<{
@@ -303,6 +307,8 @@ export type WorkflowWhereUniqueInput = Prisma.AtLeast<{
   createdAt?: Prisma.DateTimeFilter<"Workflow"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Workflow"> | Date | string
   namespace?: Prisma.XOR<Prisma.NamespaceScalarRelationFilter, Prisma.NamespaceWhereInput>
+  drafts?: Prisma.WorkflowDraftListRelationFilter
+  releases?: Prisma.WorkflowReleaseListRelationFilter
 }, "id" | "namespaceId_flowId">
 
 export type WorkflowOrderByWithAggregationInput = {
@@ -359,6 +365,8 @@ export type WorkflowCreateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   namespace: Prisma.NamespaceCreateNestedOneWithoutWorkflowsInput
+  drafts?: Prisma.WorkflowDraftCreateNestedManyWithoutWorkflowInput
+  releases?: Prisma.WorkflowReleaseCreateNestedManyWithoutWorkflowInput
 }
 
 export type WorkflowUncheckedCreateInput = {
@@ -375,6 +383,8 @@ export type WorkflowUncheckedCreateInput = {
   publishedVersion?: number
   createdAt?: Date | string
   updatedAt?: Date | string
+  drafts?: Prisma.WorkflowDraftUncheckedCreateNestedManyWithoutWorkflowInput
+  releases?: Prisma.WorkflowReleaseUncheckedCreateNestedManyWithoutWorkflowInput
 }
 
 export type WorkflowUpdateInput = {
@@ -391,6 +401,8 @@ export type WorkflowUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   namespace?: Prisma.NamespaceUpdateOneRequiredWithoutWorkflowsNestedInput
+  drafts?: Prisma.WorkflowDraftUpdateManyWithoutWorkflowNestedInput
+  releases?: Prisma.WorkflowReleaseUpdateManyWithoutWorkflowNestedInput
 }
 
 export type WorkflowUncheckedUpdateInput = {
@@ -407,6 +419,8 @@ export type WorkflowUncheckedUpdateInput = {
   publishedVersion?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  drafts?: Prisma.WorkflowDraftUncheckedUpdateManyWithoutWorkflowNestedInput
+  releases?: Prisma.WorkflowReleaseUncheckedUpdateManyWithoutWorkflowNestedInput
 }
 
 export type WorkflowCreateManyInput = {
@@ -519,6 +533,11 @@ export type WorkflowSumOrderByAggregateInput = {
   publishedVersion?: Prisma.SortOrder
 }
 
+export type WorkflowScalarRelationFilter = {
+  is?: Prisma.WorkflowWhereInput
+  isNot?: Prisma.WorkflowWhereInput
+}
+
 export type WorkflowCreateNestedManyWithoutNamespaceInput = {
   create?: Prisma.XOR<Prisma.WorkflowCreateWithoutNamespaceInput, Prisma.WorkflowUncheckedCreateWithoutNamespaceInput> | Prisma.WorkflowCreateWithoutNamespaceInput[] | Prisma.WorkflowUncheckedCreateWithoutNamespaceInput[]
   connectOrCreate?: Prisma.WorkflowCreateOrConnectWithoutNamespaceInput | Prisma.WorkflowCreateOrConnectWithoutNamespaceInput[]
@@ -573,6 +592,34 @@ export type IntFieldUpdateOperationsInput = {
   divide?: number
 }
 
+export type WorkflowCreateNestedOneWithoutDraftsInput = {
+  create?: Prisma.XOR<Prisma.WorkflowCreateWithoutDraftsInput, Prisma.WorkflowUncheckedCreateWithoutDraftsInput>
+  connectOrCreate?: Prisma.WorkflowCreateOrConnectWithoutDraftsInput
+  connect?: Prisma.WorkflowWhereUniqueInput
+}
+
+export type WorkflowUpdateOneRequiredWithoutDraftsNestedInput = {
+  create?: Prisma.XOR<Prisma.WorkflowCreateWithoutDraftsInput, Prisma.WorkflowUncheckedCreateWithoutDraftsInput>
+  connectOrCreate?: Prisma.WorkflowCreateOrConnectWithoutDraftsInput
+  upsert?: Prisma.WorkflowUpsertWithoutDraftsInput
+  connect?: Prisma.WorkflowWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.WorkflowUpdateToOneWithWhereWithoutDraftsInput, Prisma.WorkflowUpdateWithoutDraftsInput>, Prisma.WorkflowUncheckedUpdateWithoutDraftsInput>
+}
+
+export type WorkflowCreateNestedOneWithoutReleasesInput = {
+  create?: Prisma.XOR<Prisma.WorkflowCreateWithoutReleasesInput, Prisma.WorkflowUncheckedCreateWithoutReleasesInput>
+  connectOrCreate?: Prisma.WorkflowCreateOrConnectWithoutReleasesInput
+  connect?: Prisma.WorkflowWhereUniqueInput
+}
+
+export type WorkflowUpdateOneRequiredWithoutReleasesNestedInput = {
+  create?: Prisma.XOR<Prisma.WorkflowCreateWithoutReleasesInput, Prisma.WorkflowUncheckedCreateWithoutReleasesInput>
+  connectOrCreate?: Prisma.WorkflowCreateOrConnectWithoutReleasesInput
+  upsert?: Prisma.WorkflowUpsertWithoutReleasesInput
+  connect?: Prisma.WorkflowWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.WorkflowUpdateToOneWithWhereWithoutReleasesInput, Prisma.WorkflowUpdateWithoutReleasesInput>, Prisma.WorkflowUncheckedUpdateWithoutReleasesInput>
+}
+
 export type WorkflowCreateWithoutNamespaceInput = {
   id?: string
   name: string
@@ -586,6 +633,8 @@ export type WorkflowCreateWithoutNamespaceInput = {
   publishedVersion?: number
   createdAt?: Date | string
   updatedAt?: Date | string
+  drafts?: Prisma.WorkflowDraftCreateNestedManyWithoutWorkflowInput
+  releases?: Prisma.WorkflowReleaseCreateNestedManyWithoutWorkflowInput
 }
 
 export type WorkflowUncheckedCreateWithoutNamespaceInput = {
@@ -601,6 +650,8 @@ export type WorkflowUncheckedCreateWithoutNamespaceInput = {
   publishedVersion?: number
   createdAt?: Date | string
   updatedAt?: Date | string
+  drafts?: Prisma.WorkflowDraftUncheckedCreateNestedManyWithoutWorkflowInput
+  releases?: Prisma.WorkflowReleaseUncheckedCreateNestedManyWithoutWorkflowInput
 }
 
 export type WorkflowCreateOrConnectWithoutNamespaceInput = {
@@ -648,6 +699,174 @@ export type WorkflowScalarWhereInput = {
   updatedAt?: Prisma.DateTimeFilter<"Workflow"> | Date | string
 }
 
+export type WorkflowCreateWithoutDraftsInput = {
+  id?: string
+  name: string
+  flowId: string
+  description?: string | null
+  nodes?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  edges?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  inputs?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  variables?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  disabled?: boolean
+  publishedVersion?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  namespace: Prisma.NamespaceCreateNestedOneWithoutWorkflowsInput
+  releases?: Prisma.WorkflowReleaseCreateNestedManyWithoutWorkflowInput
+}
+
+export type WorkflowUncheckedCreateWithoutDraftsInput = {
+  id?: string
+  name: string
+  flowId: string
+  namespaceId: string
+  description?: string | null
+  nodes?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  edges?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  inputs?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  variables?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  disabled?: boolean
+  publishedVersion?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  releases?: Prisma.WorkflowReleaseUncheckedCreateNestedManyWithoutWorkflowInput
+}
+
+export type WorkflowCreateOrConnectWithoutDraftsInput = {
+  where: Prisma.WorkflowWhereUniqueInput
+  create: Prisma.XOR<Prisma.WorkflowCreateWithoutDraftsInput, Prisma.WorkflowUncheckedCreateWithoutDraftsInput>
+}
+
+export type WorkflowUpsertWithoutDraftsInput = {
+  update: Prisma.XOR<Prisma.WorkflowUpdateWithoutDraftsInput, Prisma.WorkflowUncheckedUpdateWithoutDraftsInput>
+  create: Prisma.XOR<Prisma.WorkflowCreateWithoutDraftsInput, Prisma.WorkflowUncheckedCreateWithoutDraftsInput>
+  where?: Prisma.WorkflowWhereInput
+}
+
+export type WorkflowUpdateToOneWithWhereWithoutDraftsInput = {
+  where?: Prisma.WorkflowWhereInput
+  data: Prisma.XOR<Prisma.WorkflowUpdateWithoutDraftsInput, Prisma.WorkflowUncheckedUpdateWithoutDraftsInput>
+}
+
+export type WorkflowUpdateWithoutDraftsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  flowId?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  nodes?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  edges?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  inputs?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  variables?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  disabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  publishedVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  namespace?: Prisma.NamespaceUpdateOneRequiredWithoutWorkflowsNestedInput
+  releases?: Prisma.WorkflowReleaseUpdateManyWithoutWorkflowNestedInput
+}
+
+export type WorkflowUncheckedUpdateWithoutDraftsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  flowId?: Prisma.StringFieldUpdateOperationsInput | string
+  namespaceId?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  nodes?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  edges?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  inputs?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  variables?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  disabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  publishedVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  releases?: Prisma.WorkflowReleaseUncheckedUpdateManyWithoutWorkflowNestedInput
+}
+
+export type WorkflowCreateWithoutReleasesInput = {
+  id?: string
+  name: string
+  flowId: string
+  description?: string | null
+  nodes?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  edges?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  inputs?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  variables?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  disabled?: boolean
+  publishedVersion?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  namespace: Prisma.NamespaceCreateNestedOneWithoutWorkflowsInput
+  drafts?: Prisma.WorkflowDraftCreateNestedManyWithoutWorkflowInput
+}
+
+export type WorkflowUncheckedCreateWithoutReleasesInput = {
+  id?: string
+  name: string
+  flowId: string
+  namespaceId: string
+  description?: string | null
+  nodes?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  edges?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  inputs?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  variables?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  disabled?: boolean
+  publishedVersion?: number
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  drafts?: Prisma.WorkflowDraftUncheckedCreateNestedManyWithoutWorkflowInput
+}
+
+export type WorkflowCreateOrConnectWithoutReleasesInput = {
+  where: Prisma.WorkflowWhereUniqueInput
+  create: Prisma.XOR<Prisma.WorkflowCreateWithoutReleasesInput, Prisma.WorkflowUncheckedCreateWithoutReleasesInput>
+}
+
+export type WorkflowUpsertWithoutReleasesInput = {
+  update: Prisma.XOR<Prisma.WorkflowUpdateWithoutReleasesInput, Prisma.WorkflowUncheckedUpdateWithoutReleasesInput>
+  create: Prisma.XOR<Prisma.WorkflowCreateWithoutReleasesInput, Prisma.WorkflowUncheckedCreateWithoutReleasesInput>
+  where?: Prisma.WorkflowWhereInput
+}
+
+export type WorkflowUpdateToOneWithWhereWithoutReleasesInput = {
+  where?: Prisma.WorkflowWhereInput
+  data: Prisma.XOR<Prisma.WorkflowUpdateWithoutReleasesInput, Prisma.WorkflowUncheckedUpdateWithoutReleasesInput>
+}
+
+export type WorkflowUpdateWithoutReleasesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  flowId?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  nodes?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  edges?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  inputs?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  variables?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  disabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  publishedVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  namespace?: Prisma.NamespaceUpdateOneRequiredWithoutWorkflowsNestedInput
+  drafts?: Prisma.WorkflowDraftUpdateManyWithoutWorkflowNestedInput
+}
+
+export type WorkflowUncheckedUpdateWithoutReleasesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  flowId?: Prisma.StringFieldUpdateOperationsInput | string
+  namespaceId?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  nodes?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  edges?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  inputs?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  variables?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  disabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  publishedVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  drafts?: Prisma.WorkflowDraftUncheckedUpdateManyWithoutWorkflowNestedInput
+}
+
 export type WorkflowCreateManyNamespaceInput = {
   id?: string
   name: string
@@ -676,6 +895,8 @@ export type WorkflowUpdateWithoutNamespaceInput = {
   publishedVersion?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  drafts?: Prisma.WorkflowDraftUpdateManyWithoutWorkflowNestedInput
+  releases?: Prisma.WorkflowReleaseUpdateManyWithoutWorkflowNestedInput
 }
 
 export type WorkflowUncheckedUpdateWithoutNamespaceInput = {
@@ -691,6 +912,8 @@ export type WorkflowUncheckedUpdateWithoutNamespaceInput = {
   publishedVersion?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  drafts?: Prisma.WorkflowDraftUncheckedUpdateManyWithoutWorkflowNestedInput
+  releases?: Prisma.WorkflowReleaseUncheckedUpdateManyWithoutWorkflowNestedInput
 }
 
 export type WorkflowUncheckedUpdateManyWithoutNamespaceInput = {
@@ -709,6 +932,44 @@ export type WorkflowUncheckedUpdateManyWithoutNamespaceInput = {
 }
 
 
+/**
+ * Count Type WorkflowCountOutputType
+ */
+
+export type WorkflowCountOutputType = {
+  drafts: number
+  releases: number
+}
+
+export type WorkflowCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  drafts?: boolean | WorkflowCountOutputTypeCountDraftsArgs
+  releases?: boolean | WorkflowCountOutputTypeCountReleasesArgs
+}
+
+/**
+ * WorkflowCountOutputType without action
+ */
+export type WorkflowCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the WorkflowCountOutputType
+   */
+  select?: Prisma.WorkflowCountOutputTypeSelect<ExtArgs> | null
+}
+
+/**
+ * WorkflowCountOutputType without action
+ */
+export type WorkflowCountOutputTypeCountDraftsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.WorkflowDraftWhereInput
+}
+
+/**
+ * WorkflowCountOutputType without action
+ */
+export type WorkflowCountOutputTypeCountReleasesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.WorkflowReleaseWhereInput
+}
+
 
 export type WorkflowSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -725,6 +986,9 @@ export type WorkflowSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs
   createdAt?: boolean
   updatedAt?: boolean
   namespace?: boolean | Prisma.NamespaceDefaultArgs<ExtArgs>
+  drafts?: boolean | Prisma.Workflow$draftsArgs<ExtArgs>
+  releases?: boolean | Prisma.Workflow$releasesArgs<ExtArgs>
+  _count?: boolean | Prisma.WorkflowCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["workflow"]>
 
 export type WorkflowSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -780,6 +1044,9 @@ export type WorkflowSelectScalar = {
 export type WorkflowOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "flowId" | "namespaceId" | "description" | "nodes" | "edges" | "inputs" | "variables" | "disabled" | "publishedVersion" | "createdAt" | "updatedAt", ExtArgs["result"]["workflow"]>
 export type WorkflowInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   namespace?: boolean | Prisma.NamespaceDefaultArgs<ExtArgs>
+  drafts?: boolean | Prisma.Workflow$draftsArgs<ExtArgs>
+  releases?: boolean | Prisma.Workflow$releasesArgs<ExtArgs>
+  _count?: boolean | Prisma.WorkflowCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type WorkflowIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   namespace?: boolean | Prisma.NamespaceDefaultArgs<ExtArgs>
@@ -792,6 +1059,8 @@ export type $WorkflowPayload<ExtArgs extends runtime.Types.Extensions.InternalAr
   name: "Workflow"
   objects: {
     namespace: Prisma.$NamespacePayload<ExtArgs>
+    drafts: Prisma.$WorkflowDraftPayload<ExtArgs>[]
+    releases: Prisma.$WorkflowReleasePayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1202,6 +1471,8 @@ readonly fields: WorkflowFieldRefs;
 export interface Prisma__WorkflowClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   namespace<T extends Prisma.NamespaceDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.NamespaceDefaultArgs<ExtArgs>>): Prisma.Prisma__NamespaceClient<runtime.Types.Result.GetResult<Prisma.$NamespacePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  drafts<T extends Prisma.Workflow$draftsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Workflow$draftsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$WorkflowDraftPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  releases<T extends Prisma.Workflow$releasesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Workflow$releasesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$WorkflowReleasePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1642,6 +1913,54 @@ export type WorkflowDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.Inte
    * Limit how many Workflows to delete.
    */
   limit?: number
+}
+
+/**
+ * Workflow.drafts
+ */
+export type Workflow$draftsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the WorkflowDraft
+   */
+  select?: Prisma.WorkflowDraftSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the WorkflowDraft
+   */
+  omit?: Prisma.WorkflowDraftOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WorkflowDraftInclude<ExtArgs> | null
+  where?: Prisma.WorkflowDraftWhereInput
+  orderBy?: Prisma.WorkflowDraftOrderByWithRelationInput | Prisma.WorkflowDraftOrderByWithRelationInput[]
+  cursor?: Prisma.WorkflowDraftWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.WorkflowDraftScalarFieldEnum | Prisma.WorkflowDraftScalarFieldEnum[]
+}
+
+/**
+ * Workflow.releases
+ */
+export type Workflow$releasesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the WorkflowRelease
+   */
+  select?: Prisma.WorkflowReleaseSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the WorkflowRelease
+   */
+  omit?: Prisma.WorkflowReleaseOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WorkflowReleaseInclude<ExtArgs> | null
+  where?: Prisma.WorkflowReleaseWhereInput
+  orderBy?: Prisma.WorkflowReleaseOrderByWithRelationInput | Prisma.WorkflowReleaseOrderByWithRelationInput[]
+  cursor?: Prisma.WorkflowReleaseWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.WorkflowReleaseScalarFieldEnum | Prisma.WorkflowReleaseScalarFieldEnum[]
 }
 
 /**

@@ -5,13 +5,27 @@ import { temporal } from "zundo"
 import type { WorkflowNode, WorkflowEdge, WorkflowInput } from "@/types/workflow"
 import { FIXTURE_NODES, FIXTURE_EDGES, FIXTURE_INPUTS } from "@/types/fixtures"
 
-type RightPanel = "none" | "task" | "inputs" | "yaml"
+type RightPanel = "none" | "task" | "inputs" | "yaml" | "drafts" | "releases"
 
 interface WorkflowMeta {
   flowId: string
   name: string
   namespace: string
   description: string
+}
+
+interface DraftSummary {
+  id: string
+  message: string | null
+  createdAt: string
+}
+
+interface ReleaseSummary {
+  id: string
+  version: number
+  name: string
+  yaml: string
+  publishedAt: string
 }
 
 interface WorkflowState {
@@ -28,6 +42,13 @@ interface WorkflowState {
   // Meta
   workflowMeta: WorkflowMeta
   savedWorkflowId: string | null
+  publishedVersion: number
+
+  // Draft / Release
+  drafts: DraftSummary[]
+  releases: ReleaseSummary[]
+  hasUnsavedChanges: boolean
+  lastSavedAt: string | null
 
   // Actions
   setNodes: (
@@ -44,6 +65,11 @@ interface WorkflowState {
   setPanelOpen: (open: boolean) => void
   setWorkflowMeta: (meta: WorkflowMeta) => void
   setSavedWorkflowId: (id: string | null) => void
+  setPublishedVersion: (v: number) => void
+  setDrafts: (drafts: DraftSummary[]) => void
+  setReleases: (releases: ReleaseSummary[]) => void
+  markSaved: () => void
+  markDirty: () => void
   toggleCollapse: (nodeId: string) => void
 }
 
@@ -68,6 +94,13 @@ export const useWorkflowStore = create<WorkflowState>()(
         description: "",
       },
       savedWorkflowId: null,
+      publishedVersion: 0,
+
+      // Draft / Release
+      drafts: [],
+      releases: [],
+      hasUnsavedChanges: false,
+      lastSavedAt: null,
 
       // Actions
       setNodes: (updater) =>
@@ -90,6 +123,12 @@ export const useWorkflowStore = create<WorkflowState>()(
       setPanelOpen: (open) => set({ panelOpen: open }),
       setWorkflowMeta: (meta) => set({ workflowMeta: meta }),
       setSavedWorkflowId: (id) => set({ savedWorkflowId: id }),
+      setPublishedVersion: (v) => set({ publishedVersion: v }),
+      setDrafts: (drafts) => set({ drafts }),
+      setReleases: (releases) => set({ releases }),
+      markSaved: () =>
+        set({ hasUnsavedChanges: false, lastSavedAt: new Date().toISOString() }),
+      markDirty: () => set({ hasUnsavedChanges: true }),
       toggleCollapse: (nodeId) =>
         set((state) => {
           const node = state.nodes.find((n) => n.id === nodeId)

@@ -1,4 +1,5 @@
 import { useCallback, useRef, useMemo, useEffect, memo, useState } from "react"
+import { nameToSlug } from "@/lib/slug"
 import {
   ReactFlow,
   Controls,
@@ -19,6 +20,9 @@ import { NodeCreatePanel } from "@/components/flow/NodeCreatePanel"
 import { TaskConfigPanel } from "@/components/flow/TaskConfigPanel"
 import { InputConfigPanel } from "@/components/flow/InputConfigPanel"
 import { KestraYamlPanel } from "@/components/flow/KestraYamlPanel"
+import { DraftHistory } from "@/components/flow/DraftHistory"
+import { ReleaseHistory } from "@/components/flow/ReleaseHistory"
+import { PublishDialog } from "@/components/flow/PublishDialog"
 import { ContextMenu as NodeContextMenu } from "@/components/flow/ContextMenu"
 import { getLayoutedElements } from "@/lib/autoLayout"
 import { filterVisibleNodes, filterVisibleEdges, getChildCount } from "@/lib/containerUtils"
@@ -148,17 +152,6 @@ function yamlFromSpec(
   spec: Record<string, unknown>,
 ): string {
   return YAML.stringify({ id: nameToSlug(name), type, ...spec }, { lineWidth: 0 })
-}
-
-/** 中文名 → slug id */
-function nameToSlug(name: string): string {
-  return (
-    name
-      .replace(/[^\w\u4e00-\u9fff\u3400-\u4dbf-]/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "")
-      .toLowerCase() || "task"
-  )
 }
 
 // ========== 类型转换层（前端 ↔ API） ==========
@@ -308,10 +301,6 @@ export default function WorkflowEditorPage() {
   }, [visibleWfEdges, setCanvasEdges])
 
   // ---- 排序 ----
-  const sortedNodes = useMemo(() => {
-    return [...wfNodes].sort((a, b) => a.sortIndex - b.sortIndex)
-  }, [wfNodes])
-
   // ---- 连线（自动推断边类型） ----
   const onConnect = useCallback(
     (params: Connection) => {
@@ -585,13 +574,145 @@ export default function WorkflowEditorPage() {
     [inputs],
   )
 
-  const kestraTasks = useMemo(
-    () =>
-      sortedNodes.map((n) => ({
-        id: n.name,
-        taskConfig: yamlFromSpec(n.type, n.name, n.spec),
-      })),
-    [sortedNodes],
+  // ---- Draft / Release (tRPC) ----
+  const [showPublishDialog, setShowPublishDialog] = useState(false)
+
+  const draftSave = trpc.workflow.draftSave.useMutation({
+    onSuccess: () => {
+      markSaved()
+      // Refresh draft list
+      if (savedWorkflowId) {
+        utils.workflow.draftList.invalidate({ workflowId: savedWorkflowId })
+      }
+    },
+    onError: (err) => {
+      toast.error(`保存草稿失败: ${err.message}`)
+    },
+  })
+
+  const draftRollback = trpc.workflow.draftRollback.useMutation({
+    onError: (err) => {
+      toast.error(`回滚失败: ${err.message}`)
+    },
+  })
+
+  const releasePublish = trpc.workflow.releasePublish.useMutation({
+    onSuccess: (result) => {
+      setPublishedVersion(result.version)
+      toast.success(`版本 v${result.version} 已发布`)
+      setShowPublishDialog(false)
+      if (savedWorkflowId) {
+        utils.workflow.releaseList.invalidate({ workflowId: savedWorkflowId })
+      }
+    },
+    onError: (err) => {
+      toast.error(`发布失败: ${err.message}`)
+    },
+  })
+
+  const releaseRollback = trpc.workflow.releaseRollback.useMutation({
+    onError: (err) => {
+      toast.error(`版本回滚失败: ${err.message}`)
+    },
+  })
+
+  // Draft/Release list queries (enabled when savedWorkflowId exists)
+  const draftsQuery = trpc.workflow.draftList.useQuery(
+    { workflowId: savedWorkflowId! },
+    { enabled: !!savedWorkflowId },
+  )
+  const releasesQuery = trpc.workflow.releaseList.useQuery(
+    { workflowId: savedWorkflowId! },
+    { enabled: !!savedWorkflowId },
+  )
+
+  // Sync query data (drafts/releases fetched via tRPC, displayed directly)
+
+  // Save draft action
+  const handleSaveDraft = useCallback(
+    (message?: string) => {
+      if (!savedWorkflowId) {
+        toast.warning("请先保存工作流到 API")
+        return
+      }
+      draftSave.mutate({ workflowId: savedWorkflowId, message })
+    },
+    [savedWorkflowId, draftSave],
+  )
+
+  // Publish action
+  const handlePublish = useCallback(
+    (name: string, yaml: string) => {
+      if (!savedWorkflowId) {
+        toast.warning("请先保存工作流到 API")
+        return
+      }
+      releasePublish.mutate({ workflowId: savedWorkflowId, name, yaml })
+    },
+    [savedWorkflowId, releasePublish],
+  )
+
+  // Draft rollback action
+  const handleDraftRollback = useCallback(
+    async (draftId: string) => {
+      await draftRollback.mutateAsync({ draftId })
+      toast.success("已恢复到所选草稿")
+      await handleLoadFromApi()
+    },
+    [draftRollback, handleLoadFromApi],
+  )
+
+  // Release rollback action
+  const handleReleaseRollback = useCallback(
+    async (releaseId: string) => {
+      await releaseRollback.mutateAsync({ releaseId })
+      toast.success("已恢复到所选版本")
+      await handleLoadFromApi()
+    },
+    [releaseRollback, handleLoadFromApi],
+  )
+
+  // Auto-save (30s) — 只在用户实际修改后触发
+  const markDirty = useWorkflowStore((s) => s.markDirty)
+  const markSaved = useWorkflowStore((s) => s.markSaved)
+  const setPublishedVersion = useWorkflowStore((s) => s.setPublishedVersion)
+  const hasUnsavedChanges = useWorkflowStore((s) => s.hasUnsavedChanges)
+  const lastSavedAt = useWorkflowStore((s) => s.lastSavedAt)
+  const drafts = useWorkflowStore((s) => s.drafts)
+  const releases = useWorkflowStore((s) => s.releases)
+  const publishedVersion = useWorkflowStore((s) => s.publishedVersion)
+
+  // 首次加载标记：首次渲染不触发 markDirty
+  const isInitialMount = useRef(true)
+
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false
+      return
+    }
+    markDirty()
+  }, [wfNodes, wfEdges, inputs, markDirty])
+
+  // Auto-save timer (30s)
+  useEffect(() => {
+    if (!savedWorkflowId) return
+    const timer = setInterval(() => {
+      if (hasUnsavedChanges) {
+        handleSaveDraft("自动暂存")
+      }
+    }, 30_000)
+    return () => clearInterval(timer)
+  }, [savedWorkflowId, hasUnsavedChanges, handleSaveDraft])
+
+  // YAML import handler
+  const handleYamlImport = useCallback(
+    (data: { nodes: WorkflowNode[]; edges: WorkflowEdge[]; inputs: WorkflowInput[] }) => {
+      setWfNodes(data.nodes)
+      setWfEdges(data.edges)
+      setInputs(data.inputs)
+      setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 100)
+    },
+    [setWfNodes, setWfEdges, setInputs, fitView],
   )
 
   return (
@@ -688,6 +809,19 @@ export default function WorkflowEditorPage() {
           />
         </div>
         <div className="flex items-center gap-2 ml-auto">
+          {/* Status indicator */}
+          {hasUnsavedChanges && (
+            <span className="text-xs text-muted-foreground">
+              ● 未保存
+            </span>
+          )}
+          {lastSavedAt && !hasUnsavedChanges && (
+            <span className="text-xs text-muted-foreground">
+              ✅ {new Date(lastSavedAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}
+            </span>
+          )}
+
+          {/* Draft actions */}
           <button
             onClick={handleLoadFromApi}
             className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors"
@@ -713,6 +847,55 @@ export default function WorkflowEditorPage() {
                 : saveStatus === "error"
                   ? "❌ 失败"
                   : "💾 保存"}
+          </button>
+
+          <div className="w-px h-5 bg-border" />
+
+          <button
+            onClick={() => handleSaveDraft()}
+            disabled={!savedWorkflowId || draftSave.isPending}
+            title={!savedWorkflowId ? "请先点击「💾 保存」创建工作流" : "保存当前编辑状态为草稿快照"}
+            className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors disabled:opacity-50"
+          >
+            📜 存草稿
+          </button>
+          <button
+            onClick={() => setRightPanel("drafts")}
+            title={!savedWorkflowId ? "请先点击「💾 保存」创建工作流" : "查看草稿历史"}
+            className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors"
+          >
+            📋 草稿 ({drafts.length})
+          </button>
+
+          <div className="w-px h-5 bg-border" />
+
+          <button
+            onClick={() => setShowPublishDialog(true)}
+            disabled={!savedWorkflowId || releasePublish.isPending}
+            title={!savedWorkflowId ? "请先点击「💾 保存」创建工作流" : "发布当前工作流为新版本"}
+            className="px-2 py-1 rounded-md text-xs font-medium bg-emerald-500 text-white hover:bg-emerald-600 transition-colors disabled:opacity-50"
+          >
+            🚀 发布 v{publishedVersion + 1}
+          </button>
+          <button
+            onClick={() => setRightPanel("releases")}
+            title={!savedWorkflowId ? "请先点击「💾 保存」创建工作流" : "查看已发布版本"}
+            className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors"
+          >
+            📦 版本 ({releases.length})
+          </button>
+
+          <div className="w-px h-5 bg-border" />
+
+          <button
+            onClick={() => setRightPanel(rightPanel === "yaml" ? "none" : "yaml")}
+            className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${
+              rightPanel === "yaml"
+                ? "bg-indigo-500 text-white"
+                : "bg-muted hover:bg-muted/80"
+            }`}
+          >
+            📄 YAML
           </button>
         </div>
       </div>
@@ -832,12 +1015,58 @@ export default function WorkflowEditorPage() {
       )}
       {rightPanel === "yaml" && (
         <KestraYamlPanel
-          workflowId={workflowMeta.flowId}
+          nodes={wfNodes}
+          edges={wfEdges}
+          inputs={inputs}
+          variables={[]}
+          flowId={workflowMeta.flowId}
           namespace={workflowMeta.namespace}
-          description={workflowMeta.description}
-          inputs={kestraInputs}
-          tasks={kestraTasks}
+          onImport={handleYamlImport}
           onClose={() => setRightPanel("none")}
+        />
+      )}
+      {rightPanel === "drafts" && (
+        <DraftHistory
+          drafts={(draftsQuery.data ?? []).map((d) => ({
+            id: d.id,
+            message: d.message,
+            createdAt:
+              d.createdAt instanceof Date
+                ? d.createdAt.toISOString()
+                : String(d.createdAt),
+          }))}
+          onRollback={handleDraftRollback}
+          onClose={() => setRightPanel("none")}
+        />
+      )}
+      {rightPanel === "releases" && (
+        <ReleaseHistory
+          releases={(releasesQuery.data ?? []).map((r) => ({
+            id: r.id,
+            version: r.version,
+            name: r.name,
+            yaml: r.yaml,
+            publishedAt:
+              r.publishedAt instanceof Date
+                ? r.publishedAt.toISOString()
+                : String(r.publishedAt),
+          }))}
+          onRollback={handleReleaseRollback}
+          onClose={() => setRightPanel("none")}
+        />
+      )}
+      {showPublishDialog && (
+        <PublishDialog
+          nodes={wfNodes}
+          edges={wfEdges}
+          inputs={inputs}
+          variables={[]}
+          flowId={workflowMeta.flowId}
+          namespace={workflowMeta.namespace}
+          nextVersion={publishedVersion + 1}
+          isPublishing={releasePublish.isPending}
+          onPublish={handlePublish}
+          onClose={() => setShowPublishDialog(false)}
         />
       )}
     </div>
