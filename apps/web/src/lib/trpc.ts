@@ -1,5 +1,11 @@
 import superjson from "superjson"
-import type { WorkflowSummary, WorkflowFull, ApiTaskNode, ApiEdge, ApiInput } from "@/types/api"
+import type {
+  WorkflowSummary,
+  WorkflowFull,
+  ApiWorkflowNode,
+  ApiWorkflowEdge,
+  ApiWorkflowInput,
+} from "@/types/api"
 
 function getBaseUrl() {
   if (typeof window !== "undefined") return ""
@@ -9,9 +15,10 @@ function getBaseUrl() {
 const BASE = `${getBaseUrl()}/api/trpc`
 
 async function trpcCall<T>(path: string, input?: unknown): Promise<T> {
-  const url = input !== undefined
-    ? `${BASE}/${path}?input=${encodeURIComponent(JSON.stringify(superjson.serialize(input)))}`
-    : `${BASE}/${path}`
+  const url =
+    input !== undefined
+      ? `${BASE}/${path}?input=${encodeURIComponent(JSON.stringify(superjson.serialize(input)))}`
+      : `${BASE}/${path}`
 
   const res = await fetch(url)
   const json = await res.json()
@@ -23,9 +30,24 @@ export const trpcClient = {
   workflow: {
     list: () => trpcCall<WorkflowSummary[]>("workflow.list"),
     get: (id: string) => trpcCall<WorkflowFull | null>("workflow.get", { id }),
-    create: (input: { name: string; namespace: string; description?: string; nodes: ApiTaskNode[]; edges: ApiEdge[]; inputs: ApiInput[] }) =>
-      trpcCall<{ id: string }>("workflow.create", input),
-    update: (input: { id: string; name?: string; namespace?: string; description?: string; nodes?: ApiTaskNode[]; edges?: ApiEdge[]; inputs?: ApiInput[] }) =>
-      trpcCall<{ id: string }>("workflow.update", input),
+    create: (input: {
+      flowId: string
+      name: string
+      namespace: string
+      description?: string
+      nodes: ApiWorkflowNode[]
+      edges: ApiWorkflowEdge[]
+      inputs: ApiWorkflowInput[]
+    }) => trpcCall<{ id: string }>("workflow.create", input),
+    update: (input: {
+      id: string
+      flowId?: string
+      name?: string
+      namespace?: string
+      description?: string
+      nodes?: ApiWorkflowNode[]
+      edges?: ApiWorkflowEdge[]
+      inputs?: ApiWorkflowInput[]
+    }) => trpcCall<{ id: string }>("workflow.update", input),
   },
 }

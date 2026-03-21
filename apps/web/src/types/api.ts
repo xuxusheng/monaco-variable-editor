@@ -1,26 +1,44 @@
-// API types (mirrors apps/api/src/types.ts)
-export interface ApiTaskNode {
-  id: string
-  label: string
-  taskConfig: string
-  position?: { x: number; y: number }
-}
+// API types — 对齐新的业务模型
 
-export interface ApiEdge {
-  source: string
-  target: string
-}
-
-export interface ApiInput {
+export interface ApiWorkflowNode {
   id: string
   type: string
-  defaults?: string
+  name: string
+  description?: string
+  containerId: string | null
+  sortIndex: number
+  spec: Record<string, unknown>
+  ui?: { x: number; y: number; collapsed?: boolean }
+}
+
+export interface ApiWorkflowEdge {
+  id: string
+  source: string
+  target: string
+  type: "sequence" | "containment" | "then" | "else" | "case" | "errors" | "finally"
+  label?: string
+}
+
+export interface ApiWorkflowInput {
+  id: string
+  type: string
+  displayName?: string
   description?: string
   required?: boolean
+  defaults?: unknown
+  values?: string[]
+}
+
+export interface ApiWorkflowVariable {
+  key: string
+  value: string
+  type: "STRING" | "NUMBER" | "BOOLEAN" | "JSON"
+  description?: string
 }
 
 export interface WorkflowSummary {
   id: string
+  flowId: string
   name: string
   namespace: string
   createdAt: string
@@ -29,8 +47,8 @@ export interface WorkflowSummary {
 
 export interface WorkflowFull extends WorkflowSummary {
   description: string | null
-  nodes: ApiTaskNode[]
-  edges: ApiEdge[]
-  inputs: ApiInput[]
-  yaml: string | null
+  nodes: ApiWorkflowNode[]
+  edges: ApiWorkflowEdge[]
+  inputs: ApiWorkflowInput[]
+  variables: ApiWorkflowVariable[]
 }
