@@ -1,10 +1,9 @@
-import { initTRPC, TRPCError } from "@trpc/server"
+import { TRPCError } from "@trpc/server"
 import { z } from "zod"
 import { Prisma } from "../generated/prisma/client.js"
+import { t } from "../trpc.js"
 import { prisma } from "../db.js"
 import { createWorkflowSchema, updateWorkflowSchema } from "../types.js"
-
-const t = initTRPC.create()
 
 const idSchema = z.object({ id: z.string() })
 

@@ -1,10 +1,6 @@
-import { initTRPC } from "@trpc/server"
-import superjson from "superjson"
-import type { Context } from "./context.js"
+import { t } from "./trpc.js"
 import { workflowRouter } from "./routers/workflow.js"
 import { namespaceRouter } from "./routers/namespace.js"
-
-const t = initTRPC.context<Context>().create({ transformer: superjson })
 
 export const appRouter = t.router({
   health: t.procedure.query(() => ({

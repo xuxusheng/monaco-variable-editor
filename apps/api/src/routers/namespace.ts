@@ -1,9 +1,8 @@
-import { initTRPC, TRPCError } from "@trpc/server"
+import { TRPCError } from "@trpc/server"
 import { z } from "zod"
+import { t } from "../trpc.js"
 import { prisma } from "../db.js"
 import { createNamespaceSchema } from "../types.js"
-
-const t = initTRPC.create()
 
 export const namespaceRouter = t.router({
   list: t.procedure.query(() => {
