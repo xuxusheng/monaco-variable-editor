@@ -3,8 +3,8 @@
  * 显示当前 workflow 的所有触发器，支持启用/禁用、删除
  */
 
-import { useCallback } from "react"
-import { Clock, Webhook, Trash2, Power, Plus, Inbox } from "lucide-react"
+import { useCallback, useState } from "react"
+import { Clock, Webhook, Trash2, Power, Plus, Inbox, Copy, Key, Eye, EyeOff } from "lucide-react"
 import { trpc } from "@/lib/trpc"
 import { toast } from "sonner"
 
@@ -136,6 +136,9 @@ export function TriggerPanel({ workflowId, onCreate }: TriggerPanelProps) {
                     {detail && (
                       <p className="text-xs text-muted-foreground mt-0.5 truncate">{detail}</p>
                     )}
+                    {item.type === "webhook" && (
+                      <WebhookActions item={item} workflowId={workflowId} />
+                    )}
                     <div className="flex items-center gap-1.5 mt-1">
                       <span
                         className={`inline-block w-1.5 h-1.5 rounded-full ${
@@ -169,6 +172,52 @@ export function TriggerPanel({ workflowId, onCreate }: TriggerPanelProps) {
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+function WebhookActions({ item, workflowId }: { item: TriggerItem; workflowId: string }) {
+  const [showSecret, setShowSecret] = useState(false)
+  const webhookUrl = `${window.location.origin}/api/webhook/${workflowId}/${item.kestraFlowId}`
+  const secret = item.config.secret as string | undefined
+
+  const copyUrl = useCallback(() => {
+    navigator.clipboard.writeText(webhookUrl)
+    toast.success("已复制 URL")
+  }, [webhookUrl])
+
+  const copySecret = useCallback(() => {
+    if (secret) {
+      navigator.clipboard.writeText(secret)
+      toast.success("已复制密钥")
+    }
+  }, [secret])
+
+  return (
+    <div className="flex items-center gap-1.5 mt-1">
+      <button
+        onClick={copyUrl}
+        className="flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <Copy className="w-3 h-3" /> 复制URL
+      </button>
+      {secret && (
+        <button
+          onClick={copySecret}
+          className="flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Key className="w-3 h-3" /> {showSecret ? "复制密钥" : "••••••••"}
+        </button>
+      )}
+      {secret && (
+        <button
+          onClick={() => setShowSecret(!showSecret)}
+          className="p-0.5 rounded text-muted-foreground hover:text-foreground transition-colors"
+          title={showSecret ? "隐藏密钥" : "显示密钥"}
+        >
+          {showSecret ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+        </button>
+      )}
     </div>
   )
 }
