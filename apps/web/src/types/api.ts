@@ -21,7 +21,7 @@ export interface ApiWorkflowEdge {
 
 export interface ApiWorkflowInput {
   id: string
-  type: string
+  type: "STRING" | "INT" | "FLOAT" | "BOOL" | "SELECT" | "MULTISELECT" | "DATE" | "DATETIME" | "TIME" | "DURATION" | "ARRAY" | "JSON" | "YAML" | "FILE" | "URI" | "SECRET"
   displayName?: string
   description?: string
   required?: boolean
