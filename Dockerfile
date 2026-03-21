@@ -1,54 +1,44 @@
-FROM node:22-alpine AS builder
+FROM node:22 AS builder
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@9 --activate
+# 国内镜像源 + 清除代理（容器里没有宿主机的代理）
+ENV http_proxy= https_proxy=
+RUN npm config set registry https://registry.npmmirror.com && \
+    npm install -g pnpm@9 vite-plus
 
 # Copy workspace config for dependency caching
-COPY pnpm-workspace.yaml turbo.json package.json pnpm-lock.yaml ./
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY vite.config.ts ./
 COPY apps/web/package.json ./apps/web/
 COPY apps/api/package.json ./apps/api/
 
 RUN pnpm install --frozen-lockfile
 
-# Copy source
+# Copy source and build
 COPY . .
+RUN cd apps/api && npx prisma generate
+RUN vp run -r build
 
-# Build all packages
-RUN pnpm build
+# --- Production image ---
+FROM node:22
+WORKDIR /app
 
-FROM nginx:alpine AS web
-COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
+ENV http_proxy= https_proxy=
+RUN npm config set registry https://registry.npmmirror.com
 
-RUN rm -f /etc/nginx/conf.d/default.conf
+# Copy api package.json and install prod deps with npm
+COPY --from=builder /app/apps/api/package.json ./
+RUN npm install --omit=dev
 
-RUN cat > /etc/nginx/conf.d/gzip.conf << 'EOF'
-gzip on;
-gzip_vary on;
-gzip_proxied any;
-gzip_comp_level 6;
-gzip_min_length 256;
-gzip_types text/plain text/css text/javascript application/javascript application/json application/xml image/svg+xml font/woff2;
-EOF
+# Copy built backend
+COPY --from=builder /app/apps/api/dist ./dist
+COPY --from=builder /app/apps/api/prisma ./prisma
 
-RUN cat > /etc/nginx/conf.d/app.conf << 'EOF'
-server {
-    listen 80;
-    server_name _;
-    root /usr/share/nginx/html;
-    index index.html;
+# Copy built frontend (served by Hono)
+COPY --from=builder /app/apps/web/dist ../web/dist
 
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-    location /assets/ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-}
-EOF
-
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+ENV NODE_ENV=production
+ENV PORT=3001
+EXPOSE 3001
+USER node
+CMD ["node", "dist/index.js"]
