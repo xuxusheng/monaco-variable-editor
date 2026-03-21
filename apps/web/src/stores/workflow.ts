@@ -44,6 +44,7 @@ interface WorkflowState {
   setPanelOpen: (open: boolean) => void
   setWorkflowMeta: (meta: WorkflowMeta) => void
   setSavedWorkflowId: (id: string | null) => void
+  toggleCollapse: (nodeId: string) => void
 }
 
 export const useWorkflowStore = create<WorkflowState>()(
@@ -89,6 +90,13 @@ export const useWorkflowStore = create<WorkflowState>()(
       setPanelOpen: (open) => set({ panelOpen: open }),
       setWorkflowMeta: (meta) => set({ workflowMeta: meta }),
       setSavedWorkflowId: (id) => set({ savedWorkflowId: id }),
+      toggleCollapse: (nodeId) =>
+        set((state) => {
+          const node = state.nodes.find((n) => n.id === nodeId)
+          if (!node) return
+          if (!node.ui) node.ui = { x: 0, y: 0 }
+          node.ui.collapsed = !node.ui.collapsed
+        }),
     })),
     {
       limit: 50,

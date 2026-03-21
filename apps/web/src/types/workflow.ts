@@ -125,6 +125,37 @@ export const PLUGIN_CATALOG: PluginEntry[] = [
     category: "storage",
     defaultSpec: {},
   },
+  // ---- 容器类型（M2）----
+  {
+    type: "io.kestra.plugin.core.flow.ForEach",
+    name: "遍历循环",
+    category: "flow",
+    defaultSpec: { values: ["item1", "item2"] },
+  },
+  {
+    type: "io.kestra.plugin.core.flow.If",
+    name: "条件判断",
+    category: "flow",
+    defaultSpec: { condition: "{{ inputs.enabled }}" },
+  },
+  {
+    type: "io.kestra.plugin.core.flow.Switch",
+    name: "多路分支",
+    category: "flow",
+    defaultSpec: { cases: [] },
+  },
+  {
+    type: "io.kestra.plugin.core.flow.Parallel",
+    name: "并行执行",
+    category: "flow",
+    defaultSpec: {},
+  },
+  {
+    type: "io.kestra.plugin.core.flow.Sequential",
+    name: "顺序执行",
+    category: "flow",
+    defaultSpec: {},
+  },
 ]
 
 // ========== 颜色映射 ==========
