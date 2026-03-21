@@ -90,45 +90,26 @@ function syncPositions(
   })
 }
 
-// ========== YAML 工具函数 ==========
+// ========== YAML 工具函数（用 yaml 库） ==========
+
+import * as YAML from "yaml"
 
 /** 从 YAML 字符串解析出 id, type, spec */
-function parseYamlToNodeFields(yaml: string): {
+function parseYamlToNodeFields(yamlStr: string): {
   id: string
   type: string
   spec: Record<string, unknown>
 } {
-  const lines = yaml.split("\n")
-  let id = ""
-  let type = ""
-  const specLines: string[] = []
-
-  for (const line of lines) {
-    const trimmed = line.trim()
-    if (trimmed.startsWith("id:")) {
-      id = trimmed.replace(/^id:\s*/, "").replace(/^["']|["']$/g, "").trim()
-    } else if (trimmed.startsWith("type:")) {
-      type = trimmed.replace(/^type:\s*/, "").replace(/^["']|["']$/g, "").trim()
-    } else if (trimmed.includes(":")) {
-      specLines.push(trimmed)
-    }
+  const parsed = YAML.parse(yamlStr) as Record<string, unknown> | null
+  if (!parsed || typeof parsed !== "object") {
+    return { id: "", type: "", spec: {} }
   }
-
-  // 简单解析 spec：每行 key: value
-  const spec: Record<string, unknown> = {}
-  for (const line of specLines) {
-    const colonIdx = line.indexOf(":")
-    if (colonIdx === -1) continue
-    const key = line.slice(0, colonIdx).trim()
-    let value: unknown = line.slice(colonIdx + 1).trim()
-    // 去除引号
-    if (typeof value === "string") {
-      value = value.replace(/^["']|["']$/g, "")
-    }
-    spec[key] = value
+  const { id, type, ...spec } = parsed
+  return {
+    id: String(id ?? ""),
+    type: String(type ?? ""),
+    spec: spec as Record<string, unknown>,
   }
-
-  return { id, type, spec }
 }
 
 /** WorkflowNode spec → YAML 字符串 */
@@ -137,27 +118,7 @@ function yamlFromSpec(
   name: string,
   spec: Record<string, unknown>,
 ): string {
-  const lines: string[] = [`id: ${nameToSlug(name)}`, `type: ${type}`]
-  for (const [key, value] of Object.entries(spec)) {
-    if (typeof value === "string") {
-      // 字符串值加引号（如果含特殊字符）
-      if (value.includes(":") || value.includes("#") || value.includes("{")) {
-        lines.push(`${key}: "${value.replace(/"/g, '\\"')}"`)
-      } else {
-        lines.push(`${key}: ${value}`)
-      }
-    } else if (typeof value === "object" && value !== null) {
-      // 嵌套对象：缩进为 YAML 格式
-      const json = JSON.stringify(value, null, 2)
-      lines.push(`${key}:`)
-      for (const jl of json.split("\n")) {
-        lines.push(`  ${jl}`)
-      }
-    } else {
-      lines.push(`${key}: ${String(value)}`)
-    }
-  }
-  return lines.join("\n")
+  return YAML.stringify({ id: nameToSlug(name), type, ...spec }, { lineWidth: 0 })
 }
 
 /** 中文名 → slug id */
@@ -515,7 +476,7 @@ export default function WorkflowEditorPage() {
       const apiInputs = inputs.map(toApiInput)
 
       if (savedWorkflowId) {
-        await trpcClient.workflow.update({
+        await trpcClient.workflow.update.mutate({
           id: savedWorkflowId,
           flowId: workflowMeta.flowId,
           name: workflowMeta.name,
@@ -525,7 +486,7 @@ export default function WorkflowEditorPage() {
           inputs: apiInputs,
         })
       } else {
-        const result = await trpcClient.workflow.create({
+        const result = await trpcClient.workflow.create.mutate({
           flowId: workflowMeta.flowId,
           name: workflowMeta.name,
           namespaceId: "default", // TODO: M3 用真实的 namespaceId
@@ -547,13 +508,13 @@ export default function WorkflowEditorPage() {
 
   const handleLoadFromApi = useCallback(async () => {
     try {
-      const workflows = await trpcClient.workflow.list()
+      const workflows = await trpcClient.workflow.list.query()
       if (workflows.length === 0) {
         alert("API 上暂无已保存的工作流")
         return
       }
       const latest = workflows[0]
-      const full = await trpcClient.workflow.get(latest.id)
+      const full = await trpcClient.workflow.get.query({ id: latest.id })
       if (!full) return
 
       setSavedWorkflowId(full.id)
@@ -564,9 +525,9 @@ export default function WorkflowEditorPage() {
         description: full.description ?? "",
       })
 
-      if (full.nodes) setWfNodes(full.nodes.map(fromApiNode))
-      if (full.edges) setWfEdges(full.edges.map(fromApiEdge))
-      if (full.inputs) setInputs(full.inputs.map(fromApiInput))
+      if (full.nodes) setWfNodes((full.nodes as unknown as ApiWorkflowNode[]).map(fromApiNode))
+      if (full.edges) setWfEdges((full.edges as unknown as ApiWorkflowEdge[]).map(fromApiEdge))
+      if (full.inputs) setInputs((full.inputs as unknown as ApiWorkflowInput[]).map(fromApiInput))
 
       setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 100)
     } catch (e) {
