@@ -19,7 +19,11 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 
-# Misc
-*.cjs
-*.md
-!.github/
+# Environment
+.env
+
+# Database
+*.db
+
+# Workspace files (not part of project)
+AGENTS.md

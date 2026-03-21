@@ -26,19 +26,21 @@ WORKDIR /app
 ENV http_proxy= https_proxy=
 RUN npm config set registry https://registry.npmmirror.com
 
-# Copy api package.json and install prod deps with npm
+# Install prisma CLI for migrations (only prod deps + prisma)
 COPY --from=builder /app/apps/api/package.json ./
-RUN npm install --omit=dev
+RUN npm install --omit=dev && npm install prisma@7
 
-# Copy built backend
+# Copy built backend + prisma files
 COPY --from=builder /app/apps/api/dist ./dist
 COPY --from=builder /app/apps/api/prisma ./prisma
+COPY --from=builder /app/apps/api/prisma.config.ts ./
 
 # Copy built frontend (served by Hono)
 COPY --from=builder /app/apps/web/dist ../web/dist
 
+# Startup: run migration then start server
 ENV NODE_ENV=production
 ENV PORT=3001
 EXPOSE 3001
 USER node
-CMD ["node", "dist/index.js"]
+CMD sh -c "npx prisma migrate deploy && node dist/index.js"
