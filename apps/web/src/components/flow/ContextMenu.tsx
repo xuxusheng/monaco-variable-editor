@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react"
-import { Copy, FolderOpen, AlertTriangle, Trash2 } from "lucide-react"
+import { Copy, FolderOpen, AlertTriangle, Trash2, Flag } from "lucide-react"
 
 interface ContextMenuProps {
   /** 菜单位置 */
@@ -78,7 +78,7 @@ export function ContextMenu({
 
       {onAddFinally && (
         <MenuItem onClick={onAddFinally}>
-          🏁 添加 finally
+          <Flag className="w-3.5 h-3.5" /> 添加 finally
         </MenuItem>
       )}
 

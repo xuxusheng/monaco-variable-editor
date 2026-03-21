@@ -5,8 +5,17 @@ import { Prisma } from "../generated/prisma/client.js"
 import { t } from "../trpc.js"
 import { prisma } from "../db.js"
 import { createWorkflowSchema, updateWorkflowSchema } from "../types.js"
+import { buildTriggerFlowYaml } from "../lib/trigger-yaml.js"
 
 const idSchema = z.object({ id: z.string() })
+
+function nameToSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\u4e00-\u9fff]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 50) || "unnamed"
+}
 
 export const workflowRouter = t.router({
   list: t.procedure
@@ -653,11 +662,120 @@ export const workflowRouter = t.router({
       }),
     )
 
+    // Also sync production executions
+    const prodRunning = await prisma.workflowExecution.findMany({
+      where: { state: { notIn: ["SUCCESS", "WARNING", "FAILED", "KILLED", "CANCELLED", "RETRIED"] } },
+    })
+
+    const prodResults = await Promise.allSettled(
+      prodRunning.map(async (exec) => {
+        const kestraExec = await client.getExecution(exec.kestraExecId)
+        await prisma.workflowExecution.update({
+          where: { id: exec.id },
+          data: {
+            state: kestraExec.state.current,
+            taskRuns:
+              (kestraExec.taskRunList ?? []) as unknown as Prisma.InputJsonValue,
+            startedAt: kestraExec.state.startDate
+              ? new Date(kestraExec.state.startDate)
+              : exec.startedAt,
+            endedAt: kestraExec.state.endDate
+              ? new Date(kestraExec.state.endDate)
+              : undefined,
+          },
+        })
+      }),
+    )
+
     return {
-      synced: results.filter((r) => r.status === "fulfilled").length,
-      failed: results.filter((r) => r.status === "rejected").length,
+      synced: results.filter((r) => r.status === "fulfilled").length + prodResults.filter((r) => r.status === "fulfilled").length,
+      failed: results.filter((r) => r.status === "rejected").length + prodResults.filter((r) => r.status === "rejected").length,
     }
   }),
+
+  // ─── Production Execution API ───
+
+  productionExecList: t.procedure
+    .input(
+      z.object({
+        workflowId: z.string(),
+        state: z.string().optional(),
+        limit: z.number().min(1).max(100).default(20),
+        cursor: z.string().optional(),
+      }),
+    )
+    .query(async ({ input }) => {
+      const where: Record<string, unknown> = {
+        workflowId: input.workflowId,
+      }
+      if (input.state) where.state = input.state
+
+      const items = await prisma.workflowExecution.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: input.limit + 1,
+        ...(input.cursor
+          ? { cursor: { id: input.cursor }, skip: 1 }
+          : {}),
+        select: {
+          id: true,
+          kestraExecId: true,
+          state: true,
+          triggeredBy: true,
+          startedAt: true,
+          endedAt: true,
+          createdAt: true,
+        },
+      })
+
+      const hasMore = items.length > input.limit
+      if (hasMore) items.pop()
+
+      return {
+        items,
+        nextCursor: hasMore ? items[items.length - 1]!.id : null,
+      }
+    }),
+
+  productionExecGet: t.procedure
+    .input(z.object({ executionId: z.string() }))
+    .query(async ({ input }) => {
+      const { getKestraClient, isTerminalState } = await import(
+        "../lib/kestra-client.js"
+      )
+
+      const exec = await prisma.workflowExecution.findUnique({
+        where: { id: input.executionId },
+      })
+      if (!exec) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Execution not found" })
+      }
+
+      if (!isTerminalState(exec.state)) {
+        try {
+          const client = getKestraClient()
+          const kestraExec = await client.getExecution(exec.kestraExecId)
+          return prisma.workflowExecution.update({
+            where: { id: exec.id },
+            data: {
+              state: kestraExec.state.current,
+              taskRuns:
+                (kestraExec.taskRunList ?? []) as unknown as Prisma.InputJsonValue,
+              startedAt: kestraExec.state.startDate
+                ? new Date(kestraExec.state.startDate)
+                : exec.startedAt,
+              endedAt: kestraExec.state.endDate
+                ? new Date(kestraExec.state.endDate)
+                : undefined,
+            },
+          })
+        } catch {
+          return exec
+        }
+      }
+
+      return exec
+    }),
 
   // ─── Trigger CRUD (基础，M5 做调度逻辑) ───
 
@@ -669,18 +787,62 @@ export const workflowRouter = t.router({
         type: z.enum(["schedule", "webhook"]),
         config: z.record(z.unknown()),
         inputs: z.record(z.string()).optional(),
+        releaseId: z.string().optional(),
       }),
     )
     .mutation(async ({ input }) => {
       const wf = await prisma.workflow.findUnique({
         where: { id: input.workflowId },
-        include: { namespace: true },
+        include: {
+          namespace: true,
+          releases: { orderBy: { version: "desc" }, take: 10 },
+        },
       })
       if (!wf) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Workflow not found" })
       }
+      if (wf.releases.length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "请先发布一个版本再创建触发器",
+        })
+      }
 
-      const kestraFlowId = `__trigger_${input.workflowId}_${input.name.replace(/[^a-zA-Z0-9_-]/g, "_")}`
+      if (input.type === "webhook" && !input.config.secret) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Webhook secret is required" })
+      }
+
+      const release = input.releaseId
+        ? wf.releases.find((r) => r.id === input.releaseId) ?? wf.releases[0]!
+        : wf.releases[0]!
+
+      const kestraFlowId = `__trigger_${wf.id}_${nameToSlug(input.name)}`
+      const existing = await prisma.workflowTrigger.findFirst({
+        where: { workflowId: input.workflowId, name: input.name },
+      })
+      if (existing) {
+        throw new TRPCError({ code: "CONFLICT", message: "同名触发器已存在" })
+      }
+
+      const { buildTriggerFlowYaml } = await import("../lib/trigger-yaml.js")
+      const yaml = buildTriggerFlowYaml({
+        namespace: wf.namespace.kestraNamespace,
+        flowId: kestraFlowId,
+        baseYaml: release.yaml,
+        triggerType: input.type as "schedule" | "webhook",
+        triggerConfig: input.config,
+      })
+
+      try {
+        const { getKestraClient } = await import("../lib/kestra-client.js")
+        const client = getKestraClient()
+        await client.upsertFlow(wf.namespace.kestraNamespace, kestraFlowId, yaml)
+      } catch {
+        throw new TRPCError({
+          code: "BAD_GATEWAY",
+          message: "推送触发器到 Kestra 失败",
+        })
+      }
 
       return prisma.workflowTrigger.create({
         data: {
@@ -718,6 +880,37 @@ export const workflowRouter = t.router({
       const updateData: Record<string, unknown> = { ...rest }
       if (config) updateData.config = config as unknown as Prisma.InputJsonValue
       if (inputs) updateData.inputs = inputs as unknown as Prisma.InputJsonValue
+
+      // If config changed and trigger is active, re-sync Kestra
+      if (config) {
+        const trigger = await prisma.workflowTrigger.findUnique({
+          where: { id },
+          include: {
+            workflow: {
+              include: {
+                namespace: true,
+                releases: { orderBy: { version: "desc" }, take: 1 },
+              },
+            },
+          },
+        })
+        if (trigger && !trigger.disabled && trigger.workflow.releases.length > 0) {
+          const release = trigger.workflow.releases[0]!
+          const yaml = buildTriggerFlowYaml({
+            namespace: trigger.workflow.namespace.kestraNamespace,
+            flowId: trigger.kestraFlowId,
+            baseYaml: release.yaml,
+            triggerType: trigger.type as "schedule" | "webhook",
+            triggerConfig: config,
+          })
+          try {
+            const { getKestraClient } = await import("../lib/kestra-client.js")
+            const client = getKestraClient()
+            await client.upsertFlow(trigger.workflow.namespace.kestraNamespace, trigger.kestraFlowId, yaml)
+          } catch { /* best-effort */ }
+        }
+      }
+
       return prisma.workflowTrigger.update({
         where: { id },
         data: updateData,
@@ -727,6 +920,83 @@ export const workflowRouter = t.router({
   triggerDelete: t.procedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input }) => {
+      const trigger = await prisma.workflowTrigger.findUnique({
+        where: { id: input.id },
+        include: { workflow: { include: { namespace: true } } },
+      })
+      if (!trigger) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Trigger not found" })
+      }
+
+      // Best-effort Kestra cleanup
+      try {
+        const { getKestraClient } = await import("../lib/kestra-client.js")
+        const client = getKestraClient()
+        await client.deleteFlow(trigger.workflow.namespace.kestraNamespace, trigger.kestraFlowId)
+      } catch { /* best-effort */ }
+
       return prisma.workflowTrigger.delete({ where: { id: input.id } })
+    }),
+
+  triggerToggle: t.procedure
+    .input(z.object({ id: z.string(), disabled: z.boolean() }))
+    .mutation(async ({ input }) => {
+      const trigger = await prisma.workflowTrigger.findUnique({
+        where: { id: input.id },
+        include: {
+          workflow: {
+            include: {
+              namespace: true,
+              releases: { orderBy: { version: "desc" }, take: 1 },
+            },
+          },
+        },
+      })
+      if (!trigger) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Trigger not found" })
+      }
+
+      const ns = trigger.workflow.namespace.kestraNamespace
+
+      if (input.disabled) {
+        // Best-effort Kestra cleanup
+        try {
+          const { getKestraClient } = await import("../lib/kestra-client.js")
+          const client = getKestraClient()
+          await client.deleteFlow(ns, trigger.kestraFlowId)
+        } catch { /* best-effort */ }
+      } else {
+        // Re-generate YAML and push (hard fail)
+        if (trigger.workflow.releases.length === 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "请先发布一个版本再启用触发器",
+          })
+        }
+        const release = trigger.workflow.releases[0]!
+        const { buildTriggerFlowYaml } = await import("../lib/trigger-yaml.js")
+        const yaml = buildTriggerFlowYaml({
+          namespace: ns,
+          flowId: trigger.kestraFlowId,
+          baseYaml: release.yaml,
+          triggerType: trigger.type as "schedule" | "webhook",
+          triggerConfig: trigger.config as Record<string, unknown>,
+        })
+        try {
+          const { getKestraClient } = await import("../lib/kestra-client.js")
+          const client = getKestraClient()
+          await client.upsertFlow(ns, trigger.kestraFlowId, yaml)
+        } catch {
+          throw new TRPCError({
+            code: "BAD_GATEWAY",
+            message: "推送触发器到 Kestra 失败",
+          })
+        }
+      }
+
+      return prisma.workflowTrigger.update({
+        where: { id: input.id },
+        data: { disabled: input.disabled },
+      })
     }),
 })
