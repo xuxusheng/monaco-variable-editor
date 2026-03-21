@@ -275,15 +275,17 @@ export const workflowRouter = t.router({
       ])
 
       // 异步推 Kestra（失败不阻塞发布）
+      let kestraStatus: "synced" | "failed" = "synced"
       try {
         const { getKestraClient } = await import("../lib/kestra-client.js")
         const client = getKestraClient()
         await client.upsertFlow(wf.namespace.kestraNamespace, wf.flowId, input.yaml)
-      } catch {
-        // Kestra 不可达，Release 仍创建成功
+      } catch (e) {
+        console.warn(`[releasePublish] Kestra push failed for workflow ${input.workflowId}:`, e)
+        kestraStatus = "failed"
       }
 
-      return release
+      return { ...release, kestraStatus }
     }),
 
   releaseList: t.procedure

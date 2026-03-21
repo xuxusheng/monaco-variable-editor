@@ -454,9 +454,18 @@ export default function WorkflowEditorPage() {
   const handleDeleteSelected = useCallback(() => {
     if (!selectedNodeId) return
     const deletedNode = wfNodes.find((n) => n.id === selectedNodeId)
+
+    // Collect child node IDs if the deleted node is a container
+    const selectedIds = new Set([selectedNodeId])
+    for (const n of wfNodes) {
+      if (n.containerId && selectedIds.has(n.containerId)) {
+        selectedIds.add(n.id)
+      }
+    }
+
     setWfNodes((prev) =>
       prev
-        .filter((n) => n.id !== selectedNodeId)
+        .filter((n) => !selectedIds.has(n.id))
         .map((n) => {
           if (
             deletedNode &&
@@ -470,7 +479,7 @@ export default function WorkflowEditorPage() {
     )
     setWfEdges((prev) =>
       prev.filter(
-        (e) => e.source !== selectedNodeId && e.target !== selectedNodeId,
+        (e) => !selectedIds.has(e.source) && !selectedIds.has(e.target),
       ),
     )
     setSelectedNodeId(null)
@@ -487,9 +496,10 @@ export default function WorkflowEditorPage() {
       .filter((n) => n.containerId === sourceNode.containerId)
       .reduce((max, n) => Math.max(max, n.sortIndex), -1)
 
+    const newNodeId = genNodeId()
     const newNode: WorkflowNode = {
       ...structuredClone(sourceNode),
-      id: genNodeId(),
+      id: newNodeId,
       name: sourceNode.name + " (副本)",
       sortIndex: maxSort + 1,
       ui: {
@@ -497,7 +507,16 @@ export default function WorkflowEditorPage() {
         y: (sourceNode.ui?.y ?? 0) + 100,
       },
     }
-    setWfNodes((prev) => [...prev, newNode])
+
+    // Clone container children if the source is a container
+    const children = wfNodes.filter((n) => n.containerId === sourceNode.id)
+    const clonedChildren = children.map((child) => ({
+      ...structuredClone(child),
+      id: genNodeId(),
+      containerId: newNodeId,
+    }))
+
+    setWfNodes((prev) => [...prev, newNode, ...clonedChildren])
   }, [selectedNodeId, wfNodes, setWfNodes])
 
   // ---- 自动布局 ----
@@ -652,6 +671,9 @@ export default function WorkflowEditorPage() {
     onSuccess: (result) => {
       setPublishedVersion(result.version)
       toast.success(`版本 v${result.version} 已发布`)
+      if (result.kestraStatus === "failed") {
+        toast.warning("Kestra 同步失败，请稍后重试")
+      }
       setShowPublishDialog(false)
       if (savedWorkflowId) {
         utils.workflow.releaseList.invalidate({ workflowId: savedWorkflowId })
