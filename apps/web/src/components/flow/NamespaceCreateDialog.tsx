@@ -12,6 +12,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { toast } from "sonner"
+import { Loader2 } from "lucide-react"
 
 interface NamespaceCreateDialogProps {
   open: boolean
@@ -90,6 +91,7 @@ export function NamespaceCreateDialog({
               placeholder="例如：my-project"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              className="transition-shadow duration-200 focus-visible:ring-2 focus-visible:ring-primary/40"
               autoFocus
             />
           </div>
@@ -103,7 +105,9 @@ export function NamespaceCreateDialog({
               placeholder="留空将自动映射"
               value={kestraNamespace}
               onChange={(e) => setKestraNamespace(e.target.value)}
+              className="transition-shadow duration-200 focus-visible:ring-2 focus-visible:ring-primary/40"
             />
+            <p className="text-xs text-muted-foreground">留空将根据名称自动生成英文映射</p>
           </div>
 
           <div className="space-y-2">
@@ -115,6 +119,7 @@ export function NamespaceCreateDialog({
               placeholder="简要描述此空间的用途"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              className="transition-shadow duration-200 focus-visible:ring-2 focus-visible:ring-primary/40"
             />
           </div>
 
@@ -126,7 +131,12 @@ export function NamespaceCreateDialog({
             >
               取消
             </Button>
-            <Button type="submit" disabled={createNamespace.isPending}>
+            <Button
+              type="submit"
+              className="bg-gradient-to-r from-primary to-primary/80 shadow-md transition-all duration-200 hover:shadow-lg"
+              disabled={!name.trim() || createNamespace.isPending}
+            >
+              {createNamespace.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
               {createNamespace.isPending ? "创建中…" : "创建"}
             </Button>
           </DialogFooter>

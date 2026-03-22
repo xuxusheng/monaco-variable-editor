@@ -4,9 +4,13 @@ import { trpc } from "@/lib/trpc"
 import { useWorkflowStore } from "@/stores/workflow"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent } from "@/components/ui/card"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import { toast } from "sonner"
-import { Workflow } from "lucide-react"
+import { Workflow, Loader2, ChevronDown, ChevronUp } from "lucide-react"
 
 export default function SetupPage() {
   const navigate = useNavigate()
@@ -23,6 +27,7 @@ export default function SetupPage() {
 
   const [name, setName] = useState("")
   const [kestraNamespace, setKestraNamespace] = useState("")
+  const [showAdvanced, setShowAdvanced] = useState(false)
 
   const createNamespace = trpc.namespace.create.useMutation({
     onSuccess: (result) => {
@@ -48,71 +53,101 @@ export default function SetupPage() {
     })
   }
 
-  return (
-    <div className="flex h-screen items-center justify-center bg-background">
-      <Card className="w-full max-w-md border-0 shadow-lg">
-        <CardContent className="pt-8 pb-8 px-8">
-          <form onSubmit={handleSubmit} className="flex flex-col items-center gap-6">
-            {/* Logo */}
-            <div className="flex flex-col items-center gap-2">
-              <div className="flex items-center gap-2">
-                <Workflow className="size-8 text-primary" />
-                <span className="text-2xl font-bold">Weave</span>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                可视化工作流编排平台
-              </p>
-            </div>
+  const isSubmitDisabled = !name.trim() || createNamespace.isPending
 
-            {/* Description */}
-            <div className="text-center space-y-1">
-              <h2 className="text-lg font-medium">创建您的第一个项目空间</h2>
-              <p className="text-sm text-muted-foreground">
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-background to-muted px-6">
+      <div className="w-full max-w-md space-y-8">
+        {/* Logo */}
+        <div className="flex flex-col items-center gap-4">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-primary/10 p-2.5">
+              <Workflow className="size-7 text-primary" />
+            </div>
+            <span className="bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-3xl font-bold text-transparent">
+              Weave
+            </span>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            可视化工作流编排平台
+          </p>
+        </div>
+
+        {/* Decorative divider */}
+        <div className="mx-auto h-px w-16 bg-gradient-to-r from-transparent via-border to-transparent" />
+
+        {/* Card */}
+        <div className="rounded-xl border bg-card/50 p-8 shadow-lg backdrop-blur-sm">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Heading */}
+            <div className="space-y-2 text-center">
+              <h2 className="text-lg font-semibold tracking-tight">
+                创建您的第一个项目空间
+              </h2>
+              <p className="text-sm leading-relaxed text-muted-foreground">
                 项目空间是您团队组织工作流的单元。
-                <br />
-                每个空间独立管理自己的工作流、密钥和变量。
               </p>
             </div>
 
             {/* Form fields */}
-            <div className="w-full space-y-4">
+            <div className="space-y-4">
               <div className="space-y-2">
                 <label htmlFor="ns-name" className="text-sm font-medium">
                   空间名称
                 </label>
                 <Input
                   id="ns-name"
-                  placeholder="例如：my-project"
+                  placeholder="例如：数据团队"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   autoFocus
+                  className="transition-shadow duration-200 focus-visible:ring-2 focus-visible:ring-primary/40"
                 />
               </div>
 
-              <div className="space-y-2">
-                <label htmlFor="kestra-ns" className="text-sm font-medium">
-                  Kestra Namespace（可选）
-                </label>
-                <Input
-                  id="kestra-ns"
-                  placeholder="留空将自动映射"
-                  value={kestraNamespace}
-                  onChange={(e) => setKestraNamespace(e.target.value)}
-                />
-              </div>
+              <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
+                <CollapsibleTrigger className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                  {showAdvanced ? (
+                    <ChevronUp className="size-4" />
+                  ) : (
+                    <ChevronDown className="size-4" />
+                  )}
+                  高级设置
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-3">
+                  <div className="space-y-2">
+                    <label htmlFor="kestra-ns" className="text-sm font-medium">
+                      Kestra Namespace
+                    </label>
+                    <Input
+                      id="kestra-ns"
+                      value={kestraNamespace}
+                      onChange={(e) => setKestraNamespace(e.target.value)}
+                      className="transition-shadow duration-200 focus-visible:ring-2 focus-visible:ring-primary/40"
+                    />
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </div>
 
             {/* Submit */}
             <Button
               type="submit"
-              className="w-full"
-              disabled={createNamespace.isPending}
+              className="w-full bg-gradient-to-r from-primary to-primary/80 shadow-md transition-all duration-200 hover:shadow-lg hover:brightness-110"
+              disabled={isSubmitDisabled}
             >
-              {createNamespace.isPending ? "创建中…" : "创建并进入"}
+              {createNamespace.isPending ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  创建中…
+                </>
+              ) : (
+                "开始使用"
+              )}
             </Button>
           </form>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }

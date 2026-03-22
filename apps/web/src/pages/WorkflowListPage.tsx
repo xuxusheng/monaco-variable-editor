@@ -11,6 +11,7 @@ import {
   CardTitle,
   CardDescription,
   CardAction,
+  CardContent,
 } from "@/components/ui/card"
 import {
   AlertDialog,
@@ -35,6 +36,9 @@ import {
   XCircle,
   Loader2,
   Zap,
+  FilePlus,
+  LayoutTemplate,
+  FileDown,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -213,15 +217,53 @@ export default function WorkflowListPage() {
           </div>
         )}
 
-        {!isLoading && filteredWorkflows?.length === 0 && (
+        {!isLoading && filteredWorkflows?.length === 0 && workflows?.length === 0 && (
+          <Card className="mx-auto max-w-lg">
+            <CardHeader>
+              <CardTitle className="text-xl">🎉 欢迎！</CardTitle>
+              <CardDescription>您的工作空间已准备就绪。选择一种方式开始：</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <Button
+                  variant="outline"
+                  className="flex h-auto flex-col items-center gap-2 py-4"
+                  onClick={handleCreate}
+                  disabled={createWorkflow.isPending}
+                >
+                  <FilePlus className="h-6 w-6" />
+                  <span className="font-medium">新建工作流</span>
+                  <span className="text-xs text-muted-foreground">从零开始</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex h-auto flex-col items-center gap-2 py-4"
+                  onClick={() => navigate({ to: "/templates" })}
+                >
+                  <LayoutTemplate className="h-6 w-6" />
+                  <span className="font-medium">从模板创建</span>
+                  <span className="text-xs text-muted-foreground">快速开始</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex h-auto flex-col items-center gap-2 py-4"
+                  disabled
+                  title="即将推出"
+                >
+                  <FileDown className="h-6 w-6" />
+                  <span className="font-medium">导入 YAML</span>
+                  <span className="text-xs text-muted-foreground">粘贴代码</span>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {!isLoading && filteredWorkflows?.length === 0 && workflows && workflows.length > 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
             <Workflow className="mb-4 h-12 w-12" />
-            <p className="text-lg">{workflows?.length === 0 ? "暂无工作流" : "无匹配结果"}</p>
-            <p className="text-sm">
-              {workflows?.length === 0
-                ? "点击右上角「新建工作流」开始创建"
-                : "尝试调整搜索条件或筛选器"}
-            </p>
+            <p className="text-lg">无匹配结果</p>
+            <p className="text-sm">尝试调整搜索条件或筛选器</p>
           </div>
         )}
 
