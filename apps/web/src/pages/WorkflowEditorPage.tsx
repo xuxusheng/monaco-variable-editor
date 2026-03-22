@@ -332,6 +332,7 @@ export default function WorkflowEditorPage() {
   const setSavedWorkflowId = useWorkflowStore((s) => s.setSavedWorkflowId)
   const setTriggers = useWorkflowStore((s) => s.setTriggers)
   const enterRunningMode = useWorkflowStore((s) => s.enterRunningMode)
+  const exitRunningMode = useWorkflowStore((s) => s.exitRunningMode)
 
   // ---- 模板功能 ----
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false)
@@ -715,9 +716,14 @@ export default function WorkflowEditorPage() {
   })
   useHotkeys("mod+a", (e) => {
     e.preventDefault()
-    // Select all visible nodes
+    // Select all visible nodes — mark all as selected in React Flow
     if (visibleWfNodes.length > 0) {
-      setSelectedNodeId(visibleWfNodes[0].id)
+      setWfNodes((prev) =>
+        prev.map((n) => ({
+          ...n,
+          selected: visibleWfNodes.some((v) => v.id === n.id),
+        }))
+      )
     }
   })
   useHotkeys("mod+d", (e) => {
@@ -826,15 +832,22 @@ export default function WorkflowEditorPage() {
   const [showPublishDialog, setShowPublishDialog] = useState(false)
 
   const draftSave = trpc.workflow.draftSave.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       markSaved()
+      if (variables.message === "自动暂存") {
+        toast.success("已自动暂存")
+      }
       // Refresh draft list
       if (savedWorkflowId) {
         utils.workflow.draftList.invalidate({ workflowId: savedWorkflowId })
       }
     },
-    onError: (err) => {
-      toast.error(`保存草稿失败: ${err.message}`)
+    onError: (err, variables) => {
+      if (variables.message === "自动暂存") {
+        toast.error("自动暂存失败")
+      } else {
+        toast.error(`保存草稿失败: ${err.message}`)
+      }
     },
   })
 
@@ -1065,6 +1078,8 @@ export default function WorkflowEditorPage() {
   setCurrentExecutionRef.current = setCurrentExecution
   const setIsExecutingRef = useRef(setIsExecuting)
   setIsExecutingRef.current = setIsExecuting
+  const exitRunningModeRef = useRef(exitRunningMode)
+  exitRunningModeRef.current = exitRunningMode
   const pollTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   useEffect(() => {
     const exec = currentExecutionRef.current
@@ -1084,10 +1099,17 @@ export default function WorkflowEditorPage() {
         setCurrentExecutionRef.current(toExecutionSummary(result))
         if (isTerminalState(result.state)) {
           setIsExecutingRef.current(false)
+          exitRunningModeRef.current()
           if (result.state === "SUCCESS") {
             toast.success("执行完成")
           } else if (result.state === "FAILED") {
             toast.error("执行失败")
+          } else if (result.state === "WARNING") {
+            toast.warning("执行完成（有警告）")
+          } else if (result.state === "KILLED") {
+            toast.warning("执行已终止")
+          } else if (result.state === "CANCELLED") {
+            toast.info("执行已取消")
           }
           return // stop polling
         }
@@ -1192,9 +1214,19 @@ export default function WorkflowEditorPage() {
           {/* 状态标签 — 桌面端完整显示 */}
           {!isMobile && (
             viewMode === "running" ? (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/10 text-blue-700 border border-blue-500/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                运行中
+              <span className="inline-flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/10 text-blue-700 border border-blue-500/20">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                  运行中
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  onClick={() => exitRunningMode()}
+                >
+                  返回编辑
+                </Button>
               </span>
             ) : publishedVersion > 0 ? (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-500/10 text-green-700 border border-green-500/20">
@@ -1413,16 +1445,19 @@ export default function WorkflowEditorPage() {
           <ReactFlow
             nodes={canvasNodes}
             edges={canvasEdges}
-            onNodesChange={onCanvasNodesChange}
-            onEdgesChange={onCanvasEdgesChange}
-            onConnect={onConnect}
+            onNodesChange={viewMode === "running" ? undefined : onCanvasNodesChange}
+            onEdgesChange={viewMode === "running" ? undefined : onCanvasEdgesChange}
+            onConnect={viewMode === "running" ? undefined : onConnect}
             onNodeClick={onNodeClick}
-            onNodeContextMenu={onNodeContextMenu}
+            onNodeContextMenu={viewMode === "running" ? undefined : onNodeContextMenu}
             onPaneClick={onPaneClick}
-            onDragOver={onDragOver}
-            onDrop={onDrop}
+            onDragOver={viewMode === "running" ? undefined : onDragOver}
+            onDrop={viewMode === "running" ? undefined : onDrop}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
+            nodesDraggable={viewMode !== "running"}
+            nodesConnectable={viewMode !== "running"}
+            elementsSelectable={viewMode !== "running"}
             fitView
             fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
             minZoom={0.2}
