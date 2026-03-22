@@ -1,7 +1,7 @@
 /**
- * ProductionExecHistory.tsx — 生产执行历史面板
+ * ProductionExecHistory.tsx — 版本执行记录面板
  *
- * 显示由 schedule/webhook 触发的生产执行记录
+ * 显示由 schedule/webhook 触发的已发布版本执行记录
  */
 
 import { useState } from "react"
@@ -66,7 +66,7 @@ export function ProductionExecHistory({ workflowId, onClose }: ProductionExecHis
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
         <h3 className="text-sm font-semibold flex items-center gap-1.5">
-          <History className="w-4 h-4" /> 生产执行历史
+          <History className="w-4 h-4" /> 版本执行记录
         </h3>
         <div className="flex items-center gap-1">
           <button
@@ -87,7 +87,7 @@ export function ProductionExecHistory({ workflowId, onClose }: ProductionExecHis
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground px-6 text-center">
             <Inbox className="w-10 h-10 text-muted-foreground mb-3" />
-            <p className="text-sm font-medium mb-1">暂无生产执行记录</p>
+            <p className="text-sm font-medium mb-1">暂无版本执行记录</p>
             <p className="text-xs text-muted-foreground/70">
               由 schedule 或 webhook 触发的执行将显示在此
             </p>

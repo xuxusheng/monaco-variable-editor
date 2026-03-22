@@ -3,7 +3,7 @@
  * Tabs: Variables, Secrets, API Key
  */
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Settings, X, Copy, RefreshCw, Eye, EyeOff, Key } from "lucide-react"
 import { toast } from "sonner"
 import { trpc } from "@/lib/trpc"
@@ -16,9 +16,17 @@ interface NamespaceSettingsProps {
   namespaceId: string
   namespaceName: string
   onClose: () => void
+  defaultTab?: "variables" | "secrets"
 }
 
-export function NamespaceSettings({ namespaceId, namespaceName, onClose }: NamespaceSettingsProps) {
+export function NamespaceSettings({ namespaceId, namespaceName, onClose, defaultTab = "variables" }: NamespaceSettingsProps) {
+  const [activeTab, setActiveTab] = useState<string>(defaultTab)
+
+  // 当 defaultTab 变化时（从外部跳转过来），更新当前 tab
+  useEffect(() => {
+    setActiveTab(defaultTab)
+  }, [defaultTab])
+
   return (
     <div className="w-96 border-l border-border bg-card flex flex-col h-full">
       {/* Header */}
@@ -34,7 +42,7 @@ export function NamespaceSettings({ namespaceId, namespaceName, onClose }: Names
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="variables" className="flex-1 flex flex-col min-h-0">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
         <TabsList variant="line" className="w-full rounded-none border-b border-border">
           <TabsTrigger value="variables" className="flex-1 text-xs">变量</TabsTrigger>
           <TabsTrigger value="secrets" className="flex-1 text-xs">密钥</TabsTrigger>
@@ -103,7 +111,7 @@ function ApiKeyPanel({ namespaceId }: { namespaceId: string }) {
         </div>
         <div className="rounded-lg border border-border p-4 text-center space-y-3">
           <p className="text-sm text-muted-foreground">
-            API Key 用于在 Kestra flow 中安全获取命名空间密钥值
+            API Key 用于在 Kestra flow 中安全获取项目空间密钥值
           </p>
           <p className="text-xs text-muted-foreground">
             在 Kestra flow 中使用此 API Key 获取密钥值

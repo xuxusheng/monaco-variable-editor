@@ -1,12 +1,12 @@
 /**
  * ReleaseHistory — 版本历史面板
- * 显示已发布版本，支持回滚 + YAML 查看
+ * 显示已发布版本，支持回滚 + YAML 查看 + 版本对比
  */
 
-import { useCallback, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { toast } from "sonner"
 import Editor from "@monaco-editor/react"
-import { Inbox, Copy, Package } from "lucide-react"
+import { Inbox, Copy, Package, GitCompare } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -23,6 +23,9 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog"
+import { fromKestraYaml } from "@/lib/yamlConverter"
+import { diffNodes } from "@/lib/diff"
+import { DiffSummary } from "@/components/flow/DiffSummary"
 
 interface ReleaseEntry {
   id: string
@@ -44,13 +47,20 @@ function formatTime(iso: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
+type ViewMode = "list" | "yaml" | "compare"
+
 export function ReleaseHistory({
   releases,
   onRollback,
   onClose,
 }: ReleaseHistoryProps) {
+  const [viewMode, setViewMode] = useState<ViewMode>("list")
   const [viewYaml, setViewYaml] = useState<ReleaseEntry | null>(null)
   const [rollbackTarget, setRollbackTarget] = useState<ReleaseEntry | null>(null)
+
+  // 对比模式状态
+  const [compareBase, setCompareBase] = useState<ReleaseEntry | null>(null)
+  const [compareTarget, setCompareTarget] = useState<ReleaseEntry | null>(null)
 
   const handleRollback = useCallback(
     (release: ReleaseEntry) => {
@@ -72,6 +82,43 @@ export function ReleaseHistory({
     toast.success("YAML 已复制")
   }, [])
 
+  const startCompare = useCallback((release: ReleaseEntry) => {
+    setCompareBase(release)
+    setCompareTarget(null)
+    setViewMode("compare")
+  }, [])
+
+  const exitView = useCallback(() => {
+    setViewMode("list")
+    setViewYaml(null)
+    setCompareBase(null)
+    setCompareTarget(null)
+  }, [])
+
+  // 计算 diff
+  const compareDiff = useMemo(() => {
+    if (!compareBase || !compareTarget) return null
+    try {
+      const baseNodes = fromKestraYaml(compareBase.yaml).nodes
+      const targetNodes = fromKestraYaml(compareTarget.yaml).nodes
+      // base = 旧版本, target = 新版本
+      return diffNodes(baseNodes, targetNodes)
+    } catch {
+      return null
+    }
+  }, [compareBase, compareTarget])
+
+  const dialogTitle = useMemo(() => {
+    if (viewMode === "yaml" && viewYaml) return `v${viewYaml.version} YAML`
+    if (viewMode === "compare") {
+      if (compareTarget) {
+        return `v${compareBase?.version} → v${compareTarget.version} 对比`
+      }
+      return "选择对比版本"
+    }
+    return "版本历史"
+  }, [viewMode, viewYaml, compareBase, compareTarget])
+
   return (
     <>
     <Dialog open={true} onOpenChange={(open) => { if (!open) onClose() }}>
@@ -83,14 +130,12 @@ export function ReleaseHistory({
         <DialogHeader className="flex flex-row items-center justify-between px-5 py-4 border-b border-border gap-0">
           <div className="flex items-center gap-2">
             <Package className="w-4 h-4" />
-            <DialogTitle>
-              {viewYaml ? `v${viewYaml.version} YAML` : "版本历史"}
-            </DialogTitle>
+            <DialogTitle>{dialogTitle}</DialogTitle>
           </div>
           <div className="flex items-center gap-2">
-            {viewYaml && (
+            {viewMode !== "list" && (
               <button
-                onClick={() => setViewYaml(null)}
+                onClick={exitView}
                 className="px-3 py-1.5 rounded-md bg-muted hover:bg-muted/80 text-xs transition-colors"
               >
                 ← 返回列表
@@ -107,7 +152,8 @@ export function ReleaseHistory({
 
         {/* Content */}
         <div className="flex-1 overflow-hidden">
-          {viewYaml ? (
+          {viewMode === "yaml" && viewYaml ? (
+            /* YAML 查看 */
             <div className="h-full flex flex-col">
               <div className="flex items-center justify-end gap-2 px-5 py-2 border-b border-border">
                 <button
@@ -136,6 +182,60 @@ export function ReleaseHistory({
                 />
               </div>
             </div>
+          ) : viewMode === "compare" ? (
+            /* 版本对比 */
+            <div className="h-full flex flex-col overflow-y-auto">
+              {!compareTarget ? (
+                /* 选择目标版本 */
+                <div className="px-5 py-4">
+                  <p className="text-sm text-muted-foreground mb-3">
+                    选择要与 v{compareBase?.version} 对比的版本：
+                  </p>
+                  <div className="divide-y divide-border border border-border rounded-md">
+                    {releases
+                      .filter((r) => r.id !== compareBase?.id)
+                      .map((release) => (
+                        <button
+                          key={release.id}
+                          onClick={() => setCompareTarget(release)}
+                          className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors text-left"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-indigo-600">
+                              v{release.version}
+                            </span>
+                            <span className="text-sm truncate">{release.name}</span>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {formatTime(release.publishedAt)}
+                          </span>
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              ) : compareDiff ? (
+                /* Diff 结果 */
+                <div className="px-5 py-4 space-y-4">
+                  <div className="flex items-center gap-2 text-sm">
+                    <GitCompare className="w-4 h-4 text-muted-foreground" />
+                    <span className="font-medium">
+                      v{compareBase?.version}「{compareBase?.name}」
+                    </span>
+                    <span className="text-muted-foreground">→</span>
+                    <span className="font-medium">
+                      v{compareTarget.version}「{compareTarget.name}」
+                    </span>
+                  </div>
+                  <div className="rounded-md border border-border p-4 bg-muted/30">
+                    <DiffSummary diff={compareDiff} />
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                  YAML 解析失败，无法对比
+                </div>
+              )}
+            </div>
           ) : releases.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground px-6 text-center">
               <Inbox className="w-10 h-10 text-muted-foreground mb-3" />
@@ -145,6 +245,7 @@ export function ReleaseHistory({
               </p>
             </div>
           ) : (
+            /* 版本列表 */
             <div className="divide-y divide-border">
               {releases.map((release, i) => (
                 <div
@@ -171,11 +272,19 @@ export function ReleaseHistory({
                   </div>
                   <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
                     <button
-                      onClick={() => setViewYaml(release)}
+                      onClick={() => { setViewYaml(release); setViewMode("yaml") }}
                       className="px-2.5 py-1 rounded text-xs font-medium bg-muted hover:bg-muted/80"
                     >
                       查看 YAML
                     </button>
+                    {releases.length >= 2 && (
+                      <button
+                        onClick={() => startCompare(release)}
+                        className="px-2.5 py-1 rounded text-xs font-medium bg-muted hover:bg-muted/80"
+                      >
+                        对比
+                      </button>
+                    )}
                     <button
                       onClick={() => handleRollback(release)}
                       className="px-2.5 py-1 rounded text-xs font-medium bg-muted hover:bg-muted/80"

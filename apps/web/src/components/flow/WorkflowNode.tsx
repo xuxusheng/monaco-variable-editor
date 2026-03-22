@@ -2,9 +2,11 @@ import { memo, useCallback } from "react"
 import { Handle, Position } from "@xyflow/react"
 import type { NodeProps } from "@xyflow/react"
 import { getNodeColor } from "@/types/workflow"
-import { getOutputHandles } from "@/types/container"
+import { getOutputHandles, getChildFieldName } from "@/types/container"
 import { useWorkflowStore } from "@/stores/workflow"
 import type { TaskRun } from "@/stores/workflow"
+import { canExpandContainer } from "@/lib/containerUtils"
+import { toast } from "sonner"
 import {
   Clock, Loader, CheckCircle, XCircle, AlertTriangle,
   XOctagon, Ban, HelpCircle, Package,
@@ -38,6 +40,7 @@ interface WorkflowNodeData {
   isContainer: boolean
   collapsed: boolean
   childCount: number
+  hasMissingRefs: boolean
 }
 
 export const WorkflowNode = memo(({ data, selected, id }: NodeProps) => {
@@ -53,9 +56,17 @@ export const WorkflowNode = memo(({ data, selected, id }: NodeProps) => {
   const handleToggleCollapse = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation()
+      // 展开时检查嵌套深度
+      if (d.collapsed) {
+        const nodes = useWorkflowStore.getState().nodes
+        if (!canExpandContainer(id, nodes)) {
+          toast.warning("已达到最大嵌套层级")
+          return
+        }
+      }
       toggleCollapse(id)
     },
-    [id, toggleCollapse],
+    [id, toggleCollapse, d.collapsed],
   )
 
   // 容器节点：获取输出 Handle 列表
@@ -82,6 +93,13 @@ export const WorkflowNode = memo(({ data, selected, id }: NodeProps) => {
           style={{ background: color }}
         />
 
+        {/* 缺失引用标识 */}
+        {d.hasMissingRefs && (
+          <div className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center shadow-sm" title="存在缺失的变量引用">
+            <AlertTriangle className="w-3 h-3 text-white" />
+          </div>
+        )}
+
         {/* 头部：折叠按钮 + 类型 + 名称 */}
         <div className="flex items-center gap-2">
           <button
@@ -103,8 +121,9 @@ export const WorkflowNode = memo(({ data, selected, id }: NodeProps) => {
 
         {/* 折叠时显示子任务摘要 */}
         {d.collapsed && d.childCount > 0 && (
-          <div className="text-xs text-muted-foreground mt-2 pt-2 border-t border-dashed" style={{ borderColor: `${color}44` }}>
-            <Package className="w-3.5 h-3.5" /> {d.childCount} 个子任务
+          <div className="flex items-center gap-1 text-xs text-muted-foreground mt-2 pt-2 border-t border-dashed" style={{ borderColor: `${color}44` }}>
+            <Package className="w-3.5 h-3.5 shrink-0" />
+            <span>{d.childCount} 个{getChildFieldName(d.type) === "then/else" ? "分支" : "任务"}</span>
           </div>
         )}
 
@@ -169,6 +188,13 @@ export const WorkflowNode = memo(({ data, selected, id }: NodeProps) => {
         className="!w-3 !h-3 !border-2 !border-white"
         style={{ background: color }}
       />
+
+      {/* 缺失引用标识 */}
+      {d.hasMissingRefs && (
+        <div className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center shadow-sm" title="存在缺失的变量引用">
+          <AlertTriangle className="w-3 h-3 text-white" />
+        </div>
+      )}
 
       <div className="flex items-center gap-2">
         {taskRun ? (
