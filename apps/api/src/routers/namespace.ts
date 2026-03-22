@@ -6,8 +6,8 @@ import { createNamespaceSchema } from "../types.js"
 
 const updateNamespaceSchema = z.object({
   id: z.string(),
-  name: z.string().min(1).optional(),
-  kestraNamespace: z.string().min(1).optional(),
+  name: z.string().min(1).max(64).optional(),
+  kestraNamespace: z.string().min(1).max(64).optional(),
   description: z.string().optional(),
 })
 
