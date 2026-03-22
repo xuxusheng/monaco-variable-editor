@@ -1264,6 +1264,17 @@ export default function WorkflowEditorPage() {
           setRightPanel(panelMap[tab] ?? "none")
           setSelectedNodeId(null)
         }}
+        onOpenInNewPage={(tab) => {
+          const routeMap: Record<string, string> = {
+            executions: `/workflows/${workflowId}/executions`,
+            versions: `/workflows/${workflowId}/versions`,
+            triggers: `/workflows/${workflowId}/triggers`,
+          }
+          const url = routeMap[tab]
+          if (url) {
+            window.open(url, "_blank")
+          }
+        }}
       />
 
       {/* Canvas */}

@@ -18,6 +18,9 @@ import WorkflowEditorPage from "@/pages/WorkflowEditorPage"
 
 import { SettingsPage } from "@/pages/SettingsPage"
 import { TemplatesPage } from "@/pages/TemplatesPage"
+import { ExecutionPage } from "@/pages/ExecutionPage"
+import { VersionsPage } from "@/pages/VersionsPage"
+import { TriggersPage } from "@/pages/TriggersPage"
 
 function SidebarLayout() {
   return (
@@ -94,6 +97,24 @@ const templatesRoute = createRoute({
   component: () => <TemplatesPage />,
 })
 
+const workflowExecutionsRoute = createRoute({
+  getParentRoute: () => sidebarLayoutRoute,
+  path: "/workflows/$workflowId/executions",
+  component: () => <ExecutionPage />,
+})
+
+const workflowVersionsRoute = createRoute({
+  getParentRoute: () => sidebarLayoutRoute,
+  path: "/workflows/$workflowId/versions",
+  component: () => <VersionsPage />,
+})
+
+const workflowTriggersRoute = createRoute({
+  getParentRoute: () => sidebarLayoutRoute,
+  path: "/workflows/$workflowId/triggers",
+  component: () => <TriggersPage />,
+})
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   workflowEditRoute,
@@ -101,6 +122,9 @@ const routeTree = rootRoute.addChildren([
     workflowsRoute,
     settingsRoute,
     templatesRoute,
+    workflowExecutionsRoute,
+    workflowVersionsRoute,
+    workflowTriggersRoute,
   ]),
 ])
 
