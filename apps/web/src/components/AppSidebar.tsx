@@ -1,9 +1,11 @@
+import { useState } from "react"
 import { Link, useMatchRoute } from "@tanstack/react-router"
 import {
   Workflow,
   Settings,
   BookTemplate,
   ChevronsLeft,
+  Plus,
 } from "lucide-react"
 import {
   Sidebar,
@@ -20,10 +22,8 @@ import {
 } from "@/components/ui/sidebar"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { useWorkflowStore } from "@/stores/workflow"
-
-const namespaces = [
-  { id: "default", name: "默认空间" },
-]
+import { trpc } from "@/lib/trpc"
+import { NamespaceCreateDialog } from "@/components/flow/NamespaceCreateDialog"
 
 const workflowItems = [
   { label: "工作流编辑器", to: "/workflows", icon: Workflow },
@@ -55,66 +55,100 @@ function NavItem({ label, to, icon: Icon }: { label: string; to: string; icon: R
 }
 
 export function AppSidebar() {
-  const namespaceId = useWorkflowStore((s) => s.namespaceId)
-  const setNamespaceId = useWorkflowStore((s) => s.setNamespaceId)
+  const currentNamespace = useWorkflowStore((s) => s.currentNamespace)
+  const setCurrentNamespace = useWorkflowStore((s) => s.setCurrentNamespace)
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
+
+  const { data: namespaces } = trpc.namespace.list.useQuery()
+  const utils = trpc.useUtils()
+
+  const handleValueChange = (v: string | null) => {
+    if (v === "__create__") {
+      setCreateDialogOpen(true)
+      return
+    }
+    if (v) setCurrentNamespace(v)
+  }
+
+  const handleCreated = (id: string) => {
+    setCurrentNamespace(id)
+    utils.namespace.list.invalidate()
+  }
 
   return (
-    <Sidebar collapsible="icon" variant="sidebar">
-      <SidebarHeader className="h-12 border-b border-sidebar-border flex items-center px-3">
-        <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
-          <Workflow className="size-5 text-sidebar-primary" />
-          <span className="text-sm font-semibold text-sidebar-foreground">Weave</span>
-        </div>
-        <div className="hidden group-data-[collapsible=icon]:flex">
-          <Workflow className="size-5 text-sidebar-primary" />
-        </div>
-      </SidebarHeader>
+    <>
+      <Sidebar collapsible="icon" variant="sidebar">
+        <SidebarHeader className="h-12 border-b border-sidebar-border flex items-center px-3">
+          <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
+            <Workflow className="size-5 text-sidebar-primary" />
+            <span className="text-sm font-semibold text-sidebar-foreground">Weave</span>
+          </div>
+          <div className="hidden group-data-[collapsible=icon]:flex">
+            <Workflow className="size-5 text-sidebar-primary" />
+          </div>
+        </SidebarHeader>
 
-      <SidebarContent>
-        <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-          <SidebarGroupLabel>项目空间</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <Select value={namespaceId} onValueChange={(v) => { if (v !== null) setNamespaceId(v) }}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="选择项目空间" />
-              </SelectTrigger>
-              <SelectContent>
-                {namespaces.map(ns => (
-                  <SelectItem key={ns.id} value={ns.id}>{ns.name}</SelectItem>
+        <SidebarContent>
+          <SidebarGroup className="group-data-[collapsible=icon]:hidden">
+            <SidebarGroupLabel>项目空间</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <Select
+                value={currentNamespace ?? ""}
+                onValueChange={handleValueChange}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="选择项目空间" />
+                </SelectTrigger>
+                <SelectContent>
+                  {namespaces?.map((ns) => (
+                    <SelectItem key={ns.id} value={ns.id}>{ns.name}</SelectItem>
+                  ))}
+                  <SelectItem value="__create__">
+                    <span className="flex items-center gap-1">
+                      <Plus className="size-3.5" />
+                      新建项目空间
+                    </span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </SidebarGroupContent>
+          </SidebarGroup>
+          <SidebarGroup>
+            <SidebarGroupLabel>工作流</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {workflowItems.map((item) => (
+                  <NavItem key={item.to} {...item} />
                 ))}
-              </SelectContent>
-            </Select>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        <SidebarGroup>
-          <SidebarGroupLabel>工作流</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {workflowItems.map((item) => (
-                <NavItem key={item.to} {...item} />
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel>设置</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {settingItems.map((item) => (
-                <NavItem key={item.to} {...item} />
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupLabel>设置</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {settingItems.map((item) => (
+                  <NavItem key={item.to} {...item} />
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border p-2">
-        <SidebarTrigger className="w-full justify-start gap-2 p-2 h-8 text-sm">
-          <ChevronsLeft className="size-4" />
-          <span>折叠</span>
-        </SidebarTrigger>
-      </SidebarFooter>
-    </Sidebar>
+        <SidebarFooter className="border-t border-sidebar-border p-2">
+          <SidebarTrigger className="w-full justify-start gap-2 p-2 h-8 text-sm">
+            <ChevronsLeft className="size-4" />
+            <span>折叠</span>
+          </SidebarTrigger>
+        </SidebarFooter>
+      </Sidebar>
+
+      <NamespaceCreateDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        onCreated={handleCreated}
+      />
+    </>
   )
 }

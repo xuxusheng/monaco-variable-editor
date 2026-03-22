@@ -1,6 +1,7 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { trpc } from "@/lib/trpc"
+import { useWorkflowStore } from "@/stores/workflow"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -103,7 +104,15 @@ type StatusFilter = "all" | "draft" | "published"
 export default function WorkflowListPage() {
   const navigate = useNavigate()
   const utils = trpc.useUtils()
+  const hasNamespaces = useWorkflowStore((s) => s.hasNamespaces)
   const { data: workflows, isLoading } = trpc.workflow.listEnriched.useQuery()
+
+  // 没有 namespace 时引导到 setup 页
+  useEffect(() => {
+    if (!hasNamespaces) {
+      navigate({ to: "/setup" })
+    }
+  }, [hasNamespaces, navigate])
   const createWorkflow = trpc.workflow.create.useMutation({
     onSuccess: (result) => {
       utils.workflow.listEnriched.invalidate()
@@ -142,11 +151,13 @@ export default function WorkflowListPage() {
     })
   }, [workflows, search, statusFilter])
 
+  const currentNamespace = useWorkflowStore((s) => s.currentNamespace)
+
   const handleCreate = () => {
     createWorkflow.mutate({
       name: "新建工作流",
       flowId: `new-flow-${Date.now()}`,
-      namespaceId: "default",
+      namespaceId: currentNamespace!,
     })
   }
 

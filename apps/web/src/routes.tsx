@@ -1,9 +1,11 @@
+import { useEffect } from "react"
 import {
   createRouter,
   createRootRoute,
   createRoute,
   redirect,
   Outlet,
+  useRouter,
 } from "@tanstack/react-router"
 import { TanStackRouterDevtools } from "@tanstack/router-devtools"
 import { ReactFlowProvider } from "@xyflow/react"
@@ -13,8 +15,11 @@ import {
   SidebarInset,
 } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/AppSidebar"
+import { trpc } from "@/lib/trpc"
+import { useWorkflowStore } from "@/stores/workflow"
 import WorkflowListPage from "@/pages/WorkflowListPage"
 import WorkflowEditorPage from "@/pages/WorkflowEditorPage"
+import SetupPage from "@/pages/SetupPage"
 
 import { SettingsPage } from "@/pages/SettingsPage"
 import { TemplatesPage } from "@/pages/TemplatesPage"
@@ -35,10 +40,42 @@ function SidebarLayout() {
   )
 }
 
+/** 根路由守卫：检测 namespace 状态，引导用户到 /setup 或 /workflows */
+function NamespaceGuard({ children }: { children: React.ReactNode }) {
+  const { data: namespaces, isLoading } = trpc.namespace.list.useQuery()
+  const setCurrentNamespace = useWorkflowStore((s) => s.setCurrentNamespace)
+  const setHasNamespaces = useWorkflowStore((s) => s.setHasNamespaces)
+  const router = useRouter()
+
+  useEffect(() => {
+    if (isLoading || !namespaces) return
+    setHasNamespaces(namespaces.length > 0)
+    if (namespaces.length > 0) {
+      // 自动选择第一个 namespace
+      const current = useWorkflowStore.getState().currentNamespace
+      if (!current) {
+        setCurrentNamespace(namespaces[0].id)
+      }
+    } else {
+      // 没有 Namespace，跳转到引导页
+      const currentPath = router.state.location.pathname
+      if (currentPath !== "/setup") {
+        router.navigate({ to: "/setup" })
+      }
+    }
+  }, [namespaces, isLoading, setCurrentNamespace, setHasNamespaces, router])
+
+  if (isLoading) return null
+
+  return <>{children}</>
+}
+
 const rootRoute = createRootRoute({
   component: () => (
     <TooltipProvider>
-      <Outlet />
+      <NamespaceGuard>
+        <Outlet />
+      </NamespaceGuard>
       <TanStackRouterDevtools position="bottom-left" />
     </TooltipProvider>
   ),
@@ -50,6 +87,13 @@ const indexRoute = createRoute({
   loader: () => {
     throw redirect({ to: "/workflows" })
   },
+})
+
+// Setup page: no sidebar
+const setupRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/setup",
+  component: () => <SetupPage />,
 })
 
 // Sidebar layout wraps routes that need navigation
@@ -117,6 +161,7 @@ const workflowTriggersRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  setupRoute,
   workflowEditRoute,
   sidebarLayoutRoute.addChildren([
     workflowsRoute,

@@ -100,7 +100,13 @@ interface WorkflowState {
   kestraHealthy: boolean
 
   // Namespace
-  namespaceId: string
+  currentNamespace: string | null
+  hasNamespaces: boolean
+  setCurrentNamespace: (id: string) => void
+  setHasNamespaces: (has: boolean) => void
+
+  // Legacy alias — used by existing components
+  namespaceId: string | null
   setNamespaceId: (id: string) => void
 
   // Trigger
@@ -186,7 +192,9 @@ export const useWorkflowStore = create<WorkflowState>()(
       kestraHealthy: false,
 
       // Namespace
-      namespaceId: "default",
+      currentNamespace: null,
+      hasNamespaces: false,
+      namespaceId: null,
 
       // Trigger
       triggers: [],
@@ -262,7 +270,9 @@ export const useWorkflowStore = create<WorkflowState>()(
           state.currentExecution = exec
         }),
       setKestraHealthy: (v) => set({ kestraHealthy: v }),
-      setNamespaceId: (id) => set({ namespaceId: id }),
+      setCurrentNamespace: (id) => set({ currentNamespace: id, namespaceId: id }),
+      setHasNamespaces: (has) => set({ hasNamespaces: has }),
+      setNamespaceId: (id) => set({ currentNamespace: id, namespaceId: id }),
       setTriggers: (triggers) => set({ triggers }),
       expandContainer: (nodeId) =>
         set((state) => {
