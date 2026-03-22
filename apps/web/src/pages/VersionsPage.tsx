@@ -138,7 +138,6 @@ export function VersionsPage() {
   const confirmRollback = useCallback(() => {
     if (rollbackTarget) {
       handleReleaseRollback(rollbackTarget.id)
-      toast.success(`已恢复到 v${rollbackTarget.version}，请继续编辑`)
       setRollbackTarget(null)
     }
   }, [rollbackTarget, handleReleaseRollback])
