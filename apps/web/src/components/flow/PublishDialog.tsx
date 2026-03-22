@@ -56,7 +56,7 @@ export function PublishDialog({
   )
 
   const diffResult = useMemo(
-    () => prevReleaseNodes ? diffNodes(prevReleaseNodes, nodes) : null,
+    () => prevReleaseNodes ? diffNodes(prevReleaseNodes, nodes) : { added: nodes, removed: [], modified: [] },
     [prevReleaseNodes, nodes],
   )
 
