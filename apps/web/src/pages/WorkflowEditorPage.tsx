@@ -114,6 +114,7 @@ import type {
 import { EDGE_STYLES } from "@/types/workflow"
 import type { KestraInput } from "@/types/kestra"
 import type { ApiWorkflowNode, ApiWorkflowEdge, ApiWorkflowInput } from "@/types/api"
+import { useShallow } from "zustand/react/shallow"
 import {
   useWorkflowStore,
   useUndo,
@@ -295,28 +296,41 @@ export default function WorkflowEditorPage() {
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout>>(null)
   const longPressTriggeredRef = useRef(false)
 
-  // ---- Zustand store ----
-  const wfNodes = useWorkflowStore((s) => s.nodes)
+  // ---- Zustand store — 合并选择器减少 re-render ----
+  const {
+    nodes: wfNodes,
+    edges: wfEdges,
+    inputs,
+    rightPanel,
+    selectedNodeId,
+    panelOpen,
+    workflowMeta,
+    savedWorkflowId,
+    viewMode,
+    runningSnapshot,
+  } = useWorkflowStore(useShallow((s) => ({
+    nodes: s.nodes,
+    edges: s.edges,
+    inputs: s.inputs,
+    rightPanel: s.rightPanel,
+    selectedNodeId: s.selectedNodeId,
+    panelOpen: s.panelOpen,
+    workflowMeta: s.workflowMeta,
+    savedWorkflowId: s.savedWorkflowId,
+    viewMode: s.viewMode,
+    runningSnapshot: s.runningSnapshot,
+  })))
+
+  // Actions (stable references, safe as individual selectors)
   const setWfNodes = useWorkflowStore((s) => s.setNodes)
-  const wfEdges = useWorkflowStore((s) => s.edges)
   const setWfEdges = useWorkflowStore((s) => s.setEdges)
-  const inputs = useWorkflowStore((s) => s.inputs)
   const setInputs = useWorkflowStore((s) => s.setInputs)
-  const rightPanel = useWorkflowStore((s) => s.rightPanel)
   const setRightPanel = useWorkflowStore((s) => s.setRightPanel)
-  const selectedNodeId = useWorkflowStore((s) => s.selectedNodeId)
   const setSelectedNodeId = useWorkflowStore((s) => s.setSelectedNodeId)
-  const panelOpen = useWorkflowStore((s) => s.panelOpen)
   const setPanelOpen = useWorkflowStore((s) => s.setPanelOpen)
-  const workflowMeta = useWorkflowStore((s) => s.workflowMeta)
   const setWorkflowMeta = useWorkflowStore((s) => s.setWorkflowMeta)
-  const savedWorkflowId = useWorkflowStore((s) => s.savedWorkflowId)
   const setSavedWorkflowId = useWorkflowStore((s) => s.setSavedWorkflowId)
   const setTriggers = useWorkflowStore((s) => s.setTriggers)
-
-  // ---- Running view mode ----
-  const viewMode = useWorkflowStore((s) => s.viewMode)
-  const runningSnapshot = useWorkflowStore((s) => s.runningSnapshot)
   const enterRunningMode = useWorkflowStore((s) => s.enterRunningMode)
 
   // ---- 模板功能 ----
@@ -949,12 +963,18 @@ export default function WorkflowEditorPage() {
   )
 
   // Auto-save (30s) — 只在用户实际修改后触发
+  const {
+    hasUnsavedChanges,
+    releases,
+    publishedVersion,
+  } = useWorkflowStore(useShallow((s) => ({
+    hasUnsavedChanges: s.hasUnsavedChanges,
+    releases: s.releases,
+    publishedVersion: s.publishedVersion,
+  })))
   const markDirty = useWorkflowStore((s) => s.markDirty)
   const markSaved = useWorkflowStore((s) => s.markSaved)
   const setPublishedVersion = useWorkflowStore((s) => s.setPublishedVersion)
-  const hasUnsavedChanges = useWorkflowStore((s) => s.hasUnsavedChanges)
-  const releases = useWorkflowStore((s) => s.releases)
-  const publishedVersion = useWorkflowStore((s) => s.publishedVersion)
 
   // 最新发布版本的 nodes（用于发布前 diff）
   const prevReleaseNodes = useMemo(() => {
@@ -967,7 +987,7 @@ export default function WorkflowEditorPage() {
     }
   }, [releasesQuery.data])
 
-  // 首次加载标记：首次渲染不触发 markDirty
+  // 首次加载标记：首次渲染不触发 markDirty；已脏时跳过冗余调用
   const isInitialMount = useRef(true)
 
   useEffect(() => {
@@ -975,8 +995,11 @@ export default function WorkflowEditorPage() {
       isInitialMount.current = false
       return
     }
-    markDirty()
-  }, [wfNodes, wfEdges, inputs, markDirty])
+    // 避免在已经 dirty 时重复触发 set
+    if (!hasUnsavedChanges) {
+      markDirty()
+    }
+  }, [wfNodes, wfEdges, inputs, markDirty, hasUnsavedChanges])
 
   // Auto-save timer (30s) — recursive setTimeout with ref to avoid stale closure
   const hasUnsavedChangesRef = useRef(hasUnsavedChanges)
@@ -997,11 +1020,17 @@ export default function WorkflowEditorPage() {
   }, [savedWorkflowId])
 
   // ─── M4: Execution ───
-  const isExecuting = useWorkflowStore((s) => s.isExecuting)
+  const {
+    isExecuting,
+    currentExecution,
+    kestraHealthy,
+  } = useWorkflowStore(useShallow((s) => ({
+    isExecuting: s.isExecuting,
+    currentExecution: s.currentExecution,
+    kestraHealthy: s.kestraHealthy,
+  })))
   const setIsExecuting = useWorkflowStore((s) => s.setIsExecuting)
-  const currentExecution = useWorkflowStore((s) => s.currentExecution)
   const setCurrentExecution = useWorkflowStore((s) => s.setCurrentExecution)
-  const kestraHealthy = useWorkflowStore((s) => s.kestraHealthy)
   const setKestraHealthy = useWorkflowStore((s) => s.setKestraHealthy)
   const [showInputForm, setShowInputForm] = useState(false)
   const [showTriggerForm, setShowTriggerForm] = useState(false)
