@@ -141,7 +141,11 @@ export const workflowRouter = t.router({
 
   create: t.procedure
     .input(createWorkflowSchema)
-    .mutation(({ input }) => {
+    .mutation(async ({ input }) => {
+      const namespace = await prisma.namespace.findUnique({ where: { id: input.namespaceId } })
+      if (!namespace) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "项目空间不存在，请先创建项目空间" })
+      }
       return prisma.workflow.create({
         data: {
           name: input.name,

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import { Settings, Save, AlertTriangle } from "lucide-react"
 import { toast } from "sonner"
 import { trpc } from "@/lib/trpc"
+import { useWorkflowStore } from "@/stores/workflow"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,9 +13,9 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { SecretTable } from "@/components/flow/SecretTable"
 import { VariableTable } from "@/components/flow/VariableTable"
 
-const NAMESPACE_ID = "default"
-
 export function SettingsPage() {
+  const currentNamespace = useWorkflowStore((s) => s.currentNamespace)
+  const NAMESPACE_ID = currentNamespace ?? "default"
   return (
     <div className="flex-1 overflow-auto">
       <div className="mx-auto max-w-4xl p-6 space-y-6">
