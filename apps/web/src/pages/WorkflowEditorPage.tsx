@@ -452,14 +452,14 @@ export default function WorkflowEditorPage() {
     const missingNames = new Set(result.missing.map((r) => r.name))
 
     // 检查每个节点的 spec 是否引用了缺失的 secret/variable/input
+    // 用正则匹配完整 JSON 字符串值（带引号边界），避免 "url" 误匹配 "requestUrl"
+    const escapedNames = [...missingNames].map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    const namePattern = new RegExp(`"(${escapedNames.join("|")})"`, "g")
     const set = new Set<string>()
     for (const node of wfNodes) {
       const specStr = JSON.stringify(node.spec)
-      for (const name of missingNames) {
-        if (specStr.includes(name)) {
-          set.add(node.id)
-          break
-        }
+      if (namePattern.test(specStr)) {
+        set.add(node.id)
       }
     }
     return set
