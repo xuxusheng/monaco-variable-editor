@@ -99,7 +99,7 @@ export function AppSidebar() {
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="选择项目空间" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="w-[--radix-select-trigger-width]">
                   {namespaces?.map((ns) => (
                     <SelectItem key={ns.id} value={ns.id}>{ns.name}</SelectItem>
                   ))}

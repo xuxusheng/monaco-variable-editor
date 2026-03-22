@@ -103,7 +103,7 @@ function stateLabel(state: string): string {
   }
 }
 
-type StatusFilter = "all" | "draft" | "published"
+type StatusFilter = "all" | "draft"
 
 export default function WorkflowListPage() {
   const navigate = useNavigate()
@@ -141,7 +141,6 @@ export default function WorkflowListPage() {
     return workflows.filter((wf) => {
       // Status filter
       if (statusFilter === "draft" && wf.publishedVersion > 0) return false
-      if (statusFilter === "published" && wf.publishedVersion === 0) return false
 
       // Search filter
       if (search) {
@@ -195,7 +194,7 @@ export default function WorkflowListPage() {
             />
           </div>
           <div className="flex gap-1">
-            {(["all", "draft", "published"] as StatusFilter[]).map((key) => (
+            {(["all", "draft"] as StatusFilter[]).map((key) => (
               <Button
                 key={key}
                 variant={statusFilter === key ? "secondary" : "ghost"}
@@ -203,7 +202,7 @@ export default function WorkflowListPage() {
                 onClick={() => setStatusFilter(key)}
                 className="text-xs"
               >
-                {key === "all" ? "全部" : key === "draft" ? "草稿" : "已发布"}
+                {key === "all" ? "全部" : "草稿"}
               </Button>
             ))}
           </div>

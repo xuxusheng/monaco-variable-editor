@@ -76,7 +76,7 @@ const rootRoute = createRootRoute({
       <NamespaceGuard>
         <Outlet />
       </NamespaceGuard>
-      <TanStackRouterDevtools position="bottom-left" />
+      {process.env.NODE_ENV === "development" && <TanStackRouterDevtools position="bottom-left" />}
     </TooltipProvider>
   ),
 })
@@ -112,6 +112,15 @@ const workflowsRoute = createRoute({
       <WorkflowListPage />
     </div>
   ),
+})
+
+// Redirect /workflows/new to /workflows (new workflow creation is handled from the list page)
+const workflowNewRoute = createRoute({
+  getParentRoute: () => sidebarLayoutRoute,
+  path: "/workflows/new",
+  loader: () => {
+    throw redirect({ to: "/workflows" })
+  },
 })
 
 // Workflow editor: full-screen, no sidebar, uses path param
@@ -165,6 +174,7 @@ const routeTree = rootRoute.addChildren([
   workflowEditRoute,
   sidebarLayoutRoute.addChildren([
     workflowsRoute,
+    workflowNewRoute,
     settingsRoute,
     templatesRoute,
     workflowExecutionsRoute,

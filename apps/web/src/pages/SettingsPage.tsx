@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { Settings, Save, AlertTriangle } from "lucide-react"
+import { Settings, Save } from "lucide-react"
 import { toast } from "sonner"
 import { trpc } from "@/lib/trpc"
 import { useWorkflowStore } from "@/stores/workflow"
@@ -15,7 +15,16 @@ import { VariableTable } from "@/components/flow/VariableTable"
 
 export function SettingsPage() {
   const currentNamespace = useWorkflowStore((s) => s.currentNamespace)
-  const NAMESPACE_ID = currentNamespace ?? "default"
+  const NAMESPACE_ID = currentNamespace ?? ""
+
+  if (!NAMESPACE_ID) {
+    return (
+      <div className="flex-1 flex items-center justify-center text-muted-foreground">
+        请先选择一个项目空间
+      </div>
+    )
+  }
+
   return (
     <div className="flex-1 overflow-auto">
       <div className="mx-auto max-w-4xl p-6 space-y-6">
@@ -141,22 +150,6 @@ function GeneralTab({ namespaceId }: { namespaceId: string }) {
       </Button>
 
       <Separator />
-
-      {/* Danger Zone */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-destructive">
-          <AlertTriangle className="w-4 h-4" />
-          <span>危险操作</span>
-        </div>
-        <div className="rounded-lg border border-destructive/30 p-4">
-          <p className="text-sm text-muted-foreground mb-3">
-            删除项目空间将同时删除所有关联的工作流、变量和密钥。此操作不可撤销。
-          </p>
-          <Button variant="destructive" size="sm" disabled>
-            删除项目空间（暂不可用）
-          </Button>
-        </div>
-      </div>
     </div>
   )
 }
