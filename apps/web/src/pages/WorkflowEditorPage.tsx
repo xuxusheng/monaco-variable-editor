@@ -850,16 +850,23 @@ export default function WorkflowEditorPage() {
     markDirty()
   }, [wfNodes, wfEdges, inputs, markDirty])
 
-  // Auto-save timer (30s)
+  // Auto-save timer (30s) — recursive setTimeout with ref to avoid stale closure
+  const hasUnsavedChangesRef = useRef(hasUnsavedChanges)
+  hasUnsavedChangesRef.current = hasUnsavedChanges
+  const handleSaveDraftRef = useRef(handleSaveDraft)
+  handleSaveDraftRef.current = handleSaveDraft
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout>>()
   useEffect(() => {
     if (!savedWorkflowId) return
-    const timer = setInterval(() => {
-      if (hasUnsavedChanges) {
-        handleSaveDraft("自动暂存")
+    function tick() {
+      if (hasUnsavedChangesRef.current) {
+        handleSaveDraftRef.current("自动暂存")
       }
-    }, 30_000)
-    return () => clearInterval(timer)
-  }, [savedWorkflowId, hasUnsavedChanges, handleSaveDraft])
+      autoSaveTimerRef.current = setTimeout(tick, 30_000)
+    }
+    autoSaveTimerRef.current = setTimeout(tick, 30_000)
+    return () => clearTimeout(autoSaveTimerRef.current)
+  }, [savedWorkflowId])
 
   // ─── M4: Execution ───
   const isExecuting = useWorkflowStore((s) => s.isExecuting)
@@ -871,45 +878,73 @@ export default function WorkflowEditorPage() {
   const [showInputForm, setShowInputForm] = useState(false)
   const [showTriggerForm, setShowTriggerForm] = useState(false)
 
-  // Kestra health check (on mount + every 5 min)
+  // Kestra health check (on mount + every 5 min) — with abort on unmount
+  const healthTimerRef = useRef<ReturnType<typeof setTimeout>>()
   useEffect(() => {
+    let isMounted = true
+    const utilsRef = utils
     const check = () => {
-      utils.workflow.kestraHealth.fetch().then((res) => {
-        setKestraHealthy(res.healthy)
-      }).catch(() => setKestraHealthy(false))
+      utilsRef.workflow.kestraHealth.fetch().then((res) => {
+        if (isMounted) setKestraHealthy(res.healthy)
+      }).catch(() => {
+        if (isMounted) setKestraHealthy(false)
+      }).finally(() => {
+        if (isMounted) healthTimerRef.current = setTimeout(check, 5 * 60_000)
+      })
     }
     check()
-    const timer = setInterval(check, 5 * 60_000)
-    return () => clearInterval(timer)
+    return () => {
+      isMounted = false
+      clearTimeout(healthTimerRef.current)
+    }
   }, [utils, setKestraHealthy])
 
-  // Execution polling (3s interval, stops on terminal state)
+  // Execution polling — recursive setTimeout with refs to avoid stale closure & request pileup
+  const currentExecutionRef = useRef(currentExecution)
+  currentExecutionRef.current = currentExecution
+  const utilsRef = useRef(utils)
+  utilsRef.current = utils
+  const setCurrentExecutionRef = useRef(setCurrentExecution)
+  setCurrentExecutionRef.current = setCurrentExecution
+  const setIsExecutingRef = useRef(setIsExecuting)
+  setIsExecutingRef.current = setIsExecuting
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout>>()
   useEffect(() => {
-    if (!currentExecution || isTerminalState(currentExecution.state)) {
+    const exec = currentExecutionRef.current
+    if (!exec || isTerminalState(exec.state)) {
       if (isExecuting) setIsExecuting(false)
       return
     }
 
-    const timer = setInterval(async () => {
-      try {
-        const result = await utils.workflow.executionGet.fetch({
-          executionId: currentExecution.id,
-        })
-        if (result) {
-          setCurrentExecution(toExecutionSummary(result))
-          if (isTerminalState(result.state)) {
-            setIsExecuting(false)
-            if (result.state === "SUCCESS") {
-              toast.success("执行完成")
-            } else if (result.state === "FAILED") {
-              toast.error("执行失败")
-            }
+    let isMounted = true
+    function tick() {
+      const exec = currentExecutionRef.current
+      if (!exec || !isMounted) return
+      utilsRef.current.workflow.executionGet.fetch({
+        executionId: exec.id,
+      }).then((result) => {
+        if (!isMounted || !result) return
+        setCurrentExecutionRef.current(toExecutionSummary(result))
+        if (isTerminalState(result.state)) {
+          setIsExecutingRef.current(false)
+          if (result.state === "SUCCESS") {
+            toast.success("执行完成")
+          } else if (result.state === "FAILED") {
+            toast.error("执行失败")
           }
+          return // stop polling
         }
-      } catch { /* poll error silent */ }
-    }, 3000)
+        pollTimerRef.current = setTimeout(tick, 3000)
+      }).catch(() => {
+        if (isMounted) pollTimerRef.current = setTimeout(tick, 3000)
+      })
+    }
+    pollTimerRef.current = setTimeout(tick, 3000)
 
-    return () => clearInterval(timer)
+    return () => {
+      isMounted = false
+      clearTimeout(pollTimerRef.current)
+    }
   }, [currentExecution?.id, currentExecution?.state, isExecuting])
 
   const executeTest = trpc.workflow.executeTest.useMutation({
