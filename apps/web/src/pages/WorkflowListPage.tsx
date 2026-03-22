@@ -1,7 +1,9 @@
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { trpc } from "@/lib/trpc"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import {
   Card,
   CardHeader,
@@ -19,7 +21,20 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog"
-import { Plus, Trash2, Workflow, GitBranch, Clock } from "lucide-react"
+import {
+  Plus,
+  Trash2,
+  Workflow,
+  GitBranch,
+  Clock,
+  Search,
+  Timer,
+  Webhook,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  Zap,
+} from "lucide-react"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -33,13 +48,65 @@ function formatDate(date: Date | string) {
   })
 }
 
+function formatRelativeTime(iso: string): string {
+  const date = new Date(iso)
+  const now = Date.now()
+  const diffMs = now - date.getTime()
+  const absDiff = Math.abs(diffMs)
+
+  if (absDiff < 60_000) return "刚刚"
+
+  const minutes = Math.floor(absDiff / 60_000)
+  if (minutes < 60) return `${minutes} 分钟前`
+
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours} 小时前`
+
+  const days = Math.floor(hours / 24)
+  if (days < 30) return `${days} 天前`
+
+  return date.toLocaleDateString("zh-CN")
+}
+
+function StateIcon({ state }: { state: string }) {
+  if (state === "SUCCESS") return <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+  if (state === "FAILED" || state === "KILLED" || state === "CANCELLED")
+    return <XCircle className="h-3.5 w-3.5 text-red-500" />
+  if (state === "RUNNING" || state === "CREATED" || state === "RESTARTED")
+    return <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-500" />
+  return <Zap className="h-3.5 w-3.5 text-muted-foreground" />
+}
+
+function stateLabel(state: string): string {
+  switch (state) {
+    case "SUCCESS":
+      return "成功"
+    case "FAILED":
+      return "失败"
+    case "KILLED":
+      return "已终止"
+    case "CANCELLED":
+      return "已取消"
+    case "RUNNING":
+      return "运行中"
+    case "CREATED":
+      return "已创建"
+    case "RESTARTED":
+      return "已重启"
+    default:
+      return state
+  }
+}
+
+type StatusFilter = "all" | "draft" | "published"
+
 export default function WorkflowListPage() {
   const navigate = useNavigate()
   const utils = trpc.useUtils()
-  const { data: workflows, isLoading } = trpc.workflow.list.useQuery()
+  const { data: workflows, isLoading } = trpc.workflow.listEnriched.useQuery()
   const createWorkflow = trpc.workflow.create.useMutation({
     onSuccess: (result) => {
-      utils.workflow.list.invalidate()
+      utils.workflow.listEnriched.invalidate()
       navigate({ to: "/workflows/$workflowId/edit", params: { workflowId: result.id } })
     },
     onError: () => toast.error("创建工作流失败"),
@@ -47,12 +114,33 @@ export default function WorkflowListPage() {
   const deleteWorkflow = trpc.workflow.delete.useMutation({
     onSuccess: () => {
       toast.success("工作流已删除")
-      utils.workflow.list.invalidate()
+      utils.workflow.listEnriched.invalidate()
     },
     onError: () => toast.error("删除失败"),
   })
 
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+  const [search, setSearch] = useState("")
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
+
+  const filteredWorkflows = useMemo(() => {
+    if (!workflows) return []
+    return workflows.filter((wf) => {
+      // Status filter
+      if (statusFilter === "draft" && wf.publishedVersion > 0) return false
+      if (statusFilter === "published" && wf.publishedVersion === 0) return false
+
+      // Search filter
+      if (search) {
+        const q = search.toLowerCase()
+        if (!wf.name.toLowerCase().includes(q) && !wf.flowId.toLowerCase().includes(q)) {
+          return false
+        }
+      }
+
+      return true
+    })
+  }, [workflows, search, statusFilter])
 
   const handleCreate = () => {
     createWorkflow.mutate({
@@ -80,25 +168,55 @@ export default function WorkflowListPage() {
           </Button>
         </div>
 
+        {/* Search & Filter */}
+        <div className="mb-4 flex items-center gap-3">
+          <div className="relative max-w-xs flex-1">
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="搜索名称或 Flow ID…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <div className="flex gap-1">
+            {(["all", "draft", "published"] as StatusFilter[]).map((key) => (
+              <Button
+                key={key}
+                variant={statusFilter === key ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setStatusFilter(key)}
+                className="text-xs"
+              >
+                {key === "all" ? "全部" : key === "draft" ? "草稿" : "已发布"}
+              </Button>
+            ))}
+          </div>
+        </div>
+
         {isLoading && (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-32 rounded-xl" />
+              <Skeleton key={i} className="h-40 rounded-xl" />
             ))}
           </div>
         )}
 
-        {!isLoading && workflows?.length === 0 && (
+        {!isLoading && filteredWorkflows?.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
             <Workflow className="mb-4 h-12 w-12" />
-            <p className="text-lg">暂无工作流</p>
-            <p className="text-sm">点击右上角「新建工作流」开始创建</p>
+            <p className="text-lg">{workflows?.length === 0 ? "暂无工作流" : "无匹配结果"}</p>
+            <p className="text-sm">
+              {workflows?.length === 0
+                ? "点击右上角「新建工作流」开始创建"
+                : "尝试调整搜索条件或筛选器"}
+            </p>
           </div>
         )}
 
-        {workflows && workflows.length > 0 && (
+        {filteredWorkflows && filteredWorkflows.length > 0 && (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {workflows.map((wf) => (
+            {filteredWorkflows.map((wf) => (
               <Card key={wf.id} className="group relative transition-shadow hover:shadow-md">
                 <CardHeader>
                   <div className="flex items-start justify-between">
@@ -117,7 +235,14 @@ export default function WorkflowListPage() {
                         {wf.flowId}
                       </CardDescription>
                     </div>
-                    <CardAction>
+                    <CardAction className="flex items-center gap-1.5">
+                      {wf.publishedVersion > 0 ? (
+                        <Badge variant="default" className="gap-0.5 bg-green-500/15 text-green-700 dark:text-green-400">
+                          已发布 v{wf.publishedVersion}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline">草稿</Badge>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -131,7 +256,39 @@ export default function WorkflowListPage() {
                       </Button>
                     </CardAction>
                   </div>
-                  <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+
+                  {/* Triggers */}
+                  {wf.triggers.length > 0 && (
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                      {wf.triggers.map((trigger) => (
+                        <Badge
+                          key={trigger.id}
+                          variant="secondary"
+                          className="gap-0.5 font-normal"
+                        >
+                          {trigger.type === "schedule" ? (
+                            <Timer className="h-3 w-3" />
+                          ) : (
+                            <Webhook className="h-3 w-3" />
+                          )}
+                          {trigger.name}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Last execution */}
+                  {wf.lastExecution && (
+                    <div className="mt-2 flex items-center gap-1.5 text-xs">
+                      <StateIcon state={wf.lastExecution.state} />
+                      <span className="text-muted-foreground">
+                        {stateLabel(wf.lastExecution.state)} · {formatRelativeTime(wf.lastExecution.createdAt)}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Updated at */}
+                  <div className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
                     <Clock className="h-3 w-3" />
                     {formatDate(wf.updatedAt)}
                   </div>

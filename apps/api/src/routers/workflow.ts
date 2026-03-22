@@ -31,9 +31,98 @@ export const workflowRouter = t.router({
           flowId: true,
           namespaceId: true,
           disabled: true,
+          publishedVersion: true,
           createdAt: true,
           updatedAt: true,
         },
+      })
+    }),
+
+  listEnriched: t.procedure
+    .input(z.object({ namespaceId: z.string().optional() }).optional())
+    .query(async ({ input }) => {
+      const workflows = await prisma.workflow.findMany({
+        where: input?.namespaceId ? { namespaceId: input.namespaceId } : undefined,
+        orderBy: { updatedAt: "desc" },
+        select: {
+          id: true,
+          name: true,
+          flowId: true,
+          namespaceId: true,
+          disabled: true,
+          publishedVersion: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      })
+
+      if (workflows.length === 0) return []
+
+      const workflowIds = workflows.map((w) => w.id)
+
+      // Fetch triggers for all workflows
+      const triggers = await prisma.workflowTrigger.findMany({
+        where: { workflowId: { in: workflowIds } },
+        select: { id: true, workflowId: true, name: true, type: true, config: true, disabled: true },
+      })
+
+      // Fetch latest production execution per workflow
+      const latestProdExecs = await prisma.workflowExecution.findMany({
+        where: { workflowId: { in: workflowIds } },
+        orderBy: { createdAt: "desc" },
+        take: workflowIds.length * 5,
+        select: { id: true, workflowId: true, state: true, triggeredBy: true, startedAt: true, endedAt: true, createdAt: true },
+      })
+
+      // Fetch latest draft execution per workflow
+      const latestDraftExecs = await prisma.workflowDraftExecution.findMany({
+        where: { workflowId: { in: workflowIds } },
+        orderBy: { createdAt: "desc" },
+        take: workflowIds.length * 5,
+        select: { id: true, workflowId: true, state: true, triggeredBy: true, startedAt: true, endedAt: true, createdAt: true },
+      })
+
+      // Index latest execution per workflow (prefer production)
+      const latestExecByWorkflow = new Map<string, typeof latestProdExecs[number]>()
+      for (const exec of latestDraftExecs) {
+        if (!latestExecByWorkflow.has(exec.workflowId)) {
+          latestExecByWorkflow.set(exec.workflowId, exec)
+        }
+      }
+      for (const exec of latestProdExecs) {
+        latestExecByWorkflow.set(exec.workflowId, exec)
+      }
+
+      // Index triggers per workflow
+      const triggersByWorkflow = new Map<string, typeof triggers>()
+      for (const trigger of triggers) {
+        const list = triggersByWorkflow.get(trigger.workflowId) ?? []
+        list.push(trigger)
+        triggersByWorkflow.set(trigger.workflowId, list)
+      }
+
+      return workflows.map((wf) => {
+        const wfTriggers = triggersByWorkflow.get(wf.id) ?? []
+        const lastExec = latestExecByWorkflow.get(wf.id) ?? null
+        return {
+          ...wf,
+          triggers: wfTriggers.map((t) => ({
+            id: t.id,
+            name: t.name,
+            type: t.type,
+            config: t.config,
+            disabled: t.disabled,
+          })),
+          lastExecution: lastExec
+            ? {
+                state: lastExec.state,
+                triggeredBy: lastExec.triggeredBy,
+                startedAt: lastExec.startedAt?.toISOString() ?? null,
+                endedAt: lastExec.endedAt?.toISOString() ?? null,
+                createdAt: lastExec.createdAt.toISOString(),
+              }
+            : null,
+        }
       })
     }),
 

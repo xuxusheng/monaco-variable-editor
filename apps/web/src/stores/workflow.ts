@@ -99,6 +99,10 @@ interface WorkflowState {
   currentExecution: ExecutionSummary | null
   kestraHealthy: boolean
 
+  // Namespace
+  namespaceId: string
+  setNamespaceId: (id: string) => void
+
   // Trigger
   triggers: TriggerSummary[]
   setTriggers: (triggers: TriggerSummary[]) => void
@@ -181,6 +185,9 @@ export const useWorkflowStore = create<WorkflowState>()(
       currentExecution: null,
       kestraHealthy: false,
 
+      // Namespace
+      namespaceId: "default",
+
       // Trigger
       triggers: [],
 
@@ -255,6 +262,7 @@ export const useWorkflowStore = create<WorkflowState>()(
           state.currentExecution = exec
         }),
       setKestraHealthy: (v) => set({ kestraHealthy: v }),
+      setNamespaceId: (id) => set({ namespaceId: id }),
       setTriggers: (triggers) => set({ triggers }),
       expandContainer: (nodeId) =>
         set((state) => {

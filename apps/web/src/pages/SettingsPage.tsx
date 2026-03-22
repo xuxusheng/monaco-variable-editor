@@ -1,16 +1,161 @@
-import { Settings } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Settings, Save, AlertTriangle } from "lucide-react"
+import { toast } from "sonner"
+import { trpc } from "@/lib/trpc"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Separator } from "@/components/ui/separator"
+import { Skeleton } from "@/components/ui/skeleton"
+import { SecretTable } from "@/components/flow/SecretTable"
+import { VariableTable } from "@/components/flow/VariableTable"
+
+const NAMESPACE_ID = "default"
 
 export function SettingsPage() {
   return (
-    <div className="flex flex-col items-center justify-center h-full gap-4 p-8">
-      <div className="flex items-center gap-3 text-muted-foreground">
-        <Settings className="size-8" />
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">项目空间设置</h1>
-          <p className="text-sm text-muted-foreground">管理您的项目配置和偏好</p>
+    <div className="flex-1 overflow-auto">
+      <div className="mx-auto max-w-4xl p-6 space-y-6">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Settings className="size-4" />
+          <span className="font-medium text-foreground">项目空间设置</span>
+        </div>
+
+        <Tabs defaultValue="general">
+          <TabsList variant="line">
+            <TabsTrigger value="general">基本信息</TabsTrigger>
+            <TabsTrigger value="secrets">Secrets</TabsTrigger>
+            <TabsTrigger value="variables">Variables</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="general" className="mt-6">
+            <GeneralTab namespaceId={NAMESPACE_ID} />
+          </TabsContent>
+
+          <TabsContent value="secrets" className="mt-6">
+            <SecretTable namespaceId={NAMESPACE_ID} />
+          </TabsContent>
+
+          <TabsContent value="variables" className="mt-6">
+            <VariableTable namespaceId={NAMESPACE_ID} />
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  )
+}
+
+// ---- General Tab ----
+
+function GeneralTab({ namespaceId }: { namespaceId: string }) {
+  const { data: namespace, isLoading } = trpc.namespace.get.useQuery({ id: namespaceId })
+
+  const [name, setName] = useState("")
+  const [kestraNamespace, setKestraNamespace] = useState("")
+  const [description, setDescription] = useState("")
+  const [dirty, setDirty] = useState(false)
+
+  // Sync form state from server data
+  useEffect(() => {
+    if (namespace) {
+      setName(namespace.name)
+      setKestraNamespace(namespace.kestraNamespace)
+      setDescription(namespace.description ?? "")
+      setDirty(false)
+    }
+  }, [namespace])
+
+  const utils = trpc.useUtils()
+  const updateMutation = trpc.namespace.update.useMutation({
+    onSuccess: () => {
+      toast.success("设置已保存")
+      setDirty(false)
+      utils.namespace.get.invalidate({ id: namespaceId })
+    },
+    onError: (err) => toast.error(err.message),
+  })
+
+  function handleSave() {
+    updateMutation.mutate({
+      id: namespaceId,
+      name,
+      kestraNamespace,
+      description: description || undefined,
+    })
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6 max-w-lg">
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6 max-w-lg">
+      {/* Name */}
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground">显示名称</Label>
+        <Input
+          value={name}
+          onChange={(e) => { setName(e.target.value); setDirty(true) }}
+          placeholder="项目空间名称"
+        />
+      </div>
+
+      {/* Kestra Namespace */}
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground">Kestra Namespace 映射</Label>
+        <Input
+          value={kestraNamespace}
+          onChange={(e) => { setKestraNamespace(e.target.value); setDirty(true) }}
+          placeholder="io.kestra.myproject"
+        />
+        <p className="text-xs text-muted-foreground">
+          对应 Kestra 中的 namespace，用于同步变量和部署 flow
+        </p>
+      </div>
+
+      {/* Description */}
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground">描述</Label>
+        <Textarea
+          value={description}
+          onChange={(e) => { setDescription(e.target.value); setDirty(true) }}
+          placeholder="可选描述"
+          rows={3}
+        />
+      </div>
+
+      {/* Save */}
+      <Button onClick={handleSave} disabled={!dirty || updateMutation.isPending}>
+        <Save className="w-3.5 h-3.5" />
+        {updateMutation.isPending ? "保存中..." : "保存"}
+      </Button>
+
+      <Separator />
+
+      {/* Danger Zone */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 text-sm font-medium text-destructive">
+          <AlertTriangle className="w-4 h-4" />
+          <span>危险操作</span>
+        </div>
+        <div className="rounded-lg border border-destructive/30 p-4">
+          <p className="text-sm text-muted-foreground mb-3">
+            删除项目空间将同时删除所有关联的工作流、变量和密钥。此操作不可撤销。
+          </p>
+          <Button variant="destructive" size="sm" disabled>
+            删除项目空间（暂不可用）
+          </Button>
         </div>
       </div>
-      <p className="text-sm text-muted-foreground">此功能即将上线</p>
     </div>
   )
 }

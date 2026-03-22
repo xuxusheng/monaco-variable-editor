@@ -18,6 +18,12 @@ import {
   SidebarMenuItem,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { useWorkflowStore } from "@/stores/workflow"
+
+const namespaces = [
+  { id: "default", name: "默认空间" },
+]
 
 const workflowItems = [
   { label: "工作流编辑器", to: "/workflows", icon: Workflow },
@@ -49,6 +55,9 @@ function NavItem({ label, to, icon: Icon }: { label: string; to: string; icon: R
 }
 
 export function AppSidebar() {
+  const namespaceId = useWorkflowStore((s) => s.namespaceId)
+  const setNamespaceId = useWorkflowStore((s) => s.setNamespaceId)
+
   return (
     <Sidebar collapsible="icon" variant="sidebar">
       <SidebarHeader className="h-12 border-b border-sidebar-border flex items-center px-3">
@@ -62,6 +71,21 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
+        <SidebarGroup className="group-data-[collapsible=icon]:hidden">
+          <SidebarGroupLabel>项目空间</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <Select value={namespaceId} onValueChange={(v) => { if (v !== null) setNamespaceId(v) }}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="选择项目空间" />
+              </SelectTrigger>
+              <SelectContent>
+                {namespaces.map(ns => (
+                  <SelectItem key={ns.id} value={ns.id}>{ns.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </SidebarGroupContent>
+        </SidebarGroup>
         <SidebarGroup>
           <SidebarGroupLabel>工作流</SidebarGroupLabel>
           <SidebarGroupContent>

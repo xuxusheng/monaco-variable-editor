@@ -4,6 +4,13 @@ import { t } from "../trpc.js"
 import { prisma } from "../db.js"
 import { createNamespaceSchema } from "../types.js"
 
+const updateNamespaceSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1).optional(),
+  kestraNamespace: z.string().min(1).optional(),
+  description: z.string().optional(),
+})
+
 export const namespaceRouter = t.router({
   list: t.procedure.query(() => {
     return prisma.namespace.findMany({
@@ -29,4 +36,16 @@ export const namespaceRouter = t.router({
       }
       return ns
     }),
+
+  update: t.procedure.input(updateNamespaceSchema).mutation(async ({ input }) => {
+    const { id, ...data } = input
+    const ns = await prisma.namespace.findUnique({ where: { id } })
+    if (!ns) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: `Namespace ${id} not found`,
+      })
+    }
+    return prisma.namespace.update({ where: { id }, data })
+  }),
 })
