@@ -74,18 +74,19 @@ import { InputValuesForm } from "@/components/flow/InputValuesForm"
 import { ContextMenu as NodeContextMenu } from "@/components/flow/ContextMenu"
 import { Breadcrumb } from "@/components/flow/Breadcrumb"
 import { TemplateDialog } from "@/components/flow/TemplateDialog"
+import { EditorTabBar, type TabKey } from "@/components/flow/EditorTabBar"
+import { CanvasToolbar } from "@/components/flow/CanvasToolbar"
 import type { WorkflowTemplate } from "@/lib/templates"
 import { saveUserTemplate } from "@/lib/templates"
 import { getLayoutedElements } from "@/lib/autoLayout"
 import { filterVisibleNodes, filterVisibleEdges, getChildCount, canExpandContainer } from "@/lib/containerUtils"
 import { isContainer } from "@/types/container"
 import {
-  Wrench, Save, Download, FileText, LayoutDashboard,
-  ClipboardList, Package, Rocket, Play, Zap,
-  History, Copy, FolderOpen, ScrollText, Undo2, Redo2, Trash2,
-  CheckCircle, XCircle, Globe, Settings, Maximize2, Search, X,
-  Loader, Plus,
-  BookTemplate, BookmarkPlus, AlertTriangle, Pencil, ArrowLeft,
+  Rocket, Play,
+  ScrollText,
+  Search, X,
+  Plus,
+  AlertTriangle, ArrowLeft,
 } from "lucide-react"
 import { trpc } from "@/lib/trpc"
 import { Button } from "@/components/ui/button"
@@ -228,42 +229,7 @@ function yamlFromSpec(
   return YAML.stringify({ id: nameToSlug(name), type, ...spec }, { lineWidth: 0 })
 }
 
-// ========== 类型转换层（前端 ↔ API） ==========
-
-function toApiNode(n: WorkflowNode): ApiWorkflowNode {
-  return {
-    id: n.id,
-    type: n.type,
-    name: n.name,
-    description: n.description,
-    containerId: n.containerId,
-    sortIndex: n.sortIndex,
-    spec: n.spec,
-    ui: n.ui,
-  }
-}
-
-function toApiEdge(e: WorkflowEdge): ApiWorkflowEdge {
-  return {
-    id: e.id,
-    source: e.source,
-    target: e.target,
-    type: e.type,
-    label: e.label,
-  }
-}
-
-function toApiInput(i: WorkflowInput): ApiWorkflowInput {
-  return {
-    id: i.id,
-    type: i.type,
-    displayName: i.displayName,
-    description: i.description,
-    required: i.required,
-    defaults: i.defaults,
-    values: i.values,
-  }
-}
+// ========== 类型转换层（API → 前端） ==========
 
 function fromApiNode(n: ApiWorkflowNode): WorkflowNode {
   return {
@@ -345,16 +311,12 @@ export default function WorkflowEditorPage() {
   const setWorkflowMeta = useWorkflowStore((s) => s.setWorkflowMeta)
   const savedWorkflowId = useWorkflowStore((s) => s.savedWorkflowId)
   const setSavedWorkflowId = useWorkflowStore((s) => s.setSavedWorkflowId)
-  const triggers = useWorkflowStore((s) => s.triggers)
   const setTriggers = useWorkflowStore((s) => s.setTriggers)
 
   // ---- Running view mode ----
   const viewMode = useWorkflowStore((s) => s.viewMode)
   const runningSnapshot = useWorkflowStore((s) => s.runningSnapshot)
   const enterRunningMode = useWorkflowStore((s) => s.enterRunningMode)
-  const executionSource = useWorkflowStore((s) => s.executionSource)
-  const releaseVersion = useWorkflowStore((s) => s.releaseVersion)
-  const exitRunningMode = useWorkflowStore((s) => s.exitRunningMode)
 
   // ---- 模板功能 ----
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false)
@@ -763,64 +725,6 @@ export default function WorkflowEditorPage() {
   // ---- 保存/加载（tRPC useUtils） ----
   const utils = trpc.useUtils()
 
-  const createWorkflow = trpc.workflow.create.useMutation({
-    onSuccess: (result) => {
-      setSavedWorkflowId(result.id)
-      utils.workflow.list.invalidate()
-    },
-  })
-
-  const updateWorkflow = trpc.workflow.update.useMutation({
-    onSuccess: () => {
-      utils.workflow.list.invalidate()
-    },
-  })
-
-  const duplicateWorkflow = trpc.workflow.duplicate.useMutation({
-    onSuccess: (result) => {
-      toast.success(`已复制为「${result.name}」`)
-      utils.workflow.list.invalidate()
-    },
-    onError: () => toast.error("复制失败"),
-  })
-
-  const handleSaveToApi = useCallback(() => {
-    const currentNodes = syncPositions(wfNodes, canvasNodes)
-    const apiNodes = currentNodes.map(toApiNode)
-    const apiEdges = wfEdges.map(toApiEdge)
-    const apiInputs = inputs.map(toApiInput)
-
-    if (savedWorkflowId) {
-      updateWorkflow.mutate({
-        id: savedWorkflowId,
-        flowId: workflowMeta.flowId,
-        name: workflowMeta.name,
-        description: workflowMeta.description,
-        nodes: apiNodes,
-        edges: apiEdges,
-        inputs: apiInputs,
-      })
-    } else {
-      createWorkflow.mutate({
-        flowId: workflowMeta.flowId,
-        name: workflowMeta.name,
-        namespaceId: "default",
-        description: workflowMeta.description,
-        nodes: apiNodes,
-        edges: apiEdges,
-        inputs: apiInputs,
-      })
-    }
-  }, [wfNodes, wfEdges, inputs, workflowMeta, savedWorkflowId, canvasNodes, createWorkflow, updateWorkflow, setSavedWorkflowId])
-
-  const saveStatus = createWorkflow.isPending || updateWorkflow.isPending
-    ? "saving"
-    : createWorkflow.isSuccess || updateWorkflow.isSuccess
-      ? "saved"
-      : createWorkflow.isError || updateWorkflow.isError
-        ? "error"
-        : "idle"
-
   const handleLoadFromApi = useCallback(async () => {
     const workflows = await utils.workflow.list.fetch()
     if (!workflows || workflows.length === 0) {
@@ -1047,8 +951,6 @@ export default function WorkflowEditorPage() {
   const markSaved = useWorkflowStore((s) => s.markSaved)
   const setPublishedVersion = useWorkflowStore((s) => s.setPublishedVersion)
   const hasUnsavedChanges = useWorkflowStore((s) => s.hasUnsavedChanges)
-  const lastSavedAt = useWorkflowStore((s) => s.lastSavedAt)
-  const drafts = useWorkflowStore((s) => s.drafts)
   const releases = useWorkflowStore((s) => s.releases)
   const publishedVersion = useWorkflowStore((s) => s.publishedVersion)
 
@@ -1245,20 +1147,46 @@ export default function WorkflowEditorPage() {
 
   return (
     <div className="h-full flex flex-col bg-background" tabIndex={0}>
-      {/* Top bar */}
+      {/* 第一层：导航 + 核心操作 */}
       <div className="h-11 md:h-12 border-b border-border bg-card flex items-center justify-between px-2 md:px-4 shrink-0">
         <div className="flex items-center gap-1 md:gap-2">
           <Link to="/workflows" className="flex items-center text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="w-4 h-4" />
           </Link>
-          <h1 className="text-sm md:text-base font-semibold flex items-center gap-1.5">
-            <Wrench className="w-4 h-4" /> 工作流
-          </h1>
-          <span className="text-[10px] md:text-xs text-muted-foreground bg-muted px-1.5 md:px-2 py-0.5 rounded hidden sm:inline">
-            {wfNodes.length} 节点 · {wfEdges.length} 连线
+          <span className="text-xs text-muted-foreground hidden sm:inline">工作流</span>
+          <span className="text-xs text-muted-foreground hidden sm:inline">&gt;</span>
+          <span className="text-sm font-semibold truncate max-w-[120px] md:max-w-[200px]">
+            {workflowMeta.name || workflowMeta.flowId}
           </span>
+          {/* 状态标签 */}
+          {viewMode === "running" ? (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] md:text-xs font-medium bg-blue-500/10 text-blue-700 border border-blue-500/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+              运行中
+            </span>
+          ) : publishedVersion > 0 ? (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] md:text-xs font-medium bg-green-500/10 text-green-700 border border-green-500/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+              已发布 v{publishedVersion}
+            </span>
+          ) : hasUnsavedChanges ? (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] md:text-xs font-medium bg-yellow-500/10 text-yellow-700 border border-yellow-500/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
+              草稿 · 未保存
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] md:text-xs font-medium bg-yellow-500/10 text-yellow-700 border border-yellow-500/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
+              草稿
+            </span>
+          )}
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 md:gap-2">
+          {/* Kestra health indicator */}
+          <div className="flex items-center gap-1 px-1 hidden md:flex" title={kestraHealthy ? "Kestra 已连接" : "Kestra 未连接"}>
+            <div className={`w-2 h-2 rounded-full ${kestraHealthy ? "bg-green-500" : "bg-red-400"}`} />
+            <span className="text-[10px] text-muted-foreground">Kestra</span>
+          </div>
           {isMobile && (
             <Button
               variant="ghost"
@@ -1275,309 +1203,68 @@ export default function WorkflowEditorPage() {
             size="icon"
             onClick={() => setSearchOpen(true)}
             className="w-9 h-9 md:w-7 md:h-7"
-            title="搜索节点"
+            title="搜索节点 (Ctrl+F)"
           >
             <Search className="w-4 h-4" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => undo()}
-            disabled={!canUndo}
-            className="w-9 h-9 md:w-7 md:h-7"
-            title="撤销"
-          >
-            <Undo2 className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => redo()}
-            disabled={!canRedo}
-            className="w-9 h-9 md:w-7 md:h-7"
-            title="重做"
-          >
-            <Redo2 className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setRightPanel("inputs")}
-            className="w-9 h-9 md:w-7 md:h-7"
-            title="输入参数"
-          >
-            <Download className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setRightPanel("yaml")}
-            className="w-9 h-9 md:w-7 md:h-7"
-            title="YAML"
-          >
-            <FileText className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleAutoLayout}
-            className="w-9 h-9 md:w-7 md:h-7"
-            title="自动布局"
-          >
-            <LayoutDashboard className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => fitView({ padding: 0.2, maxZoom: 1, duration: 300 })}
-            className="w-9 h-9 md:w-7 md:h-7"
-            title="适应画布"
-          >
-            <Maximize2 className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setTemplateDialogOpen(true)}
-            className="w-9 h-9 md:w-7 md:h-7"
-            title="从模板创建"
-          >
-            <BookTemplate className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleSaveAsTemplate}
-            className="w-9 h-9 md:w-7 md:h-7"
-            title="保存为模板"
-          >
-            <BookmarkPlus className="w-4 h-4" />
-          </Button>
-          {selectedNodeId && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleDuplicate}
-              className="w-9 h-9 md:w-7 md:h-7"
-              title="复制节点"
-            >
-              <Copy className="w-4 h-4" />
-            </Button>
-          )}
-          {selectedNodeId && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleDeleteSelected}
-              className="w-9 h-9 md:w-7 md:h-7 hover:bg-red-50"
-              title="删除"
-            >
-              <Trash2 className="w-4 h-4 text-red-500" />
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Meta bar */}
-      <div className="h-10 border-b border-border bg-card/50 hidden md:flex items-center gap-4 px-4 shrink-0">
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-muted-foreground">Flow ID:</label>
-          <input
-            type="text"
-            value={workflowMeta.flowId}
-            onChange={(e) =>
-              setWorkflowMeta({ ...workflowMeta, flowId: e.target.value })
-            }
-            className="px-2 py-1 rounded border border-input bg-background text-sm font-mono w-36 focus:outline-none focus:ring-2 focus:ring-ring"
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-muted-foreground">名称:</label>
-          <input
-            type="text"
-            value={workflowMeta.name}
-            onChange={(e) =>
-              setWorkflowMeta({ ...workflowMeta, name: e.target.value })
-            }
-            className="px-2 py-1 rounded border border-input bg-background text-sm w-32 focus:outline-none focus:ring-2 focus:ring-ring"
-          />
-        </div>
-        <div className="flex items-center gap-2 ml-auto">
-          {/* Status indicator */}
-          {hasUnsavedChanges && (
-            <span className="text-xs text-muted-foreground">
-              ● 未保存
-            </span>
-          )}
-          {lastSavedAt && !hasUnsavedChanges && (
-            <span className="text-xs text-muted-foreground">
-              <CheckCircle className="w-3.5 h-3.5 inline" /> {new Date(lastSavedAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}
-            </span>
-          )}
-
-          {/* Draft actions */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleLoadFromApi}
-            className="h-6 text-xs"
-          >
-            <FolderOpen className="w-3.5 h-3.5" /> 加载
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              if (!savedWorkflowId) {
-                toast.warning("请先保存工作流后再复制")
-                return
-              }
-              duplicateWorkflow.mutate({ workflowId: savedWorkflowId })
-            }}
-            disabled={!savedWorkflowId || duplicateWorkflow.isPending}
-            title={!savedWorkflowId ? "请先保存工作流" : "复制当前工作流"}
-            className="h-6 text-xs"
-          >
-            <Copy className="w-3.5 h-3.5" /> 复制
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleSaveToApi}
-            className={`h-6 text-xs ${
-              saveStatus === "saving"
-                ? "bg-yellow-100 text-yellow-700 hover:bg-yellow-100"
-                : saveStatus === "saved"
-                  ? "bg-green-100 text-green-700 hover:bg-green-100"
-                  : saveStatus === "error"
-                    ? "bg-red-100 text-red-700 hover:bg-red-100"
-                    : ""
-            }`}
-          >
-            {saveStatus === "saving"
-              ? "⏳ 保存中..."
-              : saveStatus === "saved"
-                ? <span className="flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5" /> 已保存</span>
-                : saveStatus === "error"
-                  ? <span className="flex items-center gap-1"><XCircle className="w-3.5 h-3.5" /> 失败</span>
-                  : <span className="flex items-center gap-1"><Save className="w-3.5 h-3.5" /> 保存</span>}
-          </Button>
-
-          <div className="w-px h-5 bg-border" />
-
           <Button
             variant="outline"
             size="sm"
             onClick={() => handleSaveDraft()}
             disabled={!savedWorkflowId || draftSave.isPending}
-            title={!savedWorkflowId ? "请先点击「保存」创建工作流" : "保存当前编辑状态为草稿快照"}
-            className="h-6 text-xs"
+            title={!savedWorkflowId ? "请先保存工作流" : "保存当前编辑状态为草稿快照"}
+            className="h-7 md:h-8 text-xs"
           >
-            <ScrollText className="w-3.5 h-3.5" /> 保存草稿
+            <ScrollText className="w-3.5 h-3.5 mr-1" />
+            <span className="hidden sm:inline">保存草稿</span>
+            <span className="sm:hidden">草稿</span>
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setRightPanel("drafts")}
-            title={!savedWorkflowId ? "请先点击「保存」创建工作流" : "查看草稿历史"}
-            className="h-6 text-xs"
-          >
-            <ClipboardList className="w-3.5 h-3.5" /> 草稿 ({drafts.length})
-          </Button>
-
-          <div className="w-px h-5 bg-border" />
-
-          <Button
-            size="sm"
-            onClick={() => setShowPublishDialog(true)}
-            disabled={!savedWorkflowId || releasePublish.isPending}
-            title={!savedWorkflowId ? "请先点击「保存」创建工作流" : "发布当前工作流为新版本"}
-            className="h-6 text-xs bg-emerald-500 text-white hover:bg-emerald-600"
-          >
-            <Rocket className="w-3.5 h-3.5" /> 发布 v{publishedVersion + 1}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setRightPanel("releases")}
-            title={!savedWorkflowId ? "请先点击「保存」创建工作流" : "查看已发布版本"}
-            className="h-6 text-xs"
-          >
-            <Package className="w-3.5 h-3.5" /> 版本 ({releases.length})
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setRightPanel("triggers")}
-            title="触发器"
-            className="h-6 text-xs"
-          >
-            <Zap className="w-3.5 h-3.5" /> 触发器 ({triggers.length})
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setRightPanel("settings")}
-            title="项目空间设置"
-            className="h-6 text-xs"
-          >
-            <Settings className="w-3.5 h-3.5" /> 设置
-          </Button>
-
-          <div className="w-px h-5 bg-border" />
-
-          <Button
-            size="sm"
-            onClick={() => setRightPanel(rightPanel === "yaml" ? "none" : "yaml")}
-            className={`h-6 text-xs ${
-              rightPanel === "yaml"
-                ? "bg-indigo-500 text-white hover:bg-indigo-600"
-                : ""
-            }`}
-            variant={rightPanel === "yaml" ? "default" : "secondary"}
-          >
-            <FileText className="w-3.5 h-3.5" /> YAML
-          </Button>
-
-          <div className="w-px h-5 bg-border" />
-
-          {/* Kestra health indicator */}
-          <div className="flex items-center gap-1 px-1" title={kestraHealthy ? "Kestra 已连接" : "Kestra 未连接"}>
-            <div className={`w-2 h-2 rounded-full ${kestraHealthy ? "bg-green-500" : "bg-red-400"}`} />
-            <span className="text-[10px] text-muted-foreground hidden lg:inline">Kestra</span>
-          </div>
-
           <Button
             size="sm"
             onClick={handleExecuteTest}
             disabled={!savedWorkflowId || !kestraHealthy || isExecuting}
             title={!savedWorkflowId ? "请先保存工作流" : !kestraHealthy ? "Kestra 未连接" : "运行测试"}
-            className="h-6 text-xs bg-blue-500 text-white hover:bg-blue-600"
+            className="h-7 md:h-8 text-xs bg-blue-500 text-white hover:bg-blue-600"
           >
-            <Play className="w-3.5 h-3.5" /> 运行
+            <Play className="w-3.5 h-3.5 mr-1" />
+            <span className="hidden sm:inline">运行</span>
           </Button>
-
           <Button
-            variant="secondary"
             size="sm"
-            onClick={() => setRightPanel("executions")}
-            title="执行记录（草稿测试）"
-            className="h-6 text-xs"
+            onClick={() => setShowPublishDialog(true)}
+            disabled={!savedWorkflowId || releasePublish.isPending}
+            title={!savedWorkflowId ? "请先保存工作流" : "发布当前工作流为新版本"}
+            className="h-7 md:h-8 text-xs bg-emerald-500 text-white hover:bg-emerald-600 hidden md:inline-flex"
           >
-            <History className="w-3.5 h-3.5" /> 草稿执行
-          </Button>
-
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setRightPanel("production-executions")}
-            title="执行记录（已发布版本）"
-            className="h-6 text-xs"
-          >
-            <Globe className="w-3.5 h-3.5" /> 版本执行
+            <Rocket className="w-3.5 h-3.5 mr-1" />
+            发布
           </Button>
         </div>
       </div>
+
+      {/* 第二层：Tab 栏 */}
+      <EditorTabBar
+        activeTab={
+          rightPanel === "task" || rightPanel === "drafts" || rightPanel === "production-executions"
+            ? "canvas"
+            : rightPanel === "none"
+              ? "canvas"
+              : rightPanel as TabKey
+        }
+        onTabChange={(tab) => {
+          const panelMap: Record<string, typeof rightPanel> = {
+            canvas: "none",
+            yaml: "yaml",
+            inputs: "inputs",
+            executions: "executions",
+            versions: "releases",
+            triggers: "triggers",
+            settings: "settings",
+          }
+          setRightPanel(panelMap[tab] ?? "none")
+          setSelectedNodeId(null)
+        }}
+      />
 
       {/* Canvas */}
       <div className="flex-1 relative">
@@ -1623,63 +1310,13 @@ export default function WorkflowEditorPage() {
           </ReactFlow>
         </div>
 
-        {/* 运行态横幅 / 草稿/已发布状态标签 */}
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-40">
-          {viewMode === "running" ? (
-            <div className="inline-flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-full text-[11px] md:text-xs font-medium bg-blue-500/10 text-blue-700 border border-blue-500/30 shadow-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-              {/* 桌面端完整标题 */}
-              <span className="font-semibold hidden sm:inline">运行态</span>
-              <span className="text-blue-500/60 hidden sm:inline">|</span>
-              <span className="hidden sm:inline">
-                {executionSource === "release"
-                  ? `已发布${releaseVersion ? ` v${releaseVersion}` : ""}`
-                  : "草稿测试"}
-              </span>
-              {/* 移动端简短状态名 */}
-              <span className="font-semibold sm:hidden">
-                {currentExecution?.state === "RUNNING" ? "运行中"
-                  : currentExecution?.state === "SUCCESS" ? "成功"
-                  : currentExecution?.state === "FAILED" ? "失败"
-                  : currentExecution?.state ?? "运行态"}
-              </span>
-              {/* 桌面端状态详情 */}
-              {currentExecution && (
-                <>
-                  <span className="text-blue-500/60 hidden sm:inline">|</span>
-                  <span className="hidden sm:flex items-center gap-1">
-                    {currentExecution.state === "RUNNING" && <Loader className="w-3 h-3 animate-spin" />}
-                    {currentExecution.state === "SUCCESS" && <CheckCircle className="w-3 h-3 text-green-600" />}
-                    {currentExecution.state === "FAILED" && <XCircle className="w-3 h-3 text-red-500" />}
-                    {currentExecution.state}
-                  </span>
-                </>
-              )}
-              <button
-                onClick={() => exitRunningMode()}
-                className="ml-1 px-1.5 md:px-2 py-0.5 rounded bg-white/80 hover:bg-white text-blue-700 text-[10px] md:text-[11px] font-medium border border-blue-500/20 flex items-center gap-1"
-                title="切回编辑模式"
-              >
-                <Pencil className="w-3 h-3" /> <span className="hidden sm:inline">编辑草稿</span>
-              </button>
-            </div>
-          ) : publishedVersion > 0 ? (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-700 border border-green-500/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-              已发布 v{publishedVersion}
-            </span>
-          ) : hasUnsavedChanges ? (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-500/10 text-yellow-700 border border-yellow-500/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
-              草稿 · 未保存
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-500/10 text-yellow-700 border border-yellow-500/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
-              草稿
-            </span>
-          )}
-        </div>
+        {/* 画布浮动工具栏 */}
+        <CanvasToolbar
+          onAutoLayout={handleAutoLayout}
+          onFitView={() => fitView({ padding: 0.2, maxZoom: 1 })}
+          onFromTemplate={() => setTemplateDialogOpen(true)}
+          onSaveAsTemplate={handleSaveAsTemplate}
+        />
 
         {/* 容器嵌套面包屑 */}
         <Breadcrumb />

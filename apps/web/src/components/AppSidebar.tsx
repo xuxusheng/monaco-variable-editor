@@ -1,7 +1,6 @@
 import { Link, useMatchRoute } from "@tanstack/react-router"
 import {
   Workflow,
-  Code,
   Settings,
   BookTemplate,
   ChevronsLeft,
@@ -23,10 +22,6 @@ import {
 const workflowItems = [
   { label: "工作流编辑器", to: "/workflows", icon: Workflow },
   { label: "模板库", to: "/templates", icon: BookTemplate },
-] as const
-
-const toolItems = [
-  { label: "变量编辑器", to: "/monaco", icon: Code },
 ] as const
 
 const settingItems = [
@@ -72,17 +67,6 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {workflowItems.map((item) => (
-                <NavItem key={item.to} {...item} />
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>工具</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {toolItems.map((item) => (
                 <NavItem key={item.to} {...item} />
               ))}
             </SidebarMenu>

@@ -15,7 +15,7 @@ import {
 import { AppSidebar } from "@/components/AppSidebar"
 import WorkflowListPage from "@/pages/WorkflowListPage"
 import WorkflowEditorPage from "@/pages/WorkflowEditorPage"
-import { MonacoVariableEditorPage } from "@/pages/MonacoVariableEditorPage"
+
 import { SettingsPage } from "@/pages/SettingsPage"
 import { TemplatesPage } from "@/pages/TemplatesPage"
 
@@ -82,16 +82,6 @@ const workflowEditRoute = createRoute({
   ),
 })
 
-const monacoRoute = createRoute({
-  getParentRoute: () => sidebarLayoutRoute,
-  path: "/monaco",
-  component: () => (
-    <div className="flex-1 overflow-auto">
-      <MonacoVariableEditorPage />
-    </div>
-  ),
-})
-
 const settingsRoute = createRoute({
   getParentRoute: () => sidebarLayoutRoute,
   path: "/settings",
@@ -109,7 +99,6 @@ const routeTree = rootRoute.addChildren([
   workflowEditRoute,
   sidebarLayoutRoute.addChildren([
     workflowsRoute,
-    monacoRoute,
     settingsRoute,
     templatesRoute,
   ]),
