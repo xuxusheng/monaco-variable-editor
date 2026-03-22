@@ -6,6 +6,12 @@
 import { useCallback } from "react"
 import { toast } from "sonner"
 import { Inbox, ScrollText } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 interface DraftEntry {
   id: string
@@ -38,62 +44,67 @@ export function DraftHistory({ drafts, onRollback, onClose }: DraftHistoryProps)
   )
 
   return (
-    <div className="fixed top-0 right-0 h-screen w-full md:w-[400px] bg-card border-l border-border shadow-xl z-50 flex flex-col animate-in slide-in-from-right duration-200">
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-        <div className="flex items-center gap-2">
-          <ScrollText className="w-5 h-5" />
-          <h2 className="text-base font-semibold">草稿历史</h2>
-        </div>
-        <button
-          onClick={onClose}
-          className="w-8 h-8 rounded-md hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-        >
-          ✕
-        </button>
-      </div>
+    <Dialog open={true} onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent
+        showCloseButton={false}
+        className="fixed top-0 right-0 left-auto translate-x-0 translate-y-0 h-screen w-full md:w-[400px] max-w-none rounded-none ring-0 p-0 flex flex-col gap-0 animate-in slide-in-from-right duration-200 zoom-in-100 zoom-out-100 fade-in-0 fade-out-0"
+      >
+        {/* Header */}
+        <DialogHeader className="flex flex-row items-center justify-between px-5 py-4 border-b border-border gap-0">
+          <div className="flex items-center gap-2">
+            <ScrollText className="w-5 h-5" />
+            <DialogTitle>草稿历史</DialogTitle>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-md hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+          >
+            ✕
+          </button>
+        </DialogHeader>
 
-      {/* List */}
-      <div className="flex-1 overflow-y-auto">
-        {drafts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-muted-foreground px-6 text-center">
-            <Inbox className="w-10 h-10 text-muted-foreground mb-3" />
-            <p className="text-sm font-medium mb-1">暂无草稿记录</p>
-            <p className="text-xs text-muted-foreground/70">
-              点击工具栏「存草稿」保存当前编辑状态
-            </p>
-          </div>
-        ) : (
-          <div className="divide-y divide-border">
-            {drafts.map((draft, i) => (
-              <div
-                key={draft.id}
-                className="flex items-center justify-between px-5 py-3 hover:bg-muted/50 transition-colors group"
-              >
-                <div className="flex flex-col gap-0.5 min-w-0">
-                  <span className="text-sm font-medium truncate">
-                    {draft.message || "手动保存"}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {formatTime(draft.createdAt)}
-                    {i === 0 && (
-                      <span className="ml-2 text-indigo-500 font-medium">
-                        最新
-                      </span>
-                    )}
-                  </span>
-                </div>
-                <button
-                  onClick={() => handleRollback(draft)}
-                  className="opacity-0 group-hover:opacity-100 px-2.5 py-1 rounded text-xs font-medium bg-muted hover:bg-muted/80 transition-all"
+        {/* List */}
+        <div className="flex-1 overflow-y-auto">
+          {drafts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground px-6 text-center">
+              <Inbox className="w-10 h-10 text-muted-foreground mb-3" />
+              <p className="text-sm font-medium mb-1">暂无草稿记录</p>
+              <p className="text-xs text-muted-foreground/70">
+                点击工具栏「存草稿」保存当前编辑状态
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {drafts.map((draft, i) => (
+                <div
+                  key={draft.id}
+                  className="flex items-center justify-between px-5 py-3 hover:bg-muted/50 transition-colors group"
                 >
-                  回滚到此
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <span className="text-sm font-medium truncate">
+                      {draft.message || "手动保存"}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {formatTime(draft.createdAt)}
+                      {i === 0 && (
+                        <span className="ml-2 text-indigo-500 font-medium">
+                          最新
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => handleRollback(draft)}
+                    className="opacity-0 group-hover:opacity-100 px-2.5 py-1 rounded text-xs font-medium bg-muted hover:bg-muted/80 transition-all"
+                  >
+                    回滚到此
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }

@@ -13,6 +13,9 @@ import {
   Clock, Loader, CheckCircle, XCircle, AlertTriangle,
   XOctagon, Ban, Pause, ListTodo, RefreshCw, HelpCircle,
 } from "lucide-react"
+import {
+  Drawer, DrawerContent, DrawerHeader, DrawerTitle,
+} from "@/components/ui/drawer"
 
 const STATE_ICONS: Record<string, React.ReactNode> = {
   CREATED: <Clock className="w-4 h-4 text-muted-foreground" />,
@@ -76,66 +79,66 @@ export function ExecutionDrawer({ onClose, onReplay }: ExecutionDrawerProps) {
   )
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-2xl z-50 flex flex-col" style={{ height: "40vh", minHeight: 320 }}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-border shrink-0">
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-semibold">执行详情</span>
-          <span className={`text-xs font-medium px-2 py-0.5 rounded ${STATE_COLORS[currentExecution.state] ?? "text-muted-foreground"}`}>
-            {STATE_ICONS[currentExecution.state] ?? <HelpCircle className="w-4 h-4 text-muted-foreground" />} {currentExecution.state}
-          </span>
-          {isExecuting && (
-            <span className="text-xs text-blue-500 animate-pulse">执行中...</span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {isExecuting && (
+    <Drawer open onOpenChange={(open) => { if (!open) onClose() }} direction="right">
+      <DrawerContent className="h-full w-full sm:max-w-lg">
+        <DrawerHeader className="flex flex-row items-center justify-between">
+          <div className="flex items-center gap-3">
+            <DrawerTitle>执行详情</DrawerTitle>
+            <span className={`text-xs font-medium px-2 py-0.5 rounded ${STATE_COLORS[currentExecution.state] ?? "text-muted-foreground"}`}>
+              {STATE_ICONS[currentExecution.state] ?? <HelpCircle className="w-4 h-4 text-muted-foreground" />} {currentExecution.state}
+            </span>
+            {isExecuting && (
+              <span className="text-xs text-blue-500 animate-pulse">执行中...</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {isExecuting && (
+              <button
+                onClick={handleKill}
+                disabled={executionKill.isPending}
+                className="px-2 py-1 text-xs font-medium rounded-md bg-red-500 text-white hover:bg-red-600 disabled:opacity-50"
+              >
+                ⏹ 停止
+              </button>
+            )}
+          </div>
+        </DrawerHeader>
+
+        {/* Tabs */}
+        <div className="flex border-b border-border shrink-0">
+          {(["overview", "tasks", "logs"] as Tab[]).map((t) => (
             <button
-              onClick={handleKill}
-              disabled={executionKill.isPending}
-              className="px-2 py-1 text-xs font-medium rounded-md bg-red-500 text-white hover:bg-red-600 disabled:opacity-50"
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
+                tab === t
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
             >
-              ⏹ 停止
+              {t === "overview" ? "概览" : t === "tasks" ? "任务列表" : "日志"}
             </button>
-          )}
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-lg leading-none">✕</button>
+          ))}
         </div>
-      </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-border shrink-0">
-        {(["overview", "tasks", "logs"] as Tab[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-2 text-xs font-medium border-b-2 transition-colors ${
-              tab === t
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {t === "overview" ? "概览" : t === "tasks" ? "任务列表" : "日志"}
-          </button>
-        ))}
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4">
-        {tab === "overview" && (
-          <OverviewTab execution={currentExecution} duration={duration} progress={progress} />
-        )}
-        {tab === "tasks" && (
-          <TasksTab
-            execution={currentExecution}
-            isExecuting={isExecuting}
-            onReplay={handleReplay}
-          />
-        )}
-        {tab === "logs" && (
-          <LogsTab kestraExecId={currentExecution.kestraExecId} />
-        )}
-      </div>
-    </div>
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-4">
+          {tab === "overview" && (
+            <OverviewTab execution={currentExecution} duration={duration} progress={progress} />
+          )}
+          {tab === "tasks" && (
+            <TasksTab
+              execution={currentExecution}
+              isExecuting={isExecuting}
+              onReplay={handleReplay}
+            />
+          )}
+          {tab === "logs" && (
+            <LogsTab kestraExecId={currentExecution.kestraExecId} />
+          )}
+        </div>
+      </DrawerContent>
+    </Drawer>
   )
 }
 

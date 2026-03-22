@@ -127,6 +127,50 @@ export const workflowRouter = t.router({
       }
     }),
 
+  duplicate: t.procedure
+    .input(z.object({ workflowId: z.string() }))
+    .mutation(async ({ input }) => {
+      const source = await prisma.workflow.findUnique({
+        where: { id: input.workflowId },
+      })
+      if (!source) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: `Workflow ${input.workflowId} not found`,
+        })
+      }
+
+      // Generate unique flowId for the copy
+      let newFlowId = `${source.flowId}_copy`
+      let counter = 1
+      while (
+        await prisma.workflow.findUnique({
+          where: {
+            namespaceId_flowId: {
+              namespaceId: source.namespaceId,
+              flowId: newFlowId,
+            },
+          },
+        })
+      ) {
+        counter++
+        newFlowId = `${source.flowId}_copy${counter}`
+      }
+
+      return prisma.workflow.create({
+        data: {
+          name: `${source.name}（副本）`,
+          flowId: newFlowId,
+          namespaceId: source.namespaceId,
+          description: source.description,
+          nodes: source.nodes as Prisma.InputJsonValue,
+          edges: source.edges as Prisma.InputJsonValue,
+          inputs: source.inputs as Prisma.InputJsonValue,
+          variables: source.variables as Prisma.InputJsonValue,
+        },
+      })
+    }),
+
   // ─── Draft API ───
 
   draftSave: t.procedure
@@ -865,6 +909,67 @@ export const workflowRouter = t.router({
       return prisma.workflowTrigger.findMany({
         where: { workflowId: input.workflowId },
         orderBy: { createdAt: "desc" },
+      })
+    }),
+
+  triggerStatus: t.procedure
+    .input(z.object({ workflowId: z.string() }))
+    .query(async ({ input }) => {
+      const triggers = await prisma.workflowTrigger.findMany({
+        where: { workflowId: input.workflowId },
+        select: { id: true, type: true, config: true, kestraFlowId: true },
+      })
+
+      // Get the most recent production execution for each trigger
+      const execs = await prisma.workflowExecution.findMany({
+        where: {
+          workflowId: input.workflowId,
+          triggeredBy: { startsWith: "trigger:" },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 100,
+        select: { triggeredBy: true, state: true, startedAt: true, endedAt: true, createdAt: true },
+      })
+
+      // Index latest execution per trigger name
+      const latestExec = new Map<string, (typeof execs)[number]>()
+      for (const exec of execs) {
+        // triggeredBy format: "trigger:<triggerName>"
+        const triggerName = exec.triggeredBy.slice("trigger:".length)
+        if (!latestExec.has(triggerName)) latestExec.set(triggerName, exec)
+      }
+
+      const { nextCronFire } = await import("../lib/cron.js")
+
+      return triggers.map((t) => {
+        const config = t.config as Record<string, unknown>
+
+        // Next fire time (schedule only)
+        let nextFireAt: string | null = null
+        if (t.type === "schedule") {
+          const cron = config.cron as string | undefined
+          if (cron) {
+            try {
+              const next = nextCronFire(cron, new Date())
+              if (next) nextFireAt = next.toISOString()
+            } catch { /* ignore parse errors */ }
+          }
+        }
+
+        // Last execution
+        const lastExec = latestExec.get(t.kestraFlowId) ?? null
+
+        return {
+          triggerId: t.id,
+          nextFireAt,
+          lastExecution: lastExec
+            ? {
+                state: lastExec.state,
+                startedAt: lastExec.startedAt?.toISOString() ?? null,
+                endedAt: lastExec.endedAt?.toISOString() ?? null,
+              }
+            : null,
+        }
       })
     }),
 
