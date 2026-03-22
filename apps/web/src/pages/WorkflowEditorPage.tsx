@@ -1,4 +1,5 @@
 import { useCallback, useRef, useMemo, useEffect, memo, useState } from "react"
+import { useParams, Link } from "@tanstack/react-router"
 import type { TaskRun, ExecutionSummary, RunningSnapshot } from "@/stores/workflow"
 
 function isTerminalState(state: string): boolean {
@@ -54,6 +55,7 @@ import "@xyflow/react/dist/style.css"
 import { WorkflowNode as WorkflowNodeComponent } from "@/components/flow/WorkflowNode"
 import { WorkflowEdge as WorkflowEdgeComponent } from "@/components/flow/WorkflowEdge"
 import { NodeCreatePanel } from "@/components/flow/NodeCreatePanel"
+import { MobileNodePanel } from "@/components/flow/MobileNodePanel"
 import { TaskConfigPanel } from "@/components/flow/TaskConfigPanel"
 import { TriggerPanel } from "@/components/flow/TriggerPanel"
 import { TriggerCreateForm } from "@/components/flow/TriggerCreateForm"
@@ -83,7 +85,7 @@ import {
   History, Copy, FolderOpen, ScrollText, Undo2, Redo2, Trash2,
   CheckCircle, XCircle, Globe, Settings, Maximize2, Search, X,
   Loader, Plus,
-  BookTemplate, BookmarkPlus, AlertTriangle, Pencil,
+  BookTemplate, BookmarkPlus, AlertTriangle, Pencil, ArrowLeft,
 } from "lucide-react"
 import { trpc } from "@/lib/trpc"
 import { Button } from "@/components/ui/button"
@@ -317,6 +319,7 @@ const FitViewOnMount = memo(function FitViewOnMount() {
 // ========== 主组件 ==========
 
 export default function WorkflowEditorPage() {
+  const { workflowId } = useParams({ from: "/workflows/$workflowId/edit" })
   const reactFlowWrapper = useRef<HTMLDivElement>(null)
   const { fitView, screenToFlowPosition, getNodes } = useReactFlow()
 
@@ -844,6 +847,31 @@ export default function WorkflowEditorPage() {
     setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 100)
   }, [workflowMeta.namespace, fitView, utils, setSavedWorkflowId, setWorkflowMeta, setWfNodes, setWfEdges, setInputs])
 
+  // ---- Auto-load workflow from URL param on mount ----
+  const [hasAutoLoaded, setHasAutoLoaded] = useState(false)
+  useEffect(() => {
+    if (!workflowId || hasAutoLoaded) return
+    setHasAutoLoaded(true)
+    const loadWorkflow = async () => {
+      const full = await utils.workflow.get.fetch({ id: workflowId })
+      if (!full) return
+      setSavedWorkflowId(full.id)
+      setWorkflowMeta({
+        flowId: full.flowId,
+        name: full.name,
+        namespace: workflowMeta.namespace,
+        description: full.description ?? "",
+      })
+      if (full.nodes) setWfNodes((full.nodes as unknown as ApiWorkflowNode[]).map(fromApiNode))
+      if (full.edges) setWfEdges((full.edges as unknown as ApiWorkflowEdge[]).map(fromApiEdge))
+      if (full.inputs) setInputs((full.inputs as unknown as ApiWorkflowInput[]).map(fromApiInput))
+      useWorkflowStore.getState().clearExpandedContainers()
+      setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 100)
+    }
+    loadWorkflow()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workflowId])
+
   // ---- 选中节点数据 ----
   const selectedNode = wfNodes.find((n) => n.id === selectedNodeId)
 
@@ -1220,6 +1248,9 @@ export default function WorkflowEditorPage() {
       {/* Top bar */}
       <div className="h-11 md:h-12 border-b border-border bg-card flex items-center justify-between px-2 md:px-4 shrink-0">
         <div className="flex items-center gap-1 md:gap-2">
+          <Link to="/workflows" className="flex items-center text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeft className="w-4 h-4" />
+          </Link>
           <h1 className="text-sm md:text-base font-semibold flex items-center gap-1.5">
             <Wrench className="w-4 h-4" /> 工作流
           </h1>
@@ -1719,7 +1750,7 @@ export default function WorkflowEditorPage() {
               <DrawerTitle>添加节点</DrawerTitle>
             </DrawerHeader>
             <div className="flex-1 overflow-y-auto px-4 pb-4">
-              <NodeCreatePanel isOpen={true} onToggle={() => setNodeCreateDrawerOpen(false)} />
+              <MobileNodePanel />
             </div>
           </DrawerContent>
         </Drawer>
