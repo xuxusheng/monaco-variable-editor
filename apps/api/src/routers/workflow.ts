@@ -271,6 +271,10 @@ export const workflowRouter = t.router({
       z.object({
         workflowId: z.string(),
         message: z.string().optional(),
+        nodes: z.any().optional(),
+        edges: z.any().optional(),
+        inputs: z.any().optional(),
+        variables: z.any().optional(),
       }),
     )
     .mutation(async ({ input }) => {
@@ -284,13 +288,31 @@ export const workflowRouter = t.router({
         })
       }
 
+      // 前端传入当前状态时，先更新 workflow 记录（确保刷新后数据不丢）
+      if (input.nodes || input.edges || input.inputs || input.variables) {
+        await prisma.workflow.update({
+          where: { id: input.workflowId },
+          data: {
+            ...(input.nodes !== undefined && { nodes: input.nodes as Prisma.InputJsonValue }),
+            ...(input.edges !== undefined && { edges: input.edges as Prisma.InputJsonValue }),
+            ...(input.inputs !== undefined && { inputs: input.inputs as Prisma.InputJsonValue }),
+            ...(input.variables !== undefined && { variables: input.variables as Prisma.InputJsonValue }),
+          },
+        })
+      }
+
+      // 重新读取 workflow（可能刚被更新过）
+      const updatedWf = await prisma.workflow.findUnique({
+        where: { id: input.workflowId },
+      })
+
       const draft = await prisma.workflowDraft.create({
         data: {
           workflowId: input.workflowId,
-          nodes: wf.nodes as Prisma.InputJsonValue,
-          edges: wf.edges as Prisma.InputJsonValue,
-          inputs: wf.inputs as Prisma.InputJsonValue,
-          variables: wf.variables as Prisma.InputJsonValue,
+          nodes: (updatedWf?.nodes ?? wf.nodes) as Prisma.InputJsonValue,
+          edges: (updatedWf?.edges ?? wf.edges) as Prisma.InputJsonValue,
+          inputs: (updatedWf?.inputs ?? wf.inputs) as Prisma.InputJsonValue,
+          variables: (updatedWf?.variables ?? wf.variables) as Prisma.InputJsonValue,
           message: input.message,
         },
       })

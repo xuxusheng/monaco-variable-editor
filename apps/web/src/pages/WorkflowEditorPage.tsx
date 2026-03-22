@@ -944,9 +944,16 @@ export default function WorkflowEditorPage() {
         setPendingAction("save")
         return
       }
-      draftSave.mutate({ workflowId: savedWorkflowId, message })
+      draftSave.mutate({
+        workflowId: savedWorkflowId,
+        message,
+        nodes: wfNodes,
+        edges: wfEdges,
+        inputs,
+        variables: wfVariables,
+      })
     },
-    [savedWorkflowId, draftSave, getMissingRefs],
+    [savedWorkflowId, draftSave, getMissingRefs, wfNodes, wfEdges, inputs, wfVariables],
   )
 
   // Publish action — 缺失引用时阻止发布
@@ -971,7 +978,13 @@ export default function WorkflowEditorPage() {
   const handleIgnoreAndSave = useCallback(() => {
     setMissingRefsWarning(null)
     if (pendingAction === "save" && savedWorkflowId) {
-      draftSave.mutate({ workflowId: savedWorkflowId })
+      draftSave.mutate({
+        workflowId: savedWorkflowId,
+        nodes: wfNodes,
+        edges: wfEdges,
+        inputs,
+        variables: wfVariables,
+      })
     }
     // publish 不允许忽略
     setPendingAction(null)
