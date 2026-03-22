@@ -855,11 +855,11 @@ export default function WorkflowEditorPage() {
   hasUnsavedChangesRef.current = hasUnsavedChanges
   const handleSaveDraftRef = useRef(handleSaveDraft)
   handleSaveDraftRef.current = handleSaveDraft
-  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout>>()
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   useEffect(() => {
     if (!savedWorkflowId) return
     function tick() {
-      if (hasUnsavedChangesRef.current) {
+      if (hasUnsavedChangesRef.current && handleSaveDraftRef.current) {
         handleSaveDraftRef.current("自动暂存")
       }
       autoSaveTimerRef.current = setTimeout(tick, 30_000)
@@ -879,7 +879,7 @@ export default function WorkflowEditorPage() {
   const [showTriggerForm, setShowTriggerForm] = useState(false)
 
   // Kestra health check (on mount + every 5 min) — with abort on unmount
-  const healthTimerRef = useRef<ReturnType<typeof setTimeout>>()
+  const healthTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   useEffect(() => {
     let isMounted = true
     const utilsRef = utils
@@ -908,7 +908,7 @@ export default function WorkflowEditorPage() {
   setCurrentExecutionRef.current = setCurrentExecution
   const setIsExecutingRef = useRef(setIsExecuting)
   setIsExecutingRef.current = setIsExecuting
-  const pollTimerRef = useRef<ReturnType<typeof setTimeout>>()
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   useEffect(() => {
     const exec = currentExecutionRef.current
     if (!exec || isTerminalState(exec.state)) {

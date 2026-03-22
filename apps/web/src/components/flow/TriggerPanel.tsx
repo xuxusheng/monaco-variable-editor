@@ -17,8 +17,6 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog"
-import { Button } from "@/components/ui/button"
-
 interface TriggerPanelProps {
   workflowId: string
   onCreate: () => void

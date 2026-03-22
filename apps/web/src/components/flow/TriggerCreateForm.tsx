@@ -200,7 +200,7 @@ export function TriggerCreateForm({
             <Label className="mb-1.5">基于版本</Label>
             <Select
               value={selectedReleaseId}
-              onValueChange={setSelectedReleaseId}
+              onValueChange={(v) => { if (v) setSelectedReleaseId(v) }}
             >
               <SelectTrigger className="w-full">
                 <SelectValue />
