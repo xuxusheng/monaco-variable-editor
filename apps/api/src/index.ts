@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { timingSafeEqual } from "node:crypto";
+import { createGzip, createBrotliCompress } from "node:zlib";
 import type { Prisma } from "./generated/prisma/client.js";
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
@@ -15,6 +16,62 @@ const app = new Hono();
 
 // Middleware
 app.use(logger());
+
+// Compression (gzip/brotli) for responses > 1KB
+app.use("*", async (c, next) => {
+  await next();
+  const accept = c.req.header("Accept-Encoding") ?? "";
+  const body = c.res.body;
+  if (!body) return;
+  if (c.res.headers.get("Content-Encoding")) return;
+
+  // Skip small responses
+  const contentLength = c.res.headers.get("Content-Length");
+  if (contentLength && parseInt(contentLength) < 1024) return;
+
+  const headers = new Headers(c.res.headers);
+  headers.set("Vary", "Accept-Encoding");
+  headers.delete("Content-Length");
+
+  if (accept.includes("br")) {
+    const brotli = createBrotliCompress();
+    const reader = body.getReader();
+    const stream = new ReadableStream({
+      async start(controller) {
+        brotli.on("data", (chunk) => controller.enqueue(chunk));
+        brotli.on("end", () => controller.close());
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) { brotli.end(); break; }
+            brotli.write(value);
+          }
+        } catch (e) { brotli.end(); }
+      },
+    });
+    headers.set("Content-Encoding", "br");
+    c.res = new Response(stream, { status: c.res.status, statusText: c.res.statusText, headers });
+  } else if (accept.includes("gzip")) {
+    const gzip = createGzip();
+    const reader = body.getReader();
+    const stream = new ReadableStream({
+      async start(controller) {
+        gzip.on("data", (chunk) => controller.enqueue(chunk));
+        gzip.on("end", () => controller.close());
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) { gzip.end(); break; }
+            gzip.write(value);
+          }
+        } catch (e) { gzip.end(); }
+      },
+    });
+    headers.set("Content-Encoding", "gzip");
+    c.res = new Response(stream, { status: c.res.status, statusText: c.res.statusText, headers });
+  }
+});
+
 app.use("/api/*", cors());
 
 // tRPC sub-router
