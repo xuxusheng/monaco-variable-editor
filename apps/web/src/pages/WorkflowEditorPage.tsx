@@ -1536,20 +1536,22 @@ export default function WorkflowEditorPage() {
           </ReactFlow>
         </div>
 
-        {/* 画布浮动工具栏 */}
-        <CanvasToolbar
-          onAutoLayout={handleAutoLayout}
-          onFitView={() => fitView({ padding: 0.2, maxZoom: 1 })}
-          onFromTemplate={() => setTemplateDialogOpen(true)}
-          onSaveAsTemplate={handleSaveAsTemplate}
-        />
+        {/* 画布浮动工具栏 — 移动端隐藏（功能在更多菜单中） */}
+        {!isMobile && (
+          <CanvasToolbar
+            onAutoLayout={handleAutoLayout}
+            onFitView={() => fitView({ padding: 0.2, maxZoom: 1 })}
+            onFromTemplate={() => setTemplateDialogOpen(true)}
+            onSaveAsTemplate={handleSaveAsTemplate}
+          />
+        )}
 
         {/* 容器嵌套面包屑 */}
         <Breadcrumb />
 
         {/* Ctrl+F 搜索定位 */}
         {searchOpen && (
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 w-80 max-w-[calc(100%-1rem)] bg-card border border-border rounded-lg shadow-lg">
+          <div className="absolute top-2 left-2 right-2 z-50 md:left-1/2 md:right-auto md:-translate-x-1/2 md:w-80 md:max-w-[calc(100%-1rem)] bg-card border border-border rounded-lg shadow-lg">
             <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
               <Search className="w-4 h-4 text-muted-foreground shrink-0" />
               <input
