@@ -1,5 +1,5 @@
 import { useCallback, useRef, useMemo, useEffect, memo, useState } from "react"
-import type { TaskRun, ExecutionSummary } from "@/stores/workflow"
+import type { TaskRun, ExecutionSummary, RunningSnapshot } from "@/stores/workflow"
 
 function isTerminalState(state: string): boolean {
   return ["SUCCESS", "WARNING", "FAILED", "KILLED", "CANCELLED", "RETRIED"].includes(state)
@@ -63,22 +63,40 @@ import { DraftHistory } from "@/components/flow/DraftHistory"
 import { ReleaseHistory } from "@/components/flow/ReleaseHistory"
 import { PublishDialog } from "@/components/flow/PublishDialog"
 import { ExecutionDrawer } from "@/components/flow/ExecutionDrawer"
+import { fromKestraYaml, toKestraYaml } from "@/lib/yamlConverter"
+import { checkReferences, type MissingReference } from "@/lib/referenceChecker"
 import { ExecutionHistory } from "@/components/flow/ExecutionHistory"
 import { ProductionExecHistory } from "@/components/flow/ProductionExecHistory"
 import { NamespaceSettings } from "@/components/flow/NamespaceSettings"
 import { InputValuesForm } from "@/components/flow/InputValuesForm"
 import { ContextMenu as NodeContextMenu } from "@/components/flow/ContextMenu"
+import { Breadcrumb } from "@/components/flow/Breadcrumb"
+import { TemplateDialog } from "@/components/flow/TemplateDialog"
+import type { WorkflowTemplate } from "@/lib/templates"
+import { saveUserTemplate } from "@/lib/templates"
 import { getLayoutedElements } from "@/lib/autoLayout"
-import { filterVisibleNodes, filterVisibleEdges, getChildCount } from "@/lib/containerUtils"
+import { filterVisibleNodes, filterVisibleEdges, getChildCount, canExpandContainer } from "@/lib/containerUtils"
 import { isContainer } from "@/types/container"
 import {
   Wrench, Save, Download, FileText, LayoutDashboard,
   ClipboardList, Package, Rocket, Play, Zap,
   History, Copy, FolderOpen, ScrollText, Undo2, Redo2, Trash2,
   CheckCircle, XCircle, Globe, Settings, Maximize2, Search, X,
+  Loader,
+  BookTemplate, BookmarkPlus, AlertTriangle, Pencil,
 } from "lucide-react"
 import { trpc } from "@/lib/trpc"
 import { Button } from "@/components/ui/button"
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
 import { useHotkeys } from "react-hotkeys-hook"
 import type {
@@ -117,7 +135,7 @@ const genEdgeId = () => `edge_${crypto.randomUUID().slice(0, 8)}`
 // ========== 数据转换层 ==========
 
 /** 业务节点 → React Flow 节点 */
-function toCanvasNodes(wfNodes: WorkflowNode[]): Node[] {
+function toCanvasNodes(wfNodes: WorkflowNode[], nodesWithMissingRefs?: Set<string>): Node[] {
   return wfNodes.map((n) => ({
     id: n.id,
     type: "workflowNode" as const,
@@ -131,6 +149,7 @@ function toCanvasNodes(wfNodes: WorkflowNode[]): Node[] {
       isContainer: isContainer(n.type),
       collapsed: n.ui?.collapsed ?? false,
       childCount: getChildCount(n.id, wfNodes),
+      hasMissingRefs: nodesWithMissingRefs?.has(n.id) ?? false,
     },
   }))
 }
@@ -319,6 +338,65 @@ export default function WorkflowEditorPage() {
   const triggers = useWorkflowStore((s) => s.triggers)
   const setTriggers = useWorkflowStore((s) => s.setTriggers)
 
+  // ---- Running view mode ----
+  const viewMode = useWorkflowStore((s) => s.viewMode)
+  const runningSnapshot = useWorkflowStore((s) => s.runningSnapshot)
+  const enterRunningMode = useWorkflowStore((s) => s.enterRunningMode)
+  const executionSource = useWorkflowStore((s) => s.executionSource)
+  const releaseVersion = useWorkflowStore((s) => s.releaseVersion)
+  const exitRunningMode = useWorkflowStore((s) => s.exitRunningMode)
+
+  // ---- 模板功能 ----
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false)
+
+  // ---- 引用检测 ----
+  const [missingRefsWarning, setMissingRefsWarning] = useState<MissingReference[] | null>(null)
+  const [pendingAction, setPendingAction] = useState<"save" | "publish" | null>(null)
+  const [settingsTab, setSettingsTab] = useState<"variables" | "secrets">("variables")
+
+  /** 获取当前工作流中所有缺失的引用 */
+  const getMissingRefs = useCallback((): MissingReference[] => {
+    const ids = inputs.map((i) => i.id)
+    const yaml = toKestraYaml(wfNodes, wfEdges, inputs, [], workflowMeta.flowId, workflowMeta.namespace)
+    const result = checkReferences(yaml, { secrets: [], variables: [], inputs: ids })
+    return result.missing
+  }, [wfNodes, wfEdges, inputs, workflowMeta.flowId, workflowMeta.namespace])
+
+  /** 跳转到 Namespace Settings 的指定 tab */
+  const navigateToSettings = useCallback((tab: "variables" | "secrets") => {
+    setSettingsTab(tab)
+    setRightPanel("settings")
+    setMissingRefsWarning(null)
+    setPendingAction(null)
+  }, [setRightPanel])
+
+  const handleTemplateSelect = useCallback(
+    (template: WorkflowTemplate) => {
+      setWfNodes(template.nodes)
+      setWfEdges(template.edges)
+      setInputs(template.inputs)
+      toast.success(`已加载模板「${template.name}」`)
+    },
+    [setWfNodes, setWfEdges, setInputs],
+  )
+
+  const handleSaveAsTemplate = useCallback(() => {
+    const name = prompt("模板名称：")
+    if (!name) return
+    const description = prompt("模板描述：") ?? ""
+    const id = `user-${Date.now()}`
+    saveUserTemplate({
+      id,
+      name,
+      description,
+      category: "自定义",
+      nodes: wfNodes,
+      edges: wfEdges,
+      inputs,
+    })
+    toast.success(`已保存为模板「${name}」`)
+  }, [wfNodes, wfEdges, inputs])
+
   // ---- 节点搜索定位 (Ctrl+F) ----
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
@@ -348,16 +426,48 @@ export default function WorkflowEditorPage() {
     [wfNodes, fitView, setSelectedNodeId],
   )
 
+  // ---- 数据源：运行态用 snapshot，编辑态用 draft ----
+  const displayNodes = useMemo(
+    () => (viewMode === "running" && runningSnapshot ? runningSnapshot.nodes : wfNodes),
+    [viewMode, runningSnapshot, wfNodes],
+  )
+  const displayEdges = useMemo(
+    () => (viewMode === "running" && runningSnapshot ? runningSnapshot.edges : wfEdges),
+    [viewMode, runningSnapshot, wfEdges],
+  )
+
   // ---- 过滤折叠容器的子节点 ----
-  const visibleWfNodes = useMemo(() => filterVisibleNodes(wfNodes), [wfNodes])
+  const visibleWfNodes = useMemo(() => filterVisibleNodes(displayNodes), [displayNodes])
   const visibleNodeIds = useMemo(
     () => new Set(visibleWfNodes.map((n) => n.id)),
     [visibleWfNodes],
   )
   const visibleWfEdges = useMemo(
-    () => filterVisibleEdges(wfEdges, visibleNodeIds),
-    [wfEdges, visibleNodeIds],
+    () => filterVisibleEdges(displayEdges, visibleNodeIds),
+    [displayEdges, visibleNodeIds],
   )
+
+  // ---- 引用检测（每个节点的 spec 中是否有缺失引用） ----
+  const inputIds = useMemo(() => inputs.map((i) => i.id), [inputs])
+  const nodesWithMissingRefs = useMemo(() => {
+    // 收集所有引用（遍历每个节点的 spec）
+    const yaml = toKestraYaml(wfNodes, wfEdges, inputs, [], workflowMeta.flowId, workflowMeta.namespace)
+    const result = checkReferences(yaml, { secrets: [], variables: [], inputs: inputIds })
+    if (result.missing.length === 0) return new Set<string>()
+
+    // 找出哪些节点含有缺失引用
+    const set = new Set<string>()
+    for (const node of wfNodes) {
+      const specStr = JSON.stringify(node.spec)
+      if (/secret\(['"]\w+['"]\)/.test(specStr) || /vars\.\w+/.test(specStr) || /inputs\.\w+/.test(specStr)) {
+        // 简化判断：只要节点 spec 中有引用模式且该引用缺失，就标记
+        const nodeYaml = JSON.stringify(node.spec)
+        const nodeResult = checkReferences(nodeYaml, { secrets: [], variables: [], inputs: inputIds })
+        if (nodeResult.missing.length > 0) set.add(node.id)
+      }
+    }
+    return set
+  }, [wfNodes, wfEdges, inputs, inputIds, workflowMeta.flowId, workflowMeta.namespace])
 
   // ---- zundo temporal (undo/redo) ----
   const undo = useUndo()
@@ -367,7 +477,7 @@ export default function WorkflowEditorPage() {
 
   // ---- 画布状态（从过滤后的业务状态派生） ----
   const [canvasNodes, setCanvasNodes, onCanvasNodesChange] = useNodesState(
-    toCanvasNodes(visibleWfNodes),
+    toCanvasNodes(visibleWfNodes, nodesWithMissingRefs),
   )
   const [canvasEdges, setCanvasEdges, onCanvasEdgesChange] = useEdgesState(
     toCanvasEdges(visibleWfEdges),
@@ -375,8 +485,8 @@ export default function WorkflowEditorPage() {
 
   // ---- 过滤后的业务状态变更 → 同步画布 ----
   useEffect(() => {
-    setCanvasNodes(toCanvasNodes(visibleWfNodes))
-  }, [visibleWfNodes, setCanvasNodes])
+    setCanvasNodes(toCanvasNodes(visibleWfNodes, nodesWithMissingRefs))
+  }, [visibleWfNodes, nodesWithMissingRefs, setCanvasNodes])
 
   useEffect(() => {
     setCanvasEdges(toCanvasEdges(visibleWfEdges))
@@ -678,6 +788,7 @@ export default function WorkflowEditorPage() {
     if (full.edges) setWfEdges((full.edges as unknown as ApiWorkflowEdge[]).map(fromApiEdge))
     if (full.inputs) setInputs((full.inputs as unknown as ApiWorkflowInput[]).map(fromApiInput))
 
+    useWorkflowStore.getState().clearExpandedContainers()
     setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 100)
   }, [workflowMeta.namespace, fitView, utils, setSavedWorkflowId, setWorkflowMeta, setWfNodes, setWfEdges, setInputs])
 
@@ -785,29 +896,51 @@ export default function WorkflowEditorPage() {
 
   // Sync query data (drafts/releases fetched via tRPC, displayed directly)
 
-  // Save draft action
+  // Save draft action — 有缺失引用时弹窗警告但允许忽略
   const handleSaveDraft = useCallback(
     (message?: string) => {
       if (!savedWorkflowId) {
         toast.warning("请先保存工作流到 API")
         return
       }
+      const missing = getMissingRefs()
+      if (missing.length > 0) {
+        setMissingRefsWarning(missing)
+        setPendingAction("save")
+        return
+      }
       draftSave.mutate({ workflowId: savedWorkflowId, message })
     },
-    [savedWorkflowId, draftSave],
+    [savedWorkflowId, draftSave, getMissingRefs],
   )
 
-  // Publish action
+  // Publish action — 缺失引用时阻止发布
   const handlePublish = useCallback(
     (name: string, yaml: string) => {
       if (!savedWorkflowId) {
         toast.warning("请先保存工作流到 API")
         return
       }
+      const missing = getMissingRefs()
+      if (missing.length > 0) {
+        setMissingRefsWarning(missing)
+        setPendingAction("publish")
+        return
+      }
       releasePublish.mutate({ workflowId: savedWorkflowId, name, yaml })
     },
-    [savedWorkflowId, releasePublish],
+    [savedWorkflowId, releasePublish, getMissingRefs],
   )
+
+  // 弹窗确认后的处理
+  const handleIgnoreAndSave = useCallback(() => {
+    setMissingRefsWarning(null)
+    if (pendingAction === "save" && savedWorkflowId) {
+      draftSave.mutate({ workflowId: savedWorkflowId })
+    }
+    // publish 不允许忽略
+    setPendingAction(null)
+  }, [pendingAction, savedWorkflowId, draftSave])
 
   // Draft rollback action
   const handleDraftRollback = useCallback(
@@ -838,6 +971,17 @@ export default function WorkflowEditorPage() {
   const drafts = useWorkflowStore((s) => s.drafts)
   const releases = useWorkflowStore((s) => s.releases)
   const publishedVersion = useWorkflowStore((s) => s.publishedVersion)
+
+  // 最新发布版本的 nodes（用于发布前 diff）
+  const prevReleaseNodes = useMemo(() => {
+    const latest = releasesQuery.data?.[0]
+    if (!latest?.yaml) return undefined
+    try {
+      return fromKestraYaml(latest.yaml).nodes
+    } catch {
+      return undefined
+    }
+  }, [releasesQuery.data])
 
   // 首次加载标记：首次渲染不触发 markDirty
   const isInitialMount = useRef(true)
@@ -951,6 +1095,13 @@ export default function WorkflowEditorPage() {
     onSuccess: (result) => {
       setIsExecuting(true)
       setCurrentExecution(toExecutionSummary(result))
+      // 进入运行态视图 — 使用执行时的节点快照
+      const snapshot: RunningSnapshot = {
+        nodes: (result.nodes ?? []) as unknown as RunningSnapshot["nodes"],
+        edges: (result.edges ?? []) as unknown as RunningSnapshot["edges"],
+        inputs: (result.inputs ?? []) as unknown as RunningSnapshot["inputs"],
+      }
+      enterRunningMode(snapshot, "draft")
       toast.success("测试执行已触发")
       setShowInputForm(false)
     },
@@ -961,6 +1112,13 @@ export default function WorkflowEditorPage() {
     onSuccess: (result) => {
       setIsExecuting(true)
       setCurrentExecution(toExecutionSummary(result))
+      // Replay 也进入运行态
+      const snapshot: RunningSnapshot = {
+        nodes: (result.nodes ?? []) as unknown as RunningSnapshot["nodes"],
+        edges: (result.edges ?? []) as unknown as RunningSnapshot["edges"],
+        inputs: (result.inputs ?? []) as unknown as RunningSnapshot["inputs"],
+      }
+      enterRunningMode(snapshot, "draft")
       toast.success("Replay 已触发")
     },
     onError: (err) => toast.error(`Replay 失败: ${err.message}`),
@@ -999,6 +1157,7 @@ export default function WorkflowEditorPage() {
       setWfNodes(data.nodes)
       setWfEdges(data.edges)
       setInputs(data.inputs)
+      useWorkflowStore.getState().clearExpandedContainers()
       setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 100)
     },
     [setWfNodes, setWfEdges, setInputs, fitView],
@@ -1072,6 +1231,24 @@ export default function WorkflowEditorPage() {
             title="适应画布"
           >
             <Maximize2 className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setTemplateDialogOpen(true)}
+            className="w-7 h-7"
+            title="从模板创建"
+          >
+            <BookTemplate className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleSaveAsTemplate}
+            className="w-7 h-7"
+            title="保存为模板"
+          >
+            <BookmarkPlus className="w-4 h-4" />
           </Button>
           {selectedNodeId && (
             <Button
@@ -1192,7 +1369,7 @@ export default function WorkflowEditorPage() {
             title={!savedWorkflowId ? "请先点击「保存」创建工作流" : "保存当前编辑状态为草稿快照"}
             className="h-6 text-xs"
           >
-            <ScrollText className="w-3.5 h-3.5" /> 存草稿
+            <ScrollText className="w-3.5 h-3.5" /> 保存草稿
           </Button>
           <Button
             variant="outline"
@@ -1281,20 +1458,20 @@ export default function WorkflowEditorPage() {
             variant="secondary"
             size="sm"
             onClick={() => setRightPanel("executions")}
-            title="执行历史"
+            title="执行记录（草稿测试）"
             className="h-6 text-xs"
           >
-            <History className="w-3.5 h-3.5" /> 执行
+            <History className="w-3.5 h-3.5" /> 草稿执行
           </Button>
 
           <Button
             variant="secondary"
             size="sm"
             onClick={() => setRightPanel("production-executions")}
-            title="生产执行"
+            title="执行记录（已发布版本）"
             className="h-6 text-xs"
           >
-            <Globe className="w-3.5 h-3.5" /> 生产执行
+            <Globe className="w-3.5 h-3.5" /> 版本执行
           </Button>
         </div>
       </div>
@@ -1339,6 +1516,58 @@ export default function WorkflowEditorPage() {
             />
           </ReactFlow>
         </div>
+
+        {/* 运行态横幅 / 草稿/已发布状态标签 */}
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-40">
+          {viewMode === "running" ? (
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-blue-500/10 text-blue-700 border border-blue-500/30 shadow-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+              <span className="font-semibold">运行态</span>
+              <span className="text-blue-500/60">|</span>
+              <span>
+                {executionSource === "release"
+                  ? `已发布${releaseVersion ? ` v${releaseVersion}` : ""}`
+                  : "草稿测试"}
+              </span>
+              {currentExecution && (
+                <>
+                  <span className="text-blue-500/60">|</span>
+                  <span className="flex items-center gap-1">
+                    {currentExecution.state === "RUNNING" && <Loader className="w-3 h-3 animate-spin" />}
+                    {currentExecution.state === "SUCCESS" && <CheckCircle className="w-3 h-3 text-green-600" />}
+                    {currentExecution.state === "FAILED" && <XCircle className="w-3 h-3 text-red-500" />}
+                    {currentExecution.state}
+                  </span>
+                </>
+              )}
+              <button
+                onClick={() => exitRunningMode()}
+                className="ml-1 px-2 py-0.5 rounded bg-white/80 hover:bg-white text-blue-700 text-[11px] font-medium border border-blue-500/20 flex items-center gap-1"
+                title="切回编辑模式"
+              >
+                <Pencil className="w-3 h-3" /> 编辑草稿
+              </button>
+            </div>
+          ) : publishedVersion > 0 ? (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-700 border border-green-500/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+              已发布 v{publishedVersion}
+            </span>
+          ) : hasUnsavedChanges ? (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-500/10 text-yellow-700 border border-yellow-500/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
+              草稿 · 未保存
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-500/10 text-yellow-700 border border-yellow-500/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
+              草稿
+            </span>
+          )}
+        </div>
+
+        {/* 容器嵌套面包屑 */}
+        <Breadcrumb />
 
         {/* Ctrl+F 搜索定位 */}
         {searchOpen && (
@@ -1424,7 +1653,17 @@ export default function WorkflowEditorPage() {
             }}
             isContainer={isContainer(ctxNode.type)}
             onToggleCollapse={() => {
-              useWorkflowStore.getState().toggleCollapse(contextMenu.nodeId)
+              const state = useWorkflowStore.getState()
+              const node = state.nodes.find((n) => n.id === contextMenu.nodeId)
+              // 展开时检查嵌套深度
+              if (node?.ui?.collapsed) {
+                if (!canExpandContainer(contextMenu.nodeId, state.nodes)) {
+                  toast.warning("已达到最大嵌套层级")
+                  setContextMenu(null)
+                  return
+                }
+              }
+              state.toggleCollapse(contextMenu.nodeId)
               setContextMenu(null)
             }}
           />
@@ -1517,6 +1756,7 @@ export default function WorkflowEditorPage() {
           namespace={workflowMeta.namespace}
           nextVersion={publishedVersion + 1}
           isPublishing={releasePublish.isPending}
+          prevReleaseNodes={prevReleaseNodes}
           onPublish={handlePublish}
           onClose={() => setShowPublishDialog(false)}
         />
@@ -1573,8 +1813,74 @@ export default function WorkflowEditorPage() {
           namespaceId={workflowMeta.namespace}
           namespaceName={workflowMeta.namespace}
           onClose={() => setRightPanel("none")}
+          defaultTab={settingsTab}
         />
       )}
+
+      <TemplateDialog
+        open={templateDialogOpen}
+        onOpenChange={setTemplateDialogOpen}
+        onSelect={handleTemplateSelect}
+      />
+
+      {/* 缺失引用警告弹窗 */}
+      <AlertDialog
+        open={!!missingRefsWarning}
+        onOpenChange={(open) => { if (!open) { setMissingRefsWarning(null); setPendingAction(null) } }}
+      >
+        <AlertDialogContent size="default">
+          <AlertDialogHeader>
+            <div className="flex justify-center mb-2">
+              <AlertTriangle className="w-8 h-8 text-amber-500" />
+            </div>
+            <AlertDialogTitle>
+              {pendingAction === "publish" ? "存在缺失引用，无法发布" : "存在缺失引用"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              以下引用在当前项目空间中不存在：
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {/* 缺失引用列表 */}
+          <div className="max-h-48 overflow-y-auto space-y-1.5 px-1">
+            {missingRefsWarning?.map((ref, i) => (
+              <div key={i} className="flex items-center justify-between gap-2 text-sm bg-muted/50 rounded-md px-3 py-2">
+                <div className="min-w-0">
+                  <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
+                    ref.type === "secret" ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
+                    : ref.type === "variable" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                    : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+                  }`}>
+                    {ref.type === "secret" ? "密钥" : ref.type === "variable" ? "变量" : "输入"}
+                  </span>
+                  <span className="ml-2 font-mono text-xs">{ref.name}</span>
+                </div>
+                {(ref.type === "secret" || ref.type === "variable") && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="shrink-0 text-xs"
+                    onClick={() => navigateToSettings(ref.type === "secret" ? "secrets" : "variables")}
+                  >
+                    去创建
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setMissingRefsWarning(null); setPendingAction(null) }}>
+              关闭
+            </AlertDialogCancel>
+            {pendingAction === "save" && (
+              <AlertDialogAction onClick={handleIgnoreAndSave}>
+                忽略并保存
+              </AlertDialogAction>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
     </div>
   )

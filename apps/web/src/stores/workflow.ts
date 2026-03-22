@@ -58,6 +58,14 @@ interface TriggerSummary {
   createdAt: string
 }
 
+type ViewMode = "edit" | "running"
+
+interface RunningSnapshot {
+  nodes: WorkflowNode[]
+  edges: WorkflowEdge[]
+  inputs: WorkflowInput[]
+}
+
 interface WorkflowState {
   // Data
   nodes: WorkflowNode[]
@@ -68,6 +76,12 @@ interface WorkflowState {
   rightPanel: RightPanel
   selectedNodeId: string | null
   panelOpen: boolean
+
+  // Running view
+  viewMode: ViewMode
+  runningSnapshot: RunningSnapshot | null
+  executionSource: "draft" | "release"
+  releaseVersion?: number
 
   // Meta
   workflowMeta: WorkflowMeta
@@ -88,6 +102,12 @@ interface WorkflowState {
   // Trigger
   triggers: TriggerSummary[]
   setTriggers: (triggers: TriggerSummary[]) => void
+
+  // Container breadcrumb
+  expandedContainers: string[]
+  expandContainer: (nodeId: string) => void
+  collapseToContainer: (nodeId: string) => void
+  clearExpandedContainers: () => void
 
   // Actions
   setNodes: (
@@ -113,9 +133,13 @@ interface WorkflowState {
   setIsExecuting: (v: boolean) => void
   setCurrentExecution: (exec: ExecutionSummary | null) => void
   setKestraHealthy: (v: boolean) => void
+
+  // Running view
+  enterRunningMode: (snapshot: RunningSnapshot, source: "draft" | "release", releaseVersion?: number) => void
+  exitRunningMode: () => void
 }
 
-export type { WorkflowMeta, DraftSummary, ReleaseSummary, TaskRun, ExecutionSummary, TriggerSummary, WorkflowState }
+export type { WorkflowMeta, DraftSummary, ReleaseSummary, TaskRun, ExecutionSummary, TriggerSummary, WorkflowState, ViewMode, RunningSnapshot }
 
 export const useWorkflowStore = create<WorkflowState>()(
   temporal(
@@ -129,6 +153,12 @@ export const useWorkflowStore = create<WorkflowState>()(
       rightPanel: "none" as RightPanel,
       selectedNodeId: null,
       panelOpen: true,
+
+      // Running view
+      viewMode: "edit" as ViewMode,
+      runningSnapshot: null,
+      executionSource: "draft" as "draft" | "release",
+      releaseVersion: undefined,
 
       // Initial meta
       workflowMeta: {
@@ -153,6 +183,9 @@ export const useWorkflowStore = create<WorkflowState>()(
 
       // Trigger
       triggers: [],
+
+      // Container breadcrumb
+      expandedContainers: [],
 
       // Actions
       setNodes: (updater) =>
@@ -187,6 +220,18 @@ export const useWorkflowStore = create<WorkflowState>()(
           if (!node) return
           if (!node.ui) node.ui = { x: 0, y: 0 }
           node.ui.collapsed = !node.ui.collapsed
+          if (node.ui.collapsed) {
+            // 折叠：从 expandedContainers 中移除该节点及其后续层级
+            const idx = state.expandedContainers.indexOf(nodeId)
+            if (idx !== -1) {
+              state.expandedContainers.splice(idx)
+            }
+          } else {
+            // 展开：push 到 expandedContainers
+            if (!state.expandedContainers.includes(nodeId)) {
+              state.expandedContainers.push(nodeId)
+            }
+          }
         }),
       setIsExecuting: (v) => set({ isExecuting: v }),
       setCurrentExecution: (exec) =>
@@ -211,6 +256,55 @@ export const useWorkflowStore = create<WorkflowState>()(
         }),
       setKestraHealthy: (v) => set({ kestraHealthy: v }),
       setTriggers: (triggers) => set({ triggers }),
+      expandContainer: (nodeId) =>
+        set((state) => {
+          if (!state.expandedContainers.includes(nodeId)) {
+            state.expandedContainers.push(nodeId)
+          }
+        }),
+      collapseToContainer: (nodeId) =>
+        set((state) => {
+          const idx = state.expandedContainers.indexOf(nodeId)
+          if (idx !== -1) {
+            // 折叠该层级以下的所有容器
+            const toCollapse = state.expandedContainers.splice(idx + 1)
+            for (const id of toCollapse) {
+              const node = state.nodes.find((n) => n.id === id)
+              if (node) {
+                if (!node.ui) node.ui = { x: 0, y: 0 }
+                node.ui.collapsed = true
+              }
+            }
+          }
+        }),
+      clearExpandedContainers: () =>
+        set((state) => {
+          // 折叠所有已展开的容器
+          for (const id of state.expandedContainers) {
+            const node = state.nodes.find((n) => n.id === id)
+            if (node) {
+              if (!node.ui) node.ui = { x: 0, y: 0 }
+              node.ui.collapsed = true
+            }
+          }
+          state.expandedContainers = []
+        }),
+
+      // Running view
+      enterRunningMode: (snapshot, source, releaseVersion) =>
+        set({
+          viewMode: "running",
+          runningSnapshot: snapshot,
+          executionSource: source,
+          releaseVersion,
+        }),
+      exitRunningMode: () =>
+        set({
+          viewMode: "edit",
+          runningSnapshot: null,
+          executionSource: "draft",
+          releaseVersion: undefined,
+        }),
     })),
     {
       limit: 50,

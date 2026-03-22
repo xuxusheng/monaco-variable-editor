@@ -8,6 +8,8 @@ import Editor from "@monaco-editor/react"
 import type { WorkflowNode, WorkflowEdge, WorkflowInput } from "@/types/workflow"
 import type { ApiWorkflowVariable } from "@/types/api"
 import { toKestraYaml } from "@/lib/yamlConverter"
+import { diffNodes } from "@/lib/diff"
+import { DiffSummary } from "@/components/flow/DiffSummary"
 import { Rocket } from "lucide-react"
 import {
   Dialog,
@@ -27,6 +29,7 @@ interface PublishDialogProps {
   namespace: string
   nextVersion: number
   isPublishing: boolean
+  prevReleaseNodes?: WorkflowNode[]
   onPublish: (name: string, yaml: string) => void
   onClose: () => void
 }
@@ -40,6 +43,7 @@ export function PublishDialog({
   namespace,
   nextVersion,
   isPublishing,
+  prevReleaseNodes,
   onPublish,
   onClose,
 }: PublishDialogProps) {
@@ -49,6 +53,11 @@ export function PublishDialog({
   const yaml = useMemo(
     () => toKestraYaml(nodes, edges, inputs, variables, flowId, namespace),
     [nodes, edges, inputs, variables, flowId, namespace],
+  )
+
+  const diffResult = useMemo(
+    () => prevReleaseNodes ? diffNodes(prevReleaseNodes, nodes) : null,
+    [prevReleaseNodes, nodes],
   )
 
   const handlePublish = useCallback(() => {
@@ -78,6 +87,16 @@ export function PublishDialog({
               className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
+
+          {/* 变更摘要 */}
+          {diffResult && (
+            <div>
+              <label className="block text-sm font-medium mb-1.5">变更摘要</label>
+              <div className="rounded-md border border-border p-3 bg-muted/30">
+                <DiffSummary diff={diffResult} />
+              </div>
+            </div>
+          )}
 
           {/* YAML preview toggle */}
           <div>

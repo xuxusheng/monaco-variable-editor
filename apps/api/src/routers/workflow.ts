@@ -490,19 +490,65 @@ export const workflowRouter = t.router({
         "../lib/kestra-client.js"
       )
 
-      const exec = await prisma.workflowDraftExecution.findUnique({
+      // 先查草稿执行，再查生产执行
+      const draftExec = await prisma.workflowDraftExecution.findUnique({
         where: { id: input.executionId },
       })
-      if (!exec) {
+
+      if (draftExec) {
+        const exec = draftExec
+        if (!isTerminalState(exec.state)) {
+          try {
+            const client = getKestraClient()
+            const kestraExec = await client.getExecution(exec.kestraExecId)
+            return {
+              source: "draft" as const,
+              ...(await prisma.workflowDraftExecution.update({
+                where: { id: exec.id },
+                data: {
+                  state: kestraExec.state.current,
+                  taskRuns:
+                    (kestraExec.taskRunList ?? []) as unknown as Prisma.InputJsonValue,
+                  startedAt: kestraExec.state.startDate
+                    ? new Date(kestraExec.state.startDate)
+                    : exec.startedAt,
+                  endedAt: kestraExec.state.endDate
+                    ? new Date(kestraExec.state.endDate)
+                    : undefined,
+                },
+              })),
+            }
+          } catch {
+            return { source: "draft" as const, ...exec }
+          }
+        }
+        return { source: "draft" as const, ...exec }
+      }
+
+      const prodExec = await prisma.workflowExecution.findUnique({
+        where: { id: input.executionId },
+        include: {
+          release: {
+            select: { version: true, name: true, nodes: true, edges: true, inputs: true, variables: true },
+          },
+        },
+      })
+      if (!prodExec) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Execution not found" })
       }
 
-      // 非终态时同步 Kestra 最新状态
+      const { release, ...exec } = prodExec
+      const releaseSnapshot = {
+        nodes: release.nodes,
+        edges: release.edges,
+        inputs: release.inputs,
+        variables: release.variables,
+      }
       if (!isTerminalState(exec.state)) {
         try {
           const client = getKestraClient()
           const kestraExec = await client.getExecution(exec.kestraExecId)
-          return prisma.workflowDraftExecution.update({
+          const updated = await prisma.workflowExecution.update({
             where: { id: exec.id },
             data: {
               state: kestraExec.state.current,
@@ -516,13 +562,31 @@ export const workflowRouter = t.router({
                 : undefined,
             },
           })
+          return {
+            source: "release" as const,
+            releaseVersion: release.version,
+            releaseName: release.name,
+            ...releaseSnapshot,
+            ...updated,
+          }
         } catch {
-          // Kestra 不可达，返回本地数据
-          return exec
+          return {
+            source: "release" as const,
+            releaseVersion: release.version,
+            releaseName: release.name,
+            ...releaseSnapshot,
+            ...exec,
+          }
         }
       }
 
-      return exec
+      return {
+        source: "release" as const,
+        releaseVersion: release.version,
+        releaseName: release.name,
+        ...releaseSnapshot,
+        ...exec,
+      }
     }),
 
   executionList: t.procedure
@@ -530,6 +594,9 @@ export const workflowRouter = t.router({
       z.object({
         workflowId: z.string(),
         state: z.string().optional(),
+        triggeredBy: z.string().optional(),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
         limit: z.number().min(1).max(100).default(20),
         cursor: z.string().optional(),
       }),
@@ -539,6 +606,13 @@ export const workflowRouter = t.router({
         workflowId: input.workflowId,
       }
       if (input.state) where.state = input.state
+      if (input.triggeredBy) where.triggeredBy = input.triggeredBy
+      if (input.startDate || input.endDate) {
+        const createdAt: Record<string, Date> = {}
+        if (input.startDate) createdAt.gte = new Date(input.startDate)
+        if (input.endDate) createdAt.lte = new Date(input.endDate)
+        where.createdAt = createdAt
+      }
 
       const items = await prisma.workflowDraftExecution.findMany({
         where,
@@ -747,6 +821,9 @@ export const workflowRouter = t.router({
       z.object({
         workflowId: z.string(),
         state: z.string().optional(),
+        triggeredBy: z.string().optional(),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
         limit: z.number().min(1).max(100).default(20),
         cursor: z.string().optional(),
       }),
@@ -756,6 +833,13 @@ export const workflowRouter = t.router({
         workflowId: input.workflowId,
       }
       if (input.state) where.state = input.state
+      if (input.triggeredBy) where.triggeredBy = input.triggeredBy
+      if (input.startDate || input.endDate) {
+        const createdAt: Record<string, Date> = {}
+        if (input.startDate) createdAt.gte = new Date(input.startDate)
+        if (input.endDate) createdAt.lte = new Date(input.endDate)
+        where.createdAt = createdAt
+      }
 
       const items = await prisma.workflowExecution.findMany({
         where,
@@ -791,18 +875,34 @@ export const workflowRouter = t.router({
         "../lib/kestra-client.js"
       )
 
-      const exec = await prisma.workflowExecution.findUnique({
+      const prodExec = await prisma.workflowExecution.findUnique({
         where: { id: input.executionId },
+        include: {
+          release: {
+            select: { version: true, name: true, nodes: true, edges: true, inputs: true, variables: true },
+          },
+        },
       })
-      if (!exec) {
+      if (!prodExec) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Execution not found" })
+      }
+
+      const { release, ...exec } = prodExec
+      const sourceInfo = {
+        source: "release" as const,
+        releaseVersion: release.version,
+        releaseName: release.name,
+        nodes: release.nodes,
+        edges: release.edges,
+        inputs: release.inputs,
+        variables: release.variables,
       }
 
       if (!isTerminalState(exec.state)) {
         try {
           const client = getKestraClient()
           const kestraExec = await client.getExecution(exec.kestraExecId)
-          return prisma.workflowExecution.update({
+          const updated = await prisma.workflowExecution.update({
             where: { id: exec.id },
             data: {
               state: kestraExec.state.current,
@@ -816,12 +916,13 @@ export const workflowRouter = t.router({
                 : undefined,
             },
           })
+          return { ...sourceInfo, ...updated }
         } catch {
-          return exec
+          return { ...sourceInfo, ...exec }
         }
       }
 
-      return exec
+      return { ...sourceInfo, ...exec }
     }),
 
   // ─── Trigger CRUD (基础，M5 做调度逻辑) ───

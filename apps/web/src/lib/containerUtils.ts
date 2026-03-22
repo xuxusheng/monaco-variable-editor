@@ -1,5 +1,20 @@
 import type { WorkflowNode, WorkflowEdge } from "@/types/workflow"
 
+/** 最大容器嵌套层级 */
+export const MAX_CONTAINER_DEPTH = 4
+
+/** 计算节点的嵌套深度（从顶层开始为 0） */
+export function getNodeDepth(nodeId: string, nodes: WorkflowNode[]): number {
+  const nodeMap = new Map(nodes.map((n) => [n.id, n]))
+  let depth = 0
+  let current = nodeMap.get(nodeId)
+  while (current?.containerId) {
+    depth++
+    current = nodeMap.get(current.containerId)
+  }
+  return depth
+}
+
 /** 收集指定容器的所有后代节点 ID（BFS 递归） */
 export function collectDescendants(
   containerId: string,
@@ -61,4 +76,16 @@ export function getChildren(
   return nodes
     .filter((n) => n.containerId === containerId)
     .sort((a, b) => a.sortIndex - b.sortIndex)
+}
+
+/**
+ * 检查容器是否可以展开（未超过最大嵌套层级）。
+ * depth 为容器自身的嵌套深度（0 = 顶层），其子节点的深度 = depth + 1。
+ * 当 depth >= MAX_CONTAINER_DEPTH - 1 时，该容器内的子容器不能再展开。
+ */
+export function canExpandContainer(
+  containerId: string,
+  nodes: WorkflowNode[],
+): boolean {
+  return getNodeDepth(containerId, nodes) < MAX_CONTAINER_DEPTH - 1
 }
