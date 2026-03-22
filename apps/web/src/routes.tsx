@@ -13,6 +13,7 @@ import {
   SidebarInset,
 } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/AppSidebar"
+import WorkflowListPage from "@/pages/WorkflowListPage"
 import WorkflowEditorPage from "@/pages/WorkflowEditorPage"
 import { MonacoVariableEditorPage } from "@/pages/MonacoVariableEditorPage"
 import { SettingsPage } from "@/pages/SettingsPage"
@@ -55,6 +56,32 @@ const sidebarLayoutRoute = createRoute({
   component: SidebarLayout,
 })
 
+// Workflow list: inside sidebar layout
+const workflowsRoute = createRoute({
+  getParentRoute: () => sidebarLayoutRoute,
+  path: "/workflows",
+  component: () => (
+    <div className="flex-1 overflow-auto">
+      <WorkflowListPage />
+    </div>
+  ),
+})
+
+// Workflow editor: full-screen, no sidebar, uses path param
+const workflowEditRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/workflows/$workflowId/edit",
+  component: () => (
+    <div className="h-screen flex flex-col">
+      <div className="flex-1 overflow-hidden">
+        <ReactFlowProvider>
+          <WorkflowEditorPage />
+        </ReactFlowProvider>
+      </div>
+    </div>
+  ),
+})
+
 const monacoRoute = createRoute({
   getParentRoute: () => sidebarLayoutRoute,
   path: "/monaco",
@@ -77,25 +104,11 @@ const templatesRoute = createRoute({
   component: () => <TemplatesPage />,
 })
 
-// Workflows editor: full-screen, no sidebar
-const workflowsRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/workflows",
-  component: () => (
-    <div className="h-screen flex flex-col">
-      <div className="flex-1 overflow-hidden">
-        <ReactFlowProvider>
-          <WorkflowEditorPage />
-        </ReactFlowProvider>
-      </div>
-    </div>
-  ),
-})
-
 const routeTree = rootRoute.addChildren([
   indexRoute,
-  workflowsRoute,
+  workflowEditRoute,
   sidebarLayoutRoute.addChildren([
+    workflowsRoute,
     monacoRoute,
     settingsRoute,
     templatesRoute,
