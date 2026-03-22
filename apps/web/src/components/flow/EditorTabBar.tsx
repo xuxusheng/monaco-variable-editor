@@ -51,40 +51,41 @@ export const EditorTabBar = memo(function EditorTabBar({
         const isActive = activeTab === tab.key
         const Icon = tab.icon
         return (
-          <button
-            key={tab.key}
-            onClick={() => onTabChange(tab.key)}
-            className={cn(
-              "relative flex items-center gap-1 px-2.5 md:px-3 h-9 text-xs font-medium transition-colors shrink-0",
-              isActive
-                ? "text-foreground border-b-2 border-primary"
-                : "text-muted-foreground hover:text-foreground border-b-2 border-transparent",
-            )}
-          >
-            <Icon className="w-3.5 h-3.5" />
-            <span>{tab.label}</span>
-            {isActive && tab.key !== "canvas" && (
-              <button
-                onClick={(e) => handleClose(e, tab.key)}
-                className="ml-0.5 p-0.5 rounded hover:bg-muted"
-                title="关闭"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
+          <div key={tab.key} className="relative flex items-center">
+            <button
+              onClick={() => onTabChange(tab.key)}
+              className={cn(
+                "relative flex items-center gap-1 px-2.5 md:px-3 h-9 text-xs font-medium transition-colors shrink-0",
+                isActive
+                  ? "text-foreground border-b-2 border-primary"
+                  : "text-muted-foreground hover:text-foreground border-b-2 border-transparent",
+              )}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              <span>{tab.label}</span>
+              {isActive && tab.key !== "canvas" && (
+                <span
+                  onClick={(e) => handleClose(e, tab.key)}
+                  className="ml-0.5 p-0.5 rounded hover:bg-muted cursor-pointer"
+                  title="关闭"
+                >
+                  <X className="w-3 h-3" />
+                </span>
+              )}
+            </button>
             {onOpenInNewPage && ["executions", "versions", "triggers"].includes(tab.key) && (
               <button
                 onClick={(e) => {
                   e.stopPropagation()
                   onOpenInNewPage(tab.key)
                 }}
-                className="ml-0.5 p-0.5 rounded hover:bg-muted hidden md:inline-flex"
+                className="p-0.5 rounded hover:bg-muted hidden md:inline-flex text-muted-foreground hover:text-foreground"
                 title="在新页面打开"
               >
                 <ExternalLink className="w-3 h-3" />
               </button>
             )}
-          </button>
+          </div>
         )
       })}
     </div>

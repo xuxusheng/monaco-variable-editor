@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import type { KestraInput } from "@/types/kestra"
 import { Download } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -18,6 +18,10 @@ const INPUT_TYPES = ["STRING", "INT", "FLOAT", "BOOL", "JSON", "URI", "DATE"]
 
 export function InputConfigPanel({ inputs, onUpdate, onClose }: InputConfigPanelProps) {
   const [editingInputs, setEditingInputs] = useState<KestraInput[]>(inputs)
+
+  useEffect(() => {
+    setEditingInputs(inputs)
+  }, [inputs])
 
   const handleUpdate = (index: number, field: keyof KestraInput, value: string | boolean) => {
     const updated = [...editingInputs]
