@@ -87,6 +87,7 @@ import {
   Search, X,
   Plus,
   AlertTriangle, ArrowLeft,
+  MoreHorizontal, FileCode2, GitBranch, History, Settings2,
 } from "lucide-react"
 import { trpc } from "@/lib/trpc"
 import { Button } from "@/components/ui/button"
@@ -321,6 +322,7 @@ export default function WorkflowEditorPage() {
   // ---- 模板功能 ----
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false)
   const [nodeCreateDrawerOpen, setNodeCreateDrawerOpen] = useState(false)
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false)
 
   // ---- 引用检测 ----
   const [missingRefsWarning, setMissingRefsWarning] = useState<MissingReference[] | null>(null)
@@ -1158,92 +1160,187 @@ export default function WorkflowEditorPage() {
           <span className="text-sm font-semibold truncate max-w-[120px] md:max-w-[200px]">
             {workflowMeta.name || workflowMeta.flowId}
           </span>
-          {/* 状态标签 */}
-          {viewMode === "running" ? (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] md:text-xs font-medium bg-blue-500/10 text-blue-700 border border-blue-500/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-              运行中
-            </span>
-          ) : publishedVersion > 0 ? (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] md:text-xs font-medium bg-green-500/10 text-green-700 border border-green-500/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-              已发布 v{publishedVersion}
-            </span>
-          ) : hasUnsavedChanges ? (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] md:text-xs font-medium bg-yellow-500/10 text-yellow-700 border border-yellow-500/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
-              草稿 · 未保存
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] md:text-xs font-medium bg-yellow-500/10 text-yellow-700 border border-yellow-500/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
-              草稿
-            </span>
+          {/* 状态标签 — 桌面端完整显示 */}
+          {!isMobile && (
+            viewMode === "running" ? (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/10 text-blue-700 border border-blue-500/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                运行中
+              </span>
+            ) : publishedVersion > 0 ? (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-500/10 text-green-700 border border-green-500/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                已发布 v{publishedVersion}
+              </span>
+            ) : hasUnsavedChanges ? (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-500/10 text-yellow-700 border border-yellow-500/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
+                草稿 · 未保存
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-500/10 text-yellow-700 border border-yellow-500/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
+                草稿
+              </span>
+            )
           )}
         </div>
         <div className="flex items-center gap-1 md:gap-2">
-          {/* Kestra health indicator */}
+          {/* Kestra health indicator — 桌面端 */}
           <div className="flex items-center gap-1 px-1 hidden md:flex" title={kestraHealthy ? "Kestra 已连接" : "Kestra 未连接"}>
             <div className={`w-2 h-2 rounded-full ${kestraHealthy ? "bg-green-500" : "bg-red-400"}`} />
             <span className="text-[10px] text-muted-foreground">Kestra</span>
           </div>
+
+          {/* === 移动端紧凑按钮 === */}
           {isMobile && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setNodeCreateDrawerOpen(true)}
-              className="w-9 h-9 bg-primary/10 text-primary"
-              title="添加节点"
-            >
-              <Plus className="w-4 h-4" />
-            </Button>
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setNodeCreateDrawerOpen(true)}
+                className="w-9 h-9 bg-primary/10 text-primary"
+                title="添加节点"
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSearchOpen(true)}
+                className="w-9 h-9"
+                title="搜索节点"
+              >
+                <Search className="w-4 h-4" />
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleExecuteTest}
+                disabled={!savedWorkflowId || !kestraHealthy || isExecuting}
+                className="h-8 text-xs bg-blue-500 text-white hover:bg-blue-600"
+                title="运行测试"
+              >
+                <Play className="w-3.5 h-3.5" />
+              </Button>
+              {/* ⋯ 更多菜单 */}
+              <div className="relative">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setMoreMenuOpen(!moreMenuOpen)}
+                  className="w-9 h-9"
+                  title="更多操作"
+                >
+                  <MoreHorizontal className="w-4 h-4" />
+                </Button>
+                {moreMenuOpen && (
+                  <>
+                    {/* 点击外部关闭的遮罩 */}
+                    <div className="fixed inset-0 z-40" onClick={() => setMoreMenuOpen(false)} />
+                    <div className="absolute right-0 top-full mt-1 z-50 w-52 bg-card border border-border rounded-lg shadow-lg py-1">
+                      <button
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center gap-2"
+                        onClick={() => { handleSaveDraft(); setMoreMenuOpen(false) }}
+                        disabled={!savedWorkflowId || draftSave.isPending}
+                      >
+                        <ScrollText className="w-4 h-4" />
+                        保存草稿
+                      </button>
+                      <button
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center gap-2"
+                        onClick={() => { setRightPanel("yaml"); setSelectedNodeId(null); setMoreMenuOpen(false) }}
+                      >
+                        <FileCode2 className="w-4 h-4" />
+                        YAML
+                      </button>
+                      <button
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center gap-2"
+                        onClick={() => { setRightPanel("releases"); setSelectedNodeId(null); setMoreMenuOpen(false) }}
+                      >
+                        <GitBranch className="w-4 h-4" />
+                        版本
+                      </button>
+                      <button
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center gap-2"
+                        onClick={() => { setRightPanel("executions"); setSelectedNodeId(null); setMoreMenuOpen(false) }}
+                      >
+                        <History className="w-4 h-4" />
+                        执行历史
+                      </button>
+                      <div className="h-px bg-border my-1" />
+                      <button
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center gap-2"
+                        onClick={() => { setShowPublishDialog(true); setMoreMenuOpen(false) }}
+                        disabled={!savedWorkflowId || releasePublish.isPending}
+                      >
+                        <Rocket className="w-4 h-4" />
+                        发布
+                      </button>
+                      <button
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center gap-2"
+                        onClick={() => { setRightPanel("settings"); setSelectedNodeId(null); setMoreMenuOpen(false) }}
+                      >
+                        <Settings2 className="w-4 h-4" />
+                        设置
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setSearchOpen(true)}
-            className="w-9 h-9 md:w-7 md:h-7"
-            title="搜索节点 (Ctrl+F)"
-          >
-            <Search className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleSaveDraft()}
-            disabled={!savedWorkflowId || draftSave.isPending}
-            title={!savedWorkflowId ? "请先保存工作流" : "保存当前编辑状态为草稿快照"}
-            className="h-7 md:h-8 text-xs"
-          >
-            <ScrollText className="w-3.5 h-3.5 mr-1" />
-            <span className="hidden sm:inline">保存草稿</span>
-            <span className="sm:hidden">草稿</span>
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleExecuteTest}
-            disabled={!savedWorkflowId || !kestraHealthy || isExecuting}
-            title={!savedWorkflowId ? "请先保存工作流" : !kestraHealthy ? "Kestra 未连接" : "运行测试"}
-            className="h-7 md:h-8 text-xs bg-blue-500 text-white hover:bg-blue-600"
-          >
-            <Play className="w-3.5 h-3.5 mr-1" />
-            <span className="hidden sm:inline">运行</span>
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => setShowPublishDialog(true)}
-            disabled={!savedWorkflowId || releasePublish.isPending}
-            title={!savedWorkflowId ? "请先保存工作流" : "发布当前工作流为新版本"}
-            className="h-7 md:h-8 text-xs bg-emerald-500 text-white hover:bg-emerald-600 hidden md:inline-flex"
-          >
-            <Rocket className="w-3.5 h-3.5 mr-1" />
-            发布
-          </Button>
+
+          {/* === 桌面端完整按钮 === */}
+          {!isMobile && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSearchOpen(true)}
+                className="w-7 h-7"
+                title="搜索节点 (Ctrl+F)"
+              >
+                <Search className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleSaveDraft()}
+                disabled={!savedWorkflowId || draftSave.isPending}
+                title={!savedWorkflowId ? "请先保存工作流" : "保存当前编辑状态为草稿快照"}
+                className="h-8 text-xs"
+              >
+                <ScrollText className="w-3.5 h-3.5 mr-1" />
+                保存草稿
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleExecuteTest}
+                disabled={!savedWorkflowId || !kestraHealthy || isExecuting}
+                title={!savedWorkflowId ? "请先保存工作流" : !kestraHealthy ? "Kestra 未连接" : "运行测试"}
+                className="h-8 text-xs bg-blue-500 text-white hover:bg-blue-600"
+              >
+                <Play className="w-3.5 h-3.5 mr-1" />
+                运行
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => setShowPublishDialog(true)}
+                disabled={!savedWorkflowId || releasePublish.isPending}
+                title={!savedWorkflowId ? "请先保存工作流" : "发布当前工作流为新版本"}
+                className="h-8 text-xs bg-emerald-500 text-white hover:bg-emerald-600"
+              >
+                <Rocket className="w-3.5 h-3.5 mr-1" />
+                发布
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* 第二层：Tab 栏 */}
-      <EditorTabBar
+      {/* 第二层：Tab 栏 — 移动端隐藏 */}
+      {!isMobile && (
+        <EditorTabBar
         activeTab={
           rightPanel === "task" || rightPanel === "drafts" || rightPanel === "production-executions"
             ? "canvas"
@@ -1276,6 +1373,7 @@ export default function WorkflowEditorPage() {
           }
         }}
       />
+      )}
 
       {/* Canvas */}
       <div className="flex-1 relative">
