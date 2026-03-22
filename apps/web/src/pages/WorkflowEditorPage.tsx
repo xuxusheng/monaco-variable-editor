@@ -787,14 +787,18 @@ export default function WorkflowEditorPage() {
     setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 100)
   }, [workflowMeta.namespace, fitView, utils, setSavedWorkflowId, setWorkflowMeta, setWfNodes, setWfEdges, setInputs])
 
+  // ---- 加载状态：API 数据加载完成前显示 loading，避免 fixture 闪现 ----
+  const [isLoaded, setIsLoaded] = useState(false)
+
   // ---- Auto-load workflow from URL param on mount ----
   const [hasAutoLoaded, setHasAutoLoaded] = useState(false)
   useEffect(() => {
     if (!workflowId || hasAutoLoaded) return
     setHasAutoLoaded(true)
     const loadWorkflow = async () => {
+      setIsLoaded(false)
       const full = await utils.workflow.get.fetch({ id: workflowId })
-      if (!full) return
+      if (!full) { setIsLoaded(true); return }
       isLoadingRef.current = true
       setSavedWorkflowId(full.id)
       setWorkflowMeta({
@@ -808,6 +812,7 @@ export default function WorkflowEditorPage() {
       if (full.inputs) setInputs((full.inputs as unknown as ApiWorkflowInput[]).map(fromApiInput))
       if (full.variables) setWfVariables(full.variables as unknown as ApiWorkflowVariable[])
       isLoadingRef.current = false
+      setIsLoaded(true)
       useWorkflowStore.getState().clearExpandedContainers()
       setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 100)
     }
@@ -1184,12 +1189,16 @@ export default function WorkflowEditorPage() {
       toast.warning("请先保存工作流")
       return
     }
+    if (!kestraHealthy) {
+      toast.warning("Kestra 未连接，请稍后再试")
+      return
+    }
     if (inputs.length > 0) {
       setShowInputForm(true)
     } else {
       executeTest.mutate({ workflowId: savedWorkflowId })
     }
-  }, [savedWorkflowId, inputs, executeTest])
+  }, [savedWorkflowId, kestraHealthy, inputs, executeTest])
 
   const handleExecuteWithInputs = useCallback(
     (inputValues: Record<string, string>) => {
@@ -1217,6 +1226,17 @@ export default function WorkflowEditorPage() {
     },
     [setWfNodes, setWfEdges, setInputs, fitView],
   )
+
+  if (!isLoaded) {
+    return (
+      <div className="h-full flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm text-muted-foreground">加载工作流...</span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="h-full flex flex-col bg-background" tabIndex={0}>
@@ -1297,7 +1317,7 @@ export default function WorkflowEditorPage() {
               <Button
                 size="sm"
                 onClick={handleExecuteTest}
-                disabled={!savedWorkflowId || !kestraHealthy || isExecuting}
+                disabled={!savedWorkflowId || isExecuting}
                 className="h-8 text-xs bg-blue-500 text-white hover:bg-blue-600"
                 title="运行测试"
               >
@@ -1397,8 +1417,8 @@ export default function WorkflowEditorPage() {
               <Button
                 size="sm"
                 onClick={handleExecuteTest}
-                disabled={!savedWorkflowId || !kestraHealthy || isExecuting}
-                title={!savedWorkflowId ? "请先保存工作流" : !kestraHealthy ? "Kestra 未连接" : "运行测试"}
+                disabled={!savedWorkflowId || isExecuting}
+                title={!savedWorkflowId ? "请先保存工作流" : "运行测试"}
                 className="h-8 text-xs bg-blue-500 text-white hover:bg-blue-600"
               >
                 <Play className="w-3.5 h-3.5 mr-1" />
