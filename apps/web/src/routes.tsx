@@ -1,0 +1,111 @@
+import {
+  createRouter,
+  createRootRoute,
+  createRoute,
+  redirect,
+  Outlet,
+} from "@tanstack/react-router"
+import { TanStackRouterDevtools } from "@tanstack/router-devtools"
+import { ReactFlowProvider } from "@xyflow/react"
+import { TooltipProvider } from "@/components/ui/tooltip"
+import {
+  SidebarProvider,
+  SidebarInset,
+} from "@/components/ui/sidebar"
+import { AppSidebar } from "@/components/AppSidebar"
+import WorkflowEditorPage from "@/pages/WorkflowEditorPage"
+import { MonacoVariableEditorPage } from "@/pages/MonacoVariableEditorPage"
+import { SettingsPage } from "@/pages/SettingsPage"
+import { TemplatesPage } from "@/pages/TemplatesPage"
+
+function SidebarLayout() {
+  return (
+    <SidebarProvider defaultOpen={true}>
+      <div className="flex h-screen w-full">
+        <AppSidebar />
+        <SidebarInset className="flex flex-1 flex-col overflow-hidden">
+          <Outlet />
+        </SidebarInset>
+      </div>
+    </SidebarProvider>
+  )
+}
+
+const rootRoute = createRootRoute({
+  component: () => (
+    <TooltipProvider>
+      <Outlet />
+      <TanStackRouterDevtools position="bottom-left" />
+    </TooltipProvider>
+  ),
+})
+
+const indexRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/",
+  loader: () => {
+    throw redirect({ to: "/workflows" })
+  },
+})
+
+// Sidebar layout wraps routes that need navigation
+const sidebarLayoutRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: "sidebar-layout",
+  component: SidebarLayout,
+})
+
+const monacoRoute = createRoute({
+  getParentRoute: () => sidebarLayoutRoute,
+  path: "/monaco",
+  component: () => (
+    <div className="flex-1 overflow-auto">
+      <MonacoVariableEditorPage />
+    </div>
+  ),
+})
+
+const settingsRoute = createRoute({
+  getParentRoute: () => sidebarLayoutRoute,
+  path: "/settings",
+  component: () => <SettingsPage />,
+})
+
+const templatesRoute = createRoute({
+  getParentRoute: () => sidebarLayoutRoute,
+  path: "/templates",
+  component: () => <TemplatesPage />,
+})
+
+// Workflows editor: full-screen, no sidebar
+const workflowsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/workflows",
+  component: () => (
+    <div className="h-screen flex flex-col">
+      <div className="flex-1 overflow-hidden">
+        <ReactFlowProvider>
+          <WorkflowEditorPage />
+        </ReactFlowProvider>
+      </div>
+    </div>
+  ),
+})
+
+const routeTree = rootRoute.addChildren([
+  indexRoute,
+  workflowsRoute,
+  sidebarLayoutRoute.addChildren([
+    monacoRoute,
+    settingsRoute,
+    templatesRoute,
+  ]),
+])
+
+export const router = createRouter({ routeTree })
+
+declare module "@tanstack/react-router" {
+  interface Register {
+    router: typeof router
+  }
+}
