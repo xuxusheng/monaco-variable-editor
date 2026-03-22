@@ -82,7 +82,7 @@ import {
   ClipboardList, Package, Rocket, Play, Zap,
   History, Copy, FolderOpen, ScrollText, Undo2, Redo2, Trash2,
   CheckCircle, XCircle, Globe, Settings, Maximize2, Search, X,
-  Loader,
+  Loader, Plus,
   BookTemplate, BookmarkPlus, AlertTriangle, Pencil,
 } from "lucide-react"
 import { trpc } from "@/lib/trpc"
@@ -99,6 +99,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
 import { useHotkeys } from "react-hotkeys-hook"
+import { useIsMobile } from "@/hooks/use-mobile"
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
 import type {
   WorkflowNode,
   WorkflowEdge,
@@ -316,7 +318,12 @@ const FitViewOnMount = memo(function FitViewOnMount() {
 
 export default function WorkflowEditorPage() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null)
-  const { fitView, screenToFlowPosition } = useReactFlow()
+  const { fitView, screenToFlowPosition, getNodes } = useReactFlow()
+
+  // ---- Mobile ----
+  const isMobile = useIsMobile()
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout>>(null)
+  const longPressTriggeredRef = useRef(false)
 
   // ---- Zustand store ----
   const wfNodes = useWorkflowStore((s) => s.nodes)
@@ -348,6 +355,7 @@ export default function WorkflowEditorPage() {
 
   // ---- 模板功能 ----
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false)
+  const [nodeCreateDrawerOpen, setNodeCreateDrawerOpen] = useState(false)
 
   // ---- 引用检测 ----
   const [missingRefsWarning, setMissingRefsWarning] = useState<MissingReference[] | null>(null)
@@ -511,9 +519,53 @@ export default function WorkflowEditorPage() {
 
   // ---- 节点选中 ----
   const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+    if (longPressTriggeredRef.current) {
+      longPressTriggeredRef.current = false
+      return
+    }
     setSelectedNodeId(node.id)
     setRightPanel("task")
   }, [setSelectedNodeId, setRightPanel])
+
+  // ---- 移动端长按触发右键菜单 ----
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length !== 1) return
+    const touch = e.touches[0]
+    longPressTriggeredRef.current = false
+    longPressTimerRef.current = setTimeout(() => {
+      longPressTriggeredRef.current = true
+      const pos = screenToFlowPosition({ x: touch.clientX, y: touch.clientY })
+      const nodes = getNodes()
+      let hitNodeId: string | null = null
+      for (let i = nodes.length - 1; i >= 0; i--) {
+        const n = nodes[i]
+        const nw = n.measured?.width ?? 200
+        const nh = n.measured?.height ?? 40
+        if (pos.x >= n.position.x && pos.x <= n.position.x + nw &&
+            pos.y >= n.position.y && pos.y <= n.position.y + nh) {
+          hitNodeId = n.id
+          break
+        }
+      }
+      if (hitNodeId) {
+        setContextMenu({ nodeId: hitNodeId, position: { x: touch.clientX, y: touch.clientY } })
+      }
+    }, 500)
+  }, [screenToFlowPosition, getNodes])
+
+  const handleTouchEnd = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+  }, [])
+
+  const handleTouchMove = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+  }, [])
 
   const onPaneClick = useCallback(() => {
     setSelectedNodeId(null)
@@ -1176,12 +1228,32 @@ export default function WorkflowEditorPage() {
           </span>
         </div>
         <div className="flex items-center gap-1">
+          {isMobile && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setNodeCreateDrawerOpen(true)}
+              className="w-9 h-9 bg-primary/10 text-primary"
+              title="添加节点"
+            >
+              <Plus className="w-4 h-4" />
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setSearchOpen(true)}
+            className="w-9 h-9 md:w-7 md:h-7"
+            title="搜索节点"
+          >
+            <Search className="w-4 h-4" />
+          </Button>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => undo()}
             disabled={!canUndo}
-            className="w-7 h-7"
+            className="w-9 h-9 md:w-7 md:h-7"
             title="撤销"
           >
             <Undo2 className="w-4 h-4" />
@@ -1191,7 +1263,7 @@ export default function WorkflowEditorPage() {
             size="icon"
             onClick={() => redo()}
             disabled={!canRedo}
-            className="w-7 h-7"
+            className="w-9 h-9 md:w-7 md:h-7"
             title="重做"
           >
             <Redo2 className="w-4 h-4" />
@@ -1200,7 +1272,7 @@ export default function WorkflowEditorPage() {
             variant="ghost"
             size="icon"
             onClick={() => setRightPanel("inputs")}
-            className="w-7 h-7"
+            className="w-9 h-9 md:w-7 md:h-7"
             title="输入参数"
           >
             <Download className="w-4 h-4" />
@@ -1209,7 +1281,7 @@ export default function WorkflowEditorPage() {
             variant="ghost"
             size="icon"
             onClick={() => setRightPanel("yaml")}
-            className="w-7 h-7"
+            className="w-9 h-9 md:w-7 md:h-7"
             title="YAML"
           >
             <FileText className="w-4 h-4" />
@@ -1218,7 +1290,7 @@ export default function WorkflowEditorPage() {
             variant="ghost"
             size="icon"
             onClick={handleAutoLayout}
-            className="w-7 h-7"
+            className="w-9 h-9 md:w-7 md:h-7"
             title="自动布局"
           >
             <LayoutDashboard className="w-4 h-4" />
@@ -1227,7 +1299,7 @@ export default function WorkflowEditorPage() {
             variant="ghost"
             size="icon"
             onClick={() => fitView({ padding: 0.2, maxZoom: 1, duration: 300 })}
-            className="w-7 h-7"
+            className="w-9 h-9 md:w-7 md:h-7"
             title="适应画布"
           >
             <Maximize2 className="w-4 h-4" />
@@ -1236,7 +1308,7 @@ export default function WorkflowEditorPage() {
             variant="ghost"
             size="icon"
             onClick={() => setTemplateDialogOpen(true)}
-            className="w-7 h-7"
+            className="w-9 h-9 md:w-7 md:h-7"
             title="从模板创建"
           >
             <BookTemplate className="w-4 h-4" />
@@ -1245,7 +1317,7 @@ export default function WorkflowEditorPage() {
             variant="ghost"
             size="icon"
             onClick={handleSaveAsTemplate}
-            className="w-7 h-7"
+            className="w-9 h-9 md:w-7 md:h-7"
             title="保存为模板"
           >
             <BookmarkPlus className="w-4 h-4" />
@@ -1255,7 +1327,7 @@ export default function WorkflowEditorPage() {
               variant="ghost"
               size="icon"
               onClick={handleDuplicate}
-              className="w-7 h-7"
+              className="w-9 h-9 md:w-7 md:h-7"
               title="复制节点"
             >
               <Copy className="w-4 h-4" />
@@ -1266,7 +1338,7 @@ export default function WorkflowEditorPage() {
               variant="ghost"
               size="icon"
               onClick={handleDeleteSelected}
-              className="w-7 h-7 hover:bg-red-50"
+              className="w-9 h-9 md:w-7 md:h-7 hover:bg-red-50"
               title="删除"
             >
               <Trash2 className="w-4 h-4 text-red-500" />
@@ -1478,7 +1550,10 @@ export default function WorkflowEditorPage() {
 
       {/* Canvas */}
       <div className="flex-1 relative">
-        <div ref={reactFlowWrapper} className="w-full h-full">
+        <div ref={reactFlowWrapper} className="w-full h-full"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          onTouchMove={handleTouchMove}>
           <ReactFlow
             nodes={canvasNodes}
             edges={canvasEdges}
@@ -1520,19 +1595,28 @@ export default function WorkflowEditorPage() {
         {/* 运行态横幅 / 草稿/已发布状态标签 */}
         <div className="absolute top-2 left-1/2 -translate-x-1/2 z-40">
           {viewMode === "running" ? (
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-blue-500/10 text-blue-700 border border-blue-500/30 shadow-sm">
+            <div className="inline-flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 rounded-full text-[11px] md:text-xs font-medium bg-blue-500/10 text-blue-700 border border-blue-500/30 shadow-sm">
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-              <span className="font-semibold">运行态</span>
-              <span className="text-blue-500/60">|</span>
-              <span>
+              {/* 桌面端完整标题 */}
+              <span className="font-semibold hidden sm:inline">运行态</span>
+              <span className="text-blue-500/60 hidden sm:inline">|</span>
+              <span className="hidden sm:inline">
                 {executionSource === "release"
                   ? `已发布${releaseVersion ? ` v${releaseVersion}` : ""}`
                   : "草稿测试"}
               </span>
+              {/* 移动端简短状态名 */}
+              <span className="font-semibold sm:hidden">
+                {currentExecution?.state === "RUNNING" ? "运行中"
+                  : currentExecution?.state === "SUCCESS" ? "成功"
+                  : currentExecution?.state === "FAILED" ? "失败"
+                  : currentExecution?.state ?? "运行态"}
+              </span>
+              {/* 桌面端状态详情 */}
               {currentExecution && (
                 <>
-                  <span className="text-blue-500/60">|</span>
-                  <span className="flex items-center gap-1">
+                  <span className="text-blue-500/60 hidden sm:inline">|</span>
+                  <span className="hidden sm:flex items-center gap-1">
                     {currentExecution.state === "RUNNING" && <Loader className="w-3 h-3 animate-spin" />}
                     {currentExecution.state === "SUCCESS" && <CheckCircle className="w-3 h-3 text-green-600" />}
                     {currentExecution.state === "FAILED" && <XCircle className="w-3 h-3 text-red-500" />}
@@ -1542,10 +1626,10 @@ export default function WorkflowEditorPage() {
               )}
               <button
                 onClick={() => exitRunningMode()}
-                className="ml-1 px-2 py-0.5 rounded bg-white/80 hover:bg-white text-blue-700 text-[11px] font-medium border border-blue-500/20 flex items-center gap-1"
+                className="ml-1 px-1.5 md:px-2 py-0.5 rounded bg-white/80 hover:bg-white text-blue-700 text-[10px] md:text-[11px] font-medium border border-blue-500/20 flex items-center gap-1"
                 title="切回编辑模式"
               >
-                <Pencil className="w-3 h-3" /> 编辑草稿
+                <Pencil className="w-3 h-3" /> <span className="hidden sm:inline">编辑草稿</span>
               </button>
             </div>
           ) : publishedVersion > 0 ? (
@@ -1571,7 +1655,7 @@ export default function WorkflowEditorPage() {
 
         {/* Ctrl+F 搜索定位 */}
         {searchOpen && (
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 w-80 bg-card border border-border rounded-lg shadow-lg">
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 w-80 max-w-[calc(100%-1rem)] bg-card border border-border rounded-lg shadow-lg">
             <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
               <Search className="w-4 h-4 text-muted-foreground shrink-0" />
               <input
@@ -1618,12 +1702,28 @@ export default function WorkflowEditorPage() {
           </div>
         )}
 
-        {/* 左侧插件面板 */}
-        <NodeCreatePanel
-          isOpen={panelOpen}
-          onToggle={() => setPanelOpen(!panelOpen)}
-        />
+        {/* 左侧插件面板 — 桌面端 */}
+        {!isMobile && (
+          <NodeCreatePanel
+            isOpen={panelOpen}
+            onToggle={() => setPanelOpen(!panelOpen)}
+          />
+        )}
       </div>
+
+      {/* 移动端节点创建 Drawer */}
+      {isMobile && (
+        <Drawer open={nodeCreateDrawerOpen} onOpenChange={setNodeCreateDrawerOpen}>
+          <DrawerContent className="max-h-[80vh]">
+            <DrawerHeader>
+              <DrawerTitle>添加节点</DrawerTitle>
+            </DrawerHeader>
+            <div className="flex-1 overflow-y-auto px-4 pb-4">
+              <NodeCreatePanel isOpen={true} onToggle={() => setNodeCreateDrawerOpen(false)} />
+            </div>
+          </DrawerContent>
+        </Drawer>
+      )}
 
       {/* 右键菜单 */}
       {contextMenu && (() => {
