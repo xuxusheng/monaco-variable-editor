@@ -62,7 +62,10 @@ export function SecretTable({ namespaceId }: SecretTableProps) {
     key: string
   } | null>(null)
 
-  const { data, refetch } = trpc.workflow.secretList.useQuery({ namespaceId })
+  const { data, refetch } = trpc.workflow.secretList.useQuery(
+    { namespaceId },
+    { enabled: !!namespaceId },
+  )
 
   const deleteMutation = trpc.workflow.secretDelete.useMutation({
     onSuccess: () => {

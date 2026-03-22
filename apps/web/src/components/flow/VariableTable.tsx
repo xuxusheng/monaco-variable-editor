@@ -36,9 +36,10 @@ export function VariableTable({ namespaceId }: VariableTableProps) {
   const [expandedKey, setExpandedKey] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  const { data: variables, refetch } = trpc.workflow.variableList.useQuery({
-    namespaceId,
-  })
+  const { data: variables, refetch } = trpc.workflow.variableList.useQuery(
+    { namespaceId },
+    { enabled: !!namespaceId },
+  )
 
   const deleteVar = trpc.workflow.variableDelete.useMutation({
     onSuccess: () => {

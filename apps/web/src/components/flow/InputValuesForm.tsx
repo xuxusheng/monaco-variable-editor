@@ -10,7 +10,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
 
 interface InputValuesFormProps {
   inputs: WorkflowInput[]
@@ -20,17 +22,44 @@ interface InputValuesFormProps {
 
 export function InputValuesForm({ inputs, onSubmit, onCancel }: InputValuesFormProps) {
   const [values, setValues] = useState<Record<string, string>>({})
+  const [multiValues, setMultiValues] = useState<Record<string, string[]>>({})
 
   const handleChange = useCallback((id: string, value: string) => {
     setValues((prev) => ({ ...prev, [id]: value }))
   }, [])
 
+  const handleMultiToggle = useCallback((id: string, option: string) => {
+    setMultiValues((prev) => {
+      const current = prev[id] ?? []
+      const next = current.includes(option)
+        ? current.filter((v) => v !== option)
+        : [...current, option]
+      return { ...prev, [id]: next }
+    })
+  }, [])
+
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault()
-      onSubmit(values)
+      const merged: Record<string, string> = { ...values }
+      for (const input of inputs) {
+        if (input.type === "MULTISELECT") {
+          const selected = multiValues[input.id] ?? []
+          if (input.required && selected.length === 0) {
+            toast.error(`请填写必填字段：${inputs.filter((i) => i.required && !multiValues[i.id]?.length).map((i) => i.displayName || i.id).join("、")}`)
+            return
+          }
+          merged[input.id] = selected.join(",")
+        }
+      }
+      const missing = inputs.filter((i) => i.required && i.type !== "MULTISELECT" && !merged[i.id])
+      if (missing.length > 0) {
+        toast.error(`请填写必填字段：${missing.map((i) => i.displayName || i.id).join("、")}`)
+        return
+      }
+      onSubmit(merged)
     },
-    [values, onSubmit],
+    [values, multiValues, onSubmit, inputs],
   )
 
   return (
@@ -55,7 +84,7 @@ export function InputValuesForm({ inputs, onSubmit, onCancel }: InputValuesFormP
                 {input.description && (
                   <p className="text-xs text-muted-foreground">{input.description}</p>
                 )}
-                {input.type === "SELECT" || input.type === "MULTISELECT" ? (
+                {input.type === "SELECT" ? (
                   <Select
                     value={values[input.id] ?? ""}
                     onValueChange={(value) => handleChange(input.id, value ?? "")}
@@ -69,6 +98,21 @@ export function InputValuesForm({ inputs, onSubmit, onCancel }: InputValuesFormP
                       ))}
                     </SelectContent>
                   </Select>
+                ) : input.type === "MULTISELECT" ? (
+                  <div className="mt-1 space-y-1.5 rounded-md border border-input p-2.5">
+                    {(input.values ?? []).map((v) => (
+                      <label key={v} className="flex items-center gap-2 text-sm cursor-pointer">
+                        <Checkbox
+                          checked={(multiValues[input.id] ?? []).includes(v)}
+                          onCheckedChange={() => handleMultiToggle(input.id, v)}
+                        />
+                        {v}
+                      </label>
+                    ))}
+                    {(!input.values || input.values.length === 0) && (
+                      <p className="text-xs text-muted-foreground">无可选项</p>
+                    )}
+                  </div>
                 ) : input.type === "BOOL" ? (
                   <Select
                     value={values[input.id] ?? ""}

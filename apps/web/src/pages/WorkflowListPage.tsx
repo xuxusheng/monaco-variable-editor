@@ -116,7 +116,11 @@ export default function WorkflowListPage() {
   const navigate = useNavigate()
   const utils = trpc.useUtils()
   const hasNamespaces = useWorkflowStore((s) => s.hasNamespaces)
-  const { data: workflows, isLoading } = trpc.workflow.listEnriched.useQuery()
+  const currentNamespace = useWorkflowStore((s) => s.currentNamespace)
+  const { data: workflows, isLoading } = trpc.workflow.listEnriched.useQuery(
+    undefined,
+    { enabled: !!currentNamespace },
+  )
 
   // 没有 namespace 时引导到 setup 页
   useEffect(() => {
@@ -162,8 +166,6 @@ export default function WorkflowListPage() {
       return true
     })
   }, [workflows, search, statusFilter])
-
-  const currentNamespace = useWorkflowStore((s) => s.currentNamespace)
 
   const handleCreate = () => {
     setNewWorkflowName("")

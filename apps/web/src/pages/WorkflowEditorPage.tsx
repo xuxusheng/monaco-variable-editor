@@ -838,8 +838,8 @@ export default function WorkflowEditorPage() {
   const draftSave = trpc.workflow.draftSave.useMutation({
     onSuccess: (_data, variables) => {
       markSaved()
-      if (variables.message === "自动暂存") {
-        toast.success("已自动暂存")
+      if (variables.message !== "自动暂存") {
+        toast.success("草稿已保存")
       }
       // Refresh draft list
       if (savedWorkflowId) {
@@ -847,10 +847,10 @@ export default function WorkflowEditorPage() {
       }
     },
     onError: (err, variables) => {
-      if (variables.message === "自动暂存") {
-        toast.error("自动暂存失败")
-      } else {
+      if (variables.message !== "自动暂存") {
         toast.error(`保存草稿失败: ${err.message}`)
+      } else {
+        toast.error("自动暂存失败")
       }
     },
   })
