@@ -16,9 +16,6 @@
     "lint-staged": "^16.4.0",
     "vite-plus": "catalog:"
   },
-  "lint-staged": {
-    "*.{ts,tsx}": "eslint --fix"
-  },
   "packageManager": "pnpm@9.15.4",
   "dependencies": {
     "lucide-react": "^0.468.0"
