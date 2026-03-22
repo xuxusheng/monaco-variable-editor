@@ -1582,6 +1582,11 @@ export default function WorkflowEditorPage() {
             <div className="flex-1 overflow-y-auto px-4 pb-4">
               <MobileNodePanel />
             </div>
+            <div className="px-4 pb-4 pt-2 border-t border-border">
+              <Button variant="outline" className="w-full" onClick={() => setNodeCreateDrawerOpen(false)}>
+                关闭
+              </Button>
+            </div>
           </DrawerContent>
         </Drawer>
       )}

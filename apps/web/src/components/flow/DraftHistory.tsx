@@ -4,7 +4,6 @@
  */
 
 import { useCallback } from "react"
-import { toast } from "sonner"
 import { Inbox, ScrollText } from "lucide-react"
 import {
   Dialog,
@@ -37,7 +36,6 @@ export function DraftHistory({ drafts, onRollback, onClose }: DraftHistoryProps)
       const label = draft.message || formatTime(draft.createdAt)
       if (window.confirm(`回滚到「${label}」？当前未保存的修改将丢失。`)) {
         onRollback(draft.id)
-        toast.success(`已恢复到「${label}」`)
       }
     },
     [onRollback],

@@ -72,7 +72,6 @@ export function ReleaseHistory({
   const confirmRollback = useCallback(() => {
     if (rollbackTarget) {
       onRollback(rollbackTarget.id)
-      toast.success(`已恢复到 v${rollbackTarget.version}，请继续编辑`)
       setRollbackTarget(null)
     }
   }, [rollbackTarget, onRollback])
