@@ -72,7 +72,7 @@ export const EditorTabBar = memo(function EditorTabBar({
                 <X className="w-3 h-3" />
               </button>
             )}
-            {onOpenInNewPage && tab.key !== "canvas" && (
+            {onOpenInNewPage && ["executions", "versions", "triggers"].includes(tab.key) && (
               <button
                 onClick={(e) => {
                   e.stopPropagation()
