@@ -78,6 +78,7 @@ import {
   CheckCircle, XCircle, Globe, Settings, Maximize2, Search, X,
 } from "lucide-react"
 import { trpc } from "@/lib/trpc"
+import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { useHotkeys } from "react-hotkeys-hook"
 import type {
@@ -981,67 +982,83 @@ export default function WorkflowEditorPage() {
           </span>
         </div>
         <div className="flex items-center gap-1">
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => undo()}
             disabled={!canUndo}
-            className="w-7 h-7 rounded-md text-sm flex items-center justify-center hover:bg-muted disabled:opacity-30"
+            className="w-7 h-7"
             title="撤销"
           >
             <Undo2 className="w-4 h-4" />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => redo()}
             disabled={!canRedo}
-            className="w-7 h-7 rounded-md text-sm flex items-center justify-center hover:bg-muted disabled:opacity-30"
+            className="w-7 h-7"
             title="重做"
           >
             <Redo2 className="w-4 h-4" />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => setRightPanel("inputs")}
-            className="w-7 h-7 rounded-md text-sm flex items-center justify-center hover:bg-muted"
+            className="w-7 h-7"
             title="输入参数"
           >
             <Download className="w-4 h-4" />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => setRightPanel("yaml")}
-            className="w-7 h-7 rounded-md text-sm flex items-center justify-center hover:bg-muted"
+            className="w-7 h-7"
             title="YAML"
           >
             <FileText className="w-4 h-4" />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={handleAutoLayout}
-            className="w-7 h-7 rounded-md text-sm flex items-center justify-center hover:bg-muted"
+            className="w-7 h-7"
             title="自动布局"
           >
             <LayoutDashboard className="w-4 h-4" />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => fitView({ padding: 0.2, maxZoom: 1, duration: 300 })}
-            className="w-7 h-7 rounded-md text-sm flex items-center justify-center hover:bg-muted"
+            className="w-7 h-7"
             title="适应画布"
           >
             <Maximize2 className="w-4 h-4" />
-          </button>
+          </Button>
           {selectedNodeId && (
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={handleDuplicate}
-              className="w-7 h-7 rounded-md text-sm flex items-center justify-center hover:bg-muted"
+              className="w-7 h-7"
               title="复制节点"
             >
               <Copy className="w-4 h-4" />
-            </button>
+            </Button>
           )}
           {selectedNodeId && (
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={handleDeleteSelected}
-              className="w-7 h-7 rounded-md text-sm flex items-center justify-center hover:bg-red-50"
+              className="w-7 h-7 hover:bg-red-50"
               title="删除"
             >
               <Trash2 className="w-4 h-4 text-red-500" />
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -1084,13 +1101,17 @@ export default function WorkflowEditorPage() {
           )}
 
           {/* Draft actions */}
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleLoadFromApi}
-            className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors"
+            className="h-6 text-xs"
           >
             <FolderOpen className="w-3.5 h-3.5" /> 加载
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => {
               if (!savedWorkflowId) {
                 toast.warning("请先保存工作流后再复制")
@@ -1100,20 +1121,21 @@ export default function WorkflowEditorPage() {
             }}
             disabled={!savedWorkflowId || duplicateWorkflow.isPending}
             title={!savedWorkflowId ? "请先保存工作流" : "复制当前工作流"}
-            className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors disabled:opacity-50 flex items-center gap-1"
+            className="h-6 text-xs"
           >
             <Copy className="w-3.5 h-3.5" /> 复制
-          </button>
-          <button
+          </Button>
+          <Button
+            size="sm"
             onClick={handleSaveToApi}
-            className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${
+            className={`h-6 text-xs ${
               saveStatus === "saving"
-                ? "bg-yellow-100 text-yellow-700"
+                ? "bg-yellow-100 text-yellow-700 hover:bg-yellow-100"
                 : saveStatus === "saved"
-                  ? "bg-green-100 text-green-700"
+                  ? "bg-green-100 text-green-700 hover:bg-green-100"
                   : saveStatus === "error"
-                    ? "bg-red-100 text-red-700"
-                    : "bg-indigo-500 text-white hover:bg-indigo-600"
+                    ? "bg-red-100 text-red-700 hover:bg-red-100"
+                    : ""
             }`}
           >
             {saveStatus === "saving"
@@ -1123,71 +1145,84 @@ export default function WorkflowEditorPage() {
                 : saveStatus === "error"
                   ? <span className="flex items-center gap-1"><XCircle className="w-3.5 h-3.5" /> 失败</span>
                   : <span className="flex items-center gap-1"><Save className="w-3.5 h-3.5" /> 保存</span>}
-          </button>
+          </Button>
 
           <div className="w-px h-5 bg-border" />
 
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => handleSaveDraft()}
             disabled={!savedWorkflowId || draftSave.isPending}
             title={!savedWorkflowId ? "请先点击「保存」创建工作流" : "保存当前编辑状态为草稿快照"}
-            className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors disabled:opacity-50 flex items-center gap-1"
+            className="h-6 text-xs"
           >
             <ScrollText className="w-3.5 h-3.5" /> 存草稿
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setRightPanel("drafts")}
             title={!savedWorkflowId ? "请先点击「保存」创建工作流" : "查看草稿历史"}
-            className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors flex items-center gap-1"
+            className="h-6 text-xs"
           >
             <ClipboardList className="w-3.5 h-3.5" /> 草稿 ({drafts.length})
-          </button>
+          </Button>
 
           <div className="w-px h-5 bg-border" />
 
-          <button
+          <Button
+            size="sm"
             onClick={() => setShowPublishDialog(true)}
             disabled={!savedWorkflowId || releasePublish.isPending}
             title={!savedWorkflowId ? "请先点击「保存」创建工作流" : "发布当前工作流为新版本"}
-            className="px-2 py-1 rounded-md text-xs font-medium bg-emerald-500 text-white hover:bg-emerald-600 transition-colors disabled:opacity-50 flex items-center gap-1"
+            className="h-6 text-xs bg-emerald-500 text-white hover:bg-emerald-600"
           >
             <Rocket className="w-3.5 h-3.5" /> 发布 v{publishedVersion + 1}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setRightPanel("releases")}
             title={!savedWorkflowId ? "请先点击「保存」创建工作流" : "查看已发布版本"}
-            className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors flex items-center gap-1"
+            className="h-6 text-xs"
           >
             <Package className="w-3.5 h-3.5" /> 版本 ({releases.length})
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setRightPanel("triggers")}
             title="触发器"
-            className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors flex items-center gap-1"
+            className="h-6 text-xs"
           >
             <Zap className="w-3.5 h-3.5" /> 触发器 ({triggers.length})
-          </button>
+          </Button>
 
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setRightPanel("settings")}
             title="项目空间设置"
-            className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors flex items-center gap-1"
+            className="h-6 text-xs"
           >
             <Settings className="w-3.5 h-3.5" /> 设置
-          </button>
+          </Button>
 
           <div className="w-px h-5 bg-border" />
 
-          <button
+          <Button
+            size="sm"
             onClick={() => setRightPanel(rightPanel === "yaml" ? "none" : "yaml")}
-            className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${
+            className={`h-6 text-xs ${
               rightPanel === "yaml"
-                ? "bg-indigo-500 text-white"
-                : "bg-muted hover:bg-muted/80"
-            } flex items-center gap-1`}
+                ? "bg-indigo-500 text-white hover:bg-indigo-600"
+                : ""
+            }`}
+            variant={rightPanel === "yaml" ? "default" : "secondary"}
           >
             <FileText className="w-3.5 h-3.5" /> YAML
-          </button>
+          </Button>
 
           <div className="w-px h-5 bg-border" />
 
@@ -1197,30 +1232,35 @@ export default function WorkflowEditorPage() {
             <span className="text-[10px] text-muted-foreground hidden lg:inline">Kestra</span>
           </div>
 
-          <button
+          <Button
+            size="sm"
             onClick={handleExecuteTest}
             disabled={!savedWorkflowId || !kestraHealthy || isExecuting}
             title={!savedWorkflowId ? "请先保存工作流" : !kestraHealthy ? "Kestra 未连接" : "运行测试"}
-            className="px-2 py-1 rounded-md text-xs font-medium bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50 transition-colors flex items-center gap-1"
+            className="h-6 text-xs bg-blue-500 text-white hover:bg-blue-600"
           >
             <Play className="w-3.5 h-3.5" /> 运行
-          </button>
+          </Button>
 
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => setRightPanel("executions")}
             title="执行历史"
-            className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors flex items-center gap-1"
+            className="h-6 text-xs"
           >
             <History className="w-3.5 h-3.5" /> 执行
-          </button>
+          </Button>
 
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => setRightPanel("production-executions")}
             title="生产执行"
-            className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors flex items-center gap-1"
+            className="h-6 text-xs"
           >
             <Globe className="w-3.5 h-3.5" /> 生产执行
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -1283,12 +1323,14 @@ export default function WorkflowEditorPage() {
                 placeholder="搜索节点名称..."
                 className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
               />
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => { setSearchOpen(false); setSearchQuery("") }}
-                className="w-5 h-5 flex items-center justify-center rounded hover:bg-muted"
+                className="w-5 h-5"
               >
                 <X className="w-3.5 h-3.5 text-muted-foreground" />
-              </button>
+              </Button>
             </div>
             {searchQuery.trim() && (
               <div className="max-h-60 overflow-y-auto py-1">
@@ -1296,14 +1338,15 @@ export default function WorkflowEditorPage() {
                   <div className="px-3 py-2 text-xs text-muted-foreground">无匹配节点</div>
                 ) : (
                   searchResults.map((node) => (
-                    <button
+                    <Button
                       key={node.id}
+                      variant="ghost"
                       onClick={() => handleSearchSelect(node.id)}
-                      className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted flex items-center gap-2"
+                      className="w-full text-left px-3 py-1.5 text-sm h-auto justify-start"
                     >
                       <span className="truncate">{node.name}</span>
                       <span className="text-[10px] text-muted-foreground ml-auto shrink-0">{node.type}</span>
-                    </button>
+                    </Button>
                   ))
                 )}
               </div>
@@ -1337,8 +1380,6 @@ export default function WorkflowEditorPage() {
               setContextMenu(null)
             }}
             onAddErrors={() => {
-              // errors 边：用户选目标后创建
-              // TODO: M2 后续完善，当前简化为创建一条 errors 边到下一个同级节点
               toast.info("errors 边：请从节点拖出连线（后续完善目标选择）")
               setContextMenu(null)
             }}

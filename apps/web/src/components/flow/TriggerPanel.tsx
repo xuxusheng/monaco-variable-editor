@@ -7,6 +7,17 @@ import { useCallback, useMemo, useState } from "react"
 import { Clock, Webhook, Trash2, Power, Plus, Inbox, Copy, Key, Eye, EyeOff, CalendarClock, CheckCircle2, XCircle } from "lucide-react"
 import { trpc } from "@/lib/trpc"
 import { toast } from "sonner"
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog"
+import { Button } from "@/components/ui/button"
 
 interface TriggerPanelProps {
   workflowId: string
@@ -123,6 +134,8 @@ export function TriggerPanel({ workflowId, onCreate }: TriggerPanelProps) {
     onError: () => toast.error("删除失败"),
   })
 
+  const [deleteTarget, setDeleteTarget] = useState<TriggerItem | null>(null)
+
   const handleToggle = useCallback(
     (item: TriggerItem) => {
       toggleMutation.mutate({ id: item.id, disabled: !item.disabled })
@@ -132,12 +145,17 @@ export function TriggerPanel({ workflowId, onCreate }: TriggerPanelProps) {
 
   const handleDelete = useCallback(
     (item: TriggerItem) => {
-      if (window.confirm(`确认删除触发器「${item.name}」？`)) {
-        deleteMutation.mutate({ id: item.id })
-      }
+      setDeleteTarget(item)
     },
-    [deleteMutation],
+    [],
   )
+
+  const confirmDelete = useCallback(() => {
+    if (deleteTarget) {
+      deleteMutation.mutate({ id: deleteTarget.id })
+      setDeleteTarget(null)
+    }
+  }, [deleteTarget, deleteMutation])
 
   const triggers = (data ?? []) as TriggerItem[]
   const statusMap = useMemo(() => {
@@ -261,6 +279,22 @@ export function TriggerPanel({ workflowId, onCreate }: TriggerPanelProps) {
           </div>
         )}
       </div>
+
+      {/* 删除确认 */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除触发器</AlertDialogTitle>
+            <AlertDialogDescription>
+              确认删除触发器「{deleteTarget?.name}」？此操作不可撤销。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteTarget(null)}>取消</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>删除</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -13,6 +13,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog"
 
 interface ReleaseEntry {
   id: string
@@ -40,20 +50,22 @@ export function ReleaseHistory({
   onClose,
 }: ReleaseHistoryProps) {
   const [viewYaml, setViewYaml] = useState<ReleaseEntry | null>(null)
+  const [rollbackTarget, setRollbackTarget] = useState<ReleaseEntry | null>(null)
 
   const handleRollback = useCallback(
     (release: ReleaseEntry) => {
-      if (
-        window.confirm(
-          `从版本 v${release.version}「${release.name}」创建新草稿？`,
-        )
-      ) {
-        onRollback(release.id)
-        toast.success(`已恢复到 v${release.version}，请继续编辑`)
-      }
+      setRollbackTarget(release)
     },
-    [onRollback],
+    [],
   )
+
+  const confirmRollback = useCallback(() => {
+    if (rollbackTarget) {
+      onRollback(rollbackTarget.id)
+      toast.success(`已恢复到 v${rollbackTarget.version}，请继续编辑`)
+      setRollbackTarget(null)
+    }
+  }, [rollbackTarget, onRollback])
 
   const handleCopyYaml = useCallback((yaml: string) => {
     navigator.clipboard.writeText(yaml)
@@ -61,6 +73,7 @@ export function ReleaseHistory({
   }, [])
 
   return (
+    <>
     <Dialog open={true} onOpenChange={(open) => { if (!open) onClose() }}>
       <DialogContent
         showCloseButton={false}
@@ -177,5 +190,22 @@ export function ReleaseHistory({
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* 回滚确认 */}
+    <AlertDialog open={!!rollbackTarget} onOpenChange={(open) => { if (!open) setRollbackTarget(null) }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>确认回滚</AlertDialogTitle>
+          <AlertDialogDescription>
+            从版本 v{rollbackTarget?.version}「{rollbackTarget?.name}」创建新草稿？
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => setRollbackTarget(null)}>取消</AlertDialogCancel>
+          <AlertDialogAction onClick={confirmRollback}>回滚</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   )
 }

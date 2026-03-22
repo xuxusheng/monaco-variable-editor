@@ -15,6 +15,16 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 interface TriggerCreateFormProps {
   workflowId: string
@@ -106,43 +116,31 @@ export function TriggerCreateForm({
         <div className="space-y-4">
           {/* Name */}
           <div>
-            <label className="block text-sm font-medium mb-1.5">
-              触发器名称
-            </label>
-            <input
-              type="text"
+            <Label className="mb-1.5">触发器名称</Label>
+            <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="每日定时触发"
-              className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
 
           {/* Type toggle */}
           <div>
-            <label className="block text-sm font-medium mb-1.5">类型</label>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input
-                  type="radio"
-                  name="trigger-type"
-                  checked={type === "schedule"}
-                  onChange={() => setType("schedule")}
-                  className="accent-primary"
-                />
+            <Label className="mb-1.5">类型</Label>
+            <RadioGroup
+              value={type}
+              onValueChange={(v) => setType(v as "schedule" | "webhook")}
+              className="flex gap-4"
+            >
+              <Label className="flex items-center gap-2 cursor-pointer">
+                <RadioGroupItem value="schedule" />
                 Schedule
-              </label>
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input
-                  type="radio"
-                  name="trigger-type"
-                  checked={type === "webhook"}
-                  onChange={() => setType("webhook")}
-                  className="accent-primary"
-                />
+              </Label>
+              <Label className="flex items-center gap-2 cursor-pointer">
+                <RadioGroupItem value="webhook" />
                 Webhook
-              </label>
-            </div>
+              </Label>
+            </RadioGroup>
           </div>
 
           {/* Schedule config */}
@@ -152,23 +150,19 @@ export function TriggerCreateForm({
                 Schedule 配置
               </p>
               <div>
-                <label className="block text-sm mb-1.5">Cron</label>
-                <input
-                  type="text"
+                <Label className="mb-1.5">Cron</Label>
+                <Input
                   value={cron}
                   onChange={(e) => setCron(e.target.value)}
                   placeholder="0 9 * * *"
-                  className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
               <div>
-                <label className="block text-sm mb-1.5">时区</label>
-                <input
-                  type="text"
+                <Label className="mb-1.5">时区</Label>
+                <Input
                   value={timezone}
                   onChange={(e) => setTimezone(e.target.value)}
                   placeholder="Asia/Shanghai"
-                  className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
             </div>
@@ -181,21 +175,21 @@ export function TriggerCreateForm({
                 Webhook 配置
               </p>
               <div>
-                <label className="block text-sm mb-1.5">Secret</label>
+                <Label className="mb-1.5">Secret</Label>
                 <div className="flex gap-2">
-                  <input
-                    type="text"
+                  <Input
                     value={webhookSecret}
                     readOnly
-                    className="flex-1 px-3 py-2 rounded-md border border-input bg-muted text-sm font-mono"
+                    className="font-mono bg-muted"
                   />
-                  <button
+                  <Button
+                    variant="outline"
+                    size="icon"
                     onClick={regenerateSecret}
-                    className="px-3 py-2 rounded-md border border-input hover:bg-muted transition-colors"
                     title="重新生成"
                   >
                     <RefreshCw className="w-4 h-4" />
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -203,18 +197,22 @@ export function TriggerCreateForm({
 
           {/* Release selector */}
           <div>
-            <label className="block text-sm font-medium mb-1.5">基于版本</label>
-            <select
+            <Label className="mb-1.5">基于版本</Label>
+            <Select
               value={selectedReleaseId}
-              onChange={(e) => setSelectedReleaseId(e.target.value)}
-              className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              onValueChange={setSelectedReleaseId}
             >
-              {releases.map((r) => (
-                <option key={r.id} value={r.id}>
-                  v{r.version} {r.name ? `"${r.name}"` : ""}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {releases.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>
+                    v{r.version} {r.name ? `"${r.name}"` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 

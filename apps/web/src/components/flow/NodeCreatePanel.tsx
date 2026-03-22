@@ -1,11 +1,17 @@
 import { useState, useCallback, useMemo, type DragEvent } from "react"
-import { Package, Clock, Search, X } from "lucide-react"
+import { Package, Clock, Search, X, ChevronRight } from "lucide-react"
 import {
   PLUGIN_CATALOG,
   CATEGORY_COLORS,
   type PluginEntry,
   type PluginCategory,
 } from "@/types/workflow"
+import { Input } from "@/components/ui/input"
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "@/components/ui/collapsible"
 
 const CATEGORY_LABELS: Record<PluginCategory, string> = {
   flow: "控制流",
@@ -85,8 +91,8 @@ interface NodeCreatePanelProps {
 export function NodeCreatePanel({ isOpen, onToggle }: NodeCreatePanelProps) {
   const [search, setSearch] = useState("")
   const [activeTag, setActiveTag] = useState<FilterTag>("all")
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
-    new Set(Object.keys(CATEGORY_LABELS)),
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(
+    new Set(),
   )
   const [recentTypes, setRecentTypes] = useState<string[]>(() => loadRecent())
 
@@ -133,7 +139,7 @@ export function NodeCreatePanel({ isOpen, onToggle }: NodeCreatePanelProps) {
   }, [recentTypes, search, activeTag])
 
   const toggleCategory = useCallback((cat: string) => {
-    setExpandedCategories((prev) => {
+    setCollapsedCategories((prev) => {
       const next = new Set(prev)
       if (next.has(cat)) next.delete(cat)
       else next.add(cat)
@@ -184,12 +190,11 @@ export function NodeCreatePanel({ isOpen, onToggle }: NodeCreatePanelProps) {
       <div className="px-3 py-2 border-b border-border">
         <div className="relative">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-          <input
-            type="text"
+          <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="搜索插件..."
-            className="w-full pl-7 pr-7 py-1.5 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="pl-7 pr-7 h-7 text-sm"
           />
           {search && (
             <button
@@ -246,41 +251,45 @@ export function NodeCreatePanel({ isOpen, onToggle }: NodeCreatePanelProps) {
           </div>
         )}
 
-        {Object.entries(grouped).map(([cat, plugins]) => (
-          <div key={cat}>
-            <button
-              onClick={() => toggleCategory(cat)}
-              className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-muted/50 transition-colors"
+        {Object.entries(grouped).map(([cat, plugins]) => {
+          const isCollapsed = collapsedCategories.has(cat)
+          return (
+            <Collapsible
+              key={cat}
+              open={!isCollapsed}
+              onOpenChange={() => toggleCategory(cat)}
             >
-              <span
-                className="w-2 h-2 rounded-full"
-                style={{ background: CATEGORY_COLORS[cat as PluginCategory] ?? CATEGORY_COLORS.other }}
-              />
-              {CATEGORY_LABELS[cat as PluginCategory] ?? cat}
-              <span className="ml-auto text-[10px]">
-                {expandedCategories.has(cat) ? "▾" : "▸"}
-              </span>
-            </button>
+              <CollapsibleTrigger className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-muted/50 transition-colors">
+                <span
+                  className="w-2 h-2 rounded-full"
+                  style={{ background: CATEGORY_COLORS[cat as PluginCategory] ?? CATEGORY_COLORS.other }}
+                />
+                {CATEGORY_LABELS[cat as PluginCategory] ?? cat}
+                <ChevronRight
+                  className={`ml-auto w-3 h-3 transition-transform ${isCollapsed ? "" : "rotate-90"}`}
+                />
+              </CollapsibleTrigger>
 
-            {expandedCategories.has(cat) && (
-              <div className="pb-1">
-                {plugins.map((plugin) => (
-                  <div
-                    key={plugin.type}
-                    draggable
-                    onDragStart={(e) => onDragStart(e, plugin)}
-                    className="mx-2 mb-1 px-3 py-2 rounded-md border border-transparent hover:border-border hover:bg-muted/50 cursor-grab active:cursor-grabbing transition-colors"
-                  >
-                    <div className="text-sm font-medium">{plugin.name}</div>
-                    <div className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate">
-                      {plugin.type.split(".").pop()}
-                    </div>
+              <CollapsibleContent>
+                <div className="pb-1">
+                    {plugins.map((plugin) => (
+                      <div
+                        key={plugin.type}
+                        draggable
+                        onDragStart={(e) => onDragStart(e, plugin)}
+                        className="mx-2 mb-1 px-3 py-2 rounded-md border border-transparent hover:border-border hover:bg-muted/50 cursor-grab active:cursor-grabbing transition-colors"
+                      >
+                        <div className="text-sm font-medium">{plugin.name}</div>
+                        <div className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate">
+                          {plugin.type.split(".").pop()}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
+              </CollapsibleContent>
+            </Collapsible>
+          )
+        })}
 
         {filteredPlugins.length === 0 && (
           <div className="px-3 py-8 text-center text-sm text-muted-foreground">

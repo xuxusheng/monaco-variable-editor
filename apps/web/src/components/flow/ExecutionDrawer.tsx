@@ -16,6 +16,13 @@ import {
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle,
 } from "@/components/ui/drawer"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 const STATE_ICONS: Record<string, React.ReactNode> = {
   CREATED: <Clock className="w-4 h-4 text-muted-foreground" />,
@@ -238,18 +245,22 @@ function LogsTab({ kestraExecId }: { kestraExecId: string }) {
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-2 mb-3 shrink-0">
-        <select
-          value={level}
-          onChange={(e) => setLevel(e.target.value as typeof level)}
-          className="text-xs bg-muted border border-border rounded px-2 py-1"
+        <Select
+          value={level || "__all__"}
+          onValueChange={(v) => setLevel(v === "__all__" ? "" : v as typeof level)}
         >
-          <option value="">全部级别</option>
-          <option value="TRACE">TRACE</option>
-          <option value="DEBUG">DEBUG</option>
-          <option value="INFO">INFO</option>
-          <option value="WARN">WARN</option>
-          <option value="ERROR">ERROR</option>
-        </select>
+          <SelectTrigger size="sm" className="w-[120px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">全部级别</SelectItem>
+            <SelectItem value="TRACE">TRACE</SelectItem>
+            <SelectItem value="DEBUG">DEBUG</SelectItem>
+            <SelectItem value="INFO">INFO</SelectItem>
+            <SelectItem value="WARN">WARN</SelectItem>
+            <SelectItem value="ERROR">ERROR</SelectItem>
+          </SelectContent>
+        </Select>
         {logsQuery.isLoading && <span className="text-xs text-muted-foreground">加载中...</span>}
       </div>
       <div className="flex-1 overflow-y-auto font-mono text-xs space-y-0.5">
