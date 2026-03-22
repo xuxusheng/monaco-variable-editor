@@ -113,7 +113,7 @@ import type {
 } from "@/types/workflow"
 import { EDGE_STYLES } from "@/types/workflow"
 import type { KestraInput } from "@/types/kestra"
-import type { ApiWorkflowNode, ApiWorkflowEdge, ApiWorkflowInput } from "@/types/api"
+import type { ApiWorkflowNode, ApiWorkflowEdge, ApiWorkflowInput, ApiWorkflowVariable } from "@/types/api"
 import { useShallow } from "zustand/react/shallow"
 import {
   useWorkflowStore,
@@ -338,6 +338,9 @@ export default function WorkflowEditorPage() {
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false)
   const [nodeCreateDrawerOpen, setNodeCreateDrawerOpen] = useState(false)
   const [moreMenuOpen, setMoreMenuOpen] = useState(false)
+
+  // ---- 工作流 Variables（从 API 加载，给 PublishDialog 用） ----
+  const [wfVariables, setWfVariables] = useState<ApiWorkflowVariable[]>([])
 
   // ---- 引用检测 ----
   const [missingRefsWarning, setMissingRefsWarning] = useState<MissingReference[] | null>(null)
@@ -791,6 +794,7 @@ export default function WorkflowEditorPage() {
       if (full.nodes) setWfNodes((full.nodes as unknown as ApiWorkflowNode[]).map(fromApiNode))
       if (full.edges) setWfEdges((full.edges as unknown as ApiWorkflowEdge[]).map(fromApiEdge))
       if (full.inputs) setInputs((full.inputs as unknown as ApiWorkflowInput[]).map(fromApiInput))
+      if (full.variables) setWfVariables(full.variables as unknown as ApiWorkflowVariable[])
       useWorkflowStore.getState().clearExpandedContainers()
       setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 100)
     }
@@ -1644,7 +1648,7 @@ export default function WorkflowEditorPage() {
           nodes={wfNodes}
           edges={wfEdges}
           inputs={inputs}
-          variables={[]}
+          variables={wfVariables}
           flowId={workflowMeta.flowId}
           namespace={workflowMeta.namespace}
           onImport={handleYamlImport}
@@ -1692,7 +1696,7 @@ export default function WorkflowEditorPage() {
           nodes={wfNodes}
           edges={wfEdges}
           inputs={inputs}
-          variables={[]}
+          variables={wfVariables}
           flowId={workflowMeta.flowId}
           namespace={workflowMeta.namespace}
           nextVersion={publishedVersion + 1}

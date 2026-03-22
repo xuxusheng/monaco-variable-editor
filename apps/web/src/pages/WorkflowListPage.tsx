@@ -24,6 +24,13 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog"
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import {
   Plus,
   Trash2,
   Workflow,
@@ -135,6 +142,8 @@ export default function WorkflowListPage() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [newWorkflowName, setNewWorkflowName] = useState("")
 
   const filteredWorkflows = useMemo(() => {
     if (!workflows) return []
@@ -157,8 +166,16 @@ export default function WorkflowListPage() {
   const currentNamespace = useWorkflowStore((s) => s.currentNamespace)
 
   const handleCreate = () => {
+    setNewWorkflowName("")
+    setShowCreateDialog(true)
+  }
+
+  const handleConfirmCreate = () => {
+    const name = newWorkflowName.trim()
+    if (!name) return
+    setShowCreateDialog(false)
     createWorkflow.mutate({
-      name: "新建工作流",
+      name,
       flowId: `new-flow-${Date.now()}`,
       namespaceId: currentNamespace!,
     })
@@ -350,6 +367,30 @@ export default function WorkflowListPage() {
           </div>
         )}
       </div>
+
+      {/* Create workflow dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={(open) => { if (!open) setShowCreateDialog(false) }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>新建工作流</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              placeholder="请输入工作流名称"
+              value={newWorkflowName}
+              onChange={(e) => setNewWorkflowName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleConfirmCreate() }}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>取消</Button>
+            <Button onClick={handleConfirmCreate} disabled={!newWorkflowName.trim() || createWorkflow.isPending}>
+              {createWorkflow.isPending ? "创建中..." : "创建"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete confirmation */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
