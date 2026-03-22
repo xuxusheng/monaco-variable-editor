@@ -6,7 +6,7 @@
 
 import { useState, useMemo } from "react"
 import { trpc } from "@/lib/trpc"
-import type { ExecutionSummary } from "@/stores/workflow"
+import type { ExecutionSummary, TaskRun } from "@/stores/workflow"
 import {
   Clock, Loader, CheckCircle, XCircle, AlertTriangle,
   XOctagon, Ban, History, Inbox, HelpCircle,
@@ -86,6 +86,7 @@ interface ExecutionHistoryProps {
 }
 
 export function ExecutionHistory({ workflowId, onSelect, onClose }: ExecutionHistoryProps) {
+  const utils = trpc.useUtils()
   const query = trpc.workflow.executionList.useQuery(
     { workflowId, limit: 30 },
     { enabled: !!workflowId, refetchInterval: 10000 },
@@ -259,13 +260,13 @@ export function ExecutionHistory({ workflowId, onSelect, onClose }: ExecutionHis
         ) : (
           <div className="p-2 space-y-4">
             {manual.length > 0 && (
-              <GroupSection title="手动测试" items={manual} onSelect={onSelect} />
+              <GroupSection title="手动测试" items={manual} onSelect={onSelect} utils={utils} />
             )}
             {replays.length > 0 && (
-              <GroupSection title="Replay" items={replays} onSelect={onSelect} />
+              <GroupSection title="Replay" items={replays} onSelect={onSelect} utils={utils} />
             )}
             {scheduled.length > 0 && (
-              <GroupSection title="已发布" items={scheduled} onSelect={onSelect} />
+              <GroupSection title="已发布" items={scheduled} onSelect={onSelect} utils={utils} />
             )}
           </div>
         )}
@@ -274,7 +275,7 @@ export function ExecutionHistory({ workflowId, onSelect, onClose }: ExecutionHis
   )
 }
 
-function GroupSection({ title, items, onSelect }: {
+function GroupSection({ title, items, onSelect, utils }: {
   title: string
   items: Array<{
     id: string
@@ -283,6 +284,7 @@ function GroupSection({ title, items, onSelect }: {
     createdAt: Date | string
   }>
   onSelect?: (execution: ExecutionSummary) => void
+  utils: ReturnType<typeof trpc.useUtils>
 }) {
   return (
     <div>
@@ -291,7 +293,26 @@ function GroupSection({ title, items, onSelect }: {
         {items.map((item) => (
           <button
             key={item.id}
-            onClick={() =>
+            onClick={async () => {
+              try {
+                const full = await utils.workflow.executionGet.fetch({ executionId: item.id })
+                if (full && onSelect) {
+                  onSelect({
+                    id: full.id,
+                    kestraExecId: full.kestraExecId,
+                    state: full.state,
+                    taskRuns: (full.taskRuns ?? []) as unknown as TaskRun[],
+                    triggeredBy: full.triggeredBy,
+                    createdAt:
+                      full.createdAt instanceof Date
+                        ? full.createdAt.toISOString()
+                        : String(full.createdAt),
+                  })
+                  return
+                }
+              } catch {
+                // fallback: use summary data
+              }
               onSelect?.({
                 id: item.id,
                 kestraExecId: "",
@@ -303,7 +324,7 @@ function GroupSection({ title, items, onSelect }: {
                     ? item.createdAt.toISOString()
                     : String(item.createdAt),
               })
-            }
+            }}
             className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-muted/50 text-left"
           >
             <span className="text-sm">{STATE_ICONS[item.state] ?? <HelpCircle className="w-3.5 h-3.5 text-muted-foreground" />}</span>

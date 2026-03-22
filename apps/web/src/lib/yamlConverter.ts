@@ -670,10 +670,8 @@ function convertFromKestraInput(
 
 // ========== 辅助 ==========
 
-let _idCounter = 0
-
 function generateId(): string {
-  return `node_${Date.now()}_${++_idCounter}`
+  return `node_${crypto.randomUUID().slice(0, 8)}`
 }
 
 /** 简单自动布局（用于 YAML 导入） */

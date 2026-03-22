@@ -147,6 +147,7 @@ function toCanvasNodes(wfNodes: WorkflowNode[], nodesWithMissingRefs?: Set<strin
     id: n.id,
     type: "workflowNode" as const,
     position: n.ui ?? { x: 150, y: 50 },
+    selected: n.selected ?? false,
     data: {
       label: n.name,
       type: n.type,
@@ -443,20 +444,22 @@ export default function WorkflowEditorPage() {
   // ---- 引用检测（每个节点的 spec 中是否有缺失引用） ----
   const inputIds = useMemo(() => inputs.map((i) => i.id), [inputs])
   const nodesWithMissingRefs = useMemo(() => {
-    // 收集所有引用（遍历每个节点的 spec）
     const yaml = toKestraYaml(wfNodes, wfEdges, inputs, [], workflowMeta.flowId, workflowMeta.namespace)
     const result = checkReferences(yaml, { secrets: [], variables: [], inputs: inputIds })
     if (result.missing.length === 0) return new Set<string>()
 
-    // 找出哪些节点含有缺失引用
+    // 构建缺失引用名称集合，避免对每个节点重复做 YAML 解析
+    const missingNames = new Set(result.missing.map((r) => r.name))
+
+    // 检查每个节点的 spec 是否引用了缺失的 secret/variable/input
     const set = new Set<string>()
     for (const node of wfNodes) {
       const specStr = JSON.stringify(node.spec)
-      if (/secret\(['"]\w+['"]\)/.test(specStr) || /vars\.\w+/.test(specStr) || /inputs\.\w+/.test(specStr)) {
-        // 简化判断：只要节点 spec 中有引用模式且该引用缺失，就标记
-        const nodeYaml = JSON.stringify(node.spec)
-        const nodeResult = checkReferences(nodeYaml, { secrets: [], variables: [], inputs: inputIds })
-        if (nodeResult.missing.length > 0) set.add(node.id)
+      for (const name of missingNames) {
+        if (specStr.includes(name)) {
+          set.add(node.id)
+          break
+        }
       }
     }
     return set
@@ -632,11 +635,16 @@ export default function WorkflowEditorPage() {
     if (!selectedNodeId) return
     const deletedNode = wfNodes.find((n) => n.id === selectedNodeId)
 
-    // Collect child node IDs if the deleted node is a container
+    // Collect ALL descendant node IDs (BFS - handles nested containers)
     const selectedIds = new Set([selectedNodeId])
-    for (const n of wfNodes) {
-      if (n.containerId && selectedIds.has(n.containerId)) {
-        selectedIds.add(n.id)
+    let changed = true
+    while (changed) {
+      changed = false
+      for (const n of wfNodes) {
+        if (n.containerId && selectedIds.has(n.containerId) && !selectedIds.has(n.id)) {
+          selectedIds.add(n.id)
+          changed = true
+        }
       }
     }
 
@@ -734,6 +742,7 @@ export default function WorkflowEditorPage() {
     if (selectedNodeId) handleDuplicate()
   })
   useHotkeys("escape", () => {
+    setWfNodes((prev) => prev.map((n) => ({ ...n, selected: false })))
     setSelectedNodeId(null)
     setRightPanel("none")
     setContextMenu(null)
@@ -760,6 +769,7 @@ export default function WorkflowEditorPage() {
     const full = await utils.workflow.get.fetch({ id: latest.id })
     if (!full) return
 
+    isLoadingRef.current = true
     setSavedWorkflowId(full.id)
     setWorkflowMeta({
       flowId: full.flowId,
@@ -771,6 +781,7 @@ export default function WorkflowEditorPage() {
     if (full.nodes) setWfNodes((full.nodes as unknown as ApiWorkflowNode[]).map(fromApiNode))
     if (full.edges) setWfEdges((full.edges as unknown as ApiWorkflowEdge[]).map(fromApiEdge))
     if (full.inputs) setInputs((full.inputs as unknown as ApiWorkflowInput[]).map(fromApiInput))
+    isLoadingRef.current = false
 
     useWorkflowStore.getState().clearExpandedContainers()
     setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 100)
@@ -784,6 +795,7 @@ export default function WorkflowEditorPage() {
     const loadWorkflow = async () => {
       const full = await utils.workflow.get.fetch({ id: workflowId })
       if (!full) return
+      isLoadingRef.current = true
       setSavedWorkflowId(full.id)
       setWorkflowMeta({
         flowId: full.flowId,
@@ -795,6 +807,7 @@ export default function WorkflowEditorPage() {
       if (full.edges) setWfEdges((full.edges as unknown as ApiWorkflowEdge[]).map(fromApiEdge))
       if (full.inputs) setInputs((full.inputs as unknown as ApiWorkflowInput[]).map(fromApiInput))
       if (full.variables) setWfVariables(full.variables as unknown as ApiWorkflowVariable[])
+      isLoadingRef.current = false
       useWorkflowStore.getState().clearExpandedContainers()
       setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 100)
     }
@@ -1006,12 +1019,15 @@ export default function WorkflowEditorPage() {
 
   // 首次加载标记：首次渲染不触发 markDirty；已脏时跳过冗余调用
   const isInitialMount = useRef(true)
+  // API 数据加载期间跳过 markDirty，避免加载数据误触发脏标记
+  const isLoadingRef = useRef(false)
 
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false
       return
     }
+    if (isLoadingRef.current) return
     // 避免在已经 dirty 时重复触发 set
     if (!hasUnsavedChanges) {
       markDirty()

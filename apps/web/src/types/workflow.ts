@@ -24,6 +24,7 @@ export interface WorkflowNode {
     y: number
     collapsed?: boolean
   }
+  selected?: boolean              // 画布选中状态（React Flow 用）
 }
 
 // ----- 边模型 -----
