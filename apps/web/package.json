@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vp dev",
     "build": "tsc -b && vp build",
+    "check": "tsc -b",
     "lint": "eslint .",
     "preview": "vp preview"
   },
