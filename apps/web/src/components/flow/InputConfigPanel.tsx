@@ -1,6 +1,12 @@
 import { useState } from "react"
 import type { KestraInput } from "@/types/kestra"
 import { Download } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { Button } from "@/components/ui/button"
 
 interface InputConfigPanelProps {
   inputs: KestraInput[]
@@ -38,111 +44,97 @@ export function InputConfigPanel({ inputs, onUpdate, onClose }: InputConfigPanel
   }
 
   return (
-    <div className="panel-enter fixed top-0 right-0 h-screen w-full md:w-[480px] bg-card border-l border-border shadow-xl z-50 flex flex-col">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-        <div className="flex items-center gap-2">
-          <span className="text-lg"><Download className="w-4 h-4" /></span>
-          <h2 className="text-base font-semibold">全局输入参数</h2>
-        </div>
-        <button
-          onClick={onClose}
-          className="w-8 h-8 rounded-md hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-        >
-          ✕
-        </button>
-      </div>
+    <Dialog open={true} onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Download className="w-4 h-4" />
+            全局输入参数
+          </DialogTitle>
+        </DialogHeader>
 
-      <div className="flex-1 overflow-y-auto p-5 space-y-4">
-        {editingInputs.map((input, index) => (
-          <div
-            key={index}
-            className="border border-border rounded-lg p-4 space-y-3 relative group"
-          >
-            <button
-              onClick={() => handleRemove(index)}
-              className="absolute top-2 right-2 w-6 h-6 rounded-full bg-destructive/10 text-destructive text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+        <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+          {editingInputs.map((input, index) => (
+            <div
+              key={index}
+              className="border border-border rounded-lg p-4 space-y-3 relative group"
             >
-              ✕
-            </button>
+              <button
+                onClick={() => handleRemove(index)}
+                className="absolute top-2 right-2 w-6 h-6 rounded-full bg-destructive/10 text-destructive text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+              >
+                ✕
+              </button>
 
-            <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">参数 ID</Label>
+                  <Input
+                    value={input.id}
+                    onChange={(e) => handleUpdate(index, "id", e.target.value)}
+                    className="font-mono text-sm mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">类型</Label>
+                  <Select
+                    value={input.type}
+                    onValueChange={(value) => handleUpdate(index, "type", value ?? "")}
+                  >
+                    <SelectTrigger className="text-sm mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INPUT_TYPES.map((t) => (
+                        <SelectItem key={t} value={t}>{t}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">
-                  参数 ID
-                </label>
-                <input
-                  type="text"
-                  value={input.id}
-                  onChange={(e) => handleUpdate(index, "id", e.target.value)}
-                  className="w-full px-2.5 py-1.5 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring font-mono"
+                <Label className="text-xs text-muted-foreground">默认值</Label>
+                <Input
+                  value={input.defaults || ""}
+                  onChange={(e) => handleUpdate(index, "defaults", e.target.value)}
+                  placeholder="可选"
+                  className="text-sm mt-1"
                 />
               </div>
+
               <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1">
-                  类型
-                </label>
-                <select
-                  value={input.type}
-                  onChange={(e) => handleUpdate(index, "type", e.target.value)}
-                  className="w-full px-2.5 py-1.5 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  {INPUT_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
+                <Label className="text-xs text-muted-foreground">描述</Label>
+                <Input
+                  value={input.description || ""}
+                  onChange={(e) => handleUpdate(index, "description", e.target.value)}
+                  placeholder="参数说明"
+                  className="text-sm mt-1"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Switch
+                  id={`req-${index}`}
+                  checked={input.required || false}
+                  onCheckedChange={(checked) => handleUpdate(index, "required", checked)}
+                />
+                <Label htmlFor={`req-${index}`} className="text-xs text-muted-foreground">
+                  必填
+                </Label>
               </div>
             </div>
+          ))}
 
-            <div>
-              <label className="text-xs font-medium text-muted-foreground block mb-1">
-                默认值
-              </label>
-              <input
-                type="text"
-                value={input.defaults || ""}
-                onChange={(e) => handleUpdate(index, "defaults", e.target.value)}
-                placeholder="可选"
-                className="w-full px-2.5 py-1.5 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-muted-foreground block mb-1">
-                描述
-              </label>
-              <input
-                type="text"
-                value={input.description || ""}
-                onChange={(e) => handleUpdate(index, "description", e.target.value)}
-                placeholder="参数说明"
-                className="w-full px-2.5 py-1.5 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id={`req-${index}`}
-                checked={input.required || false}
-                onChange={(e) => handleUpdate(index, "required", e.target.checked)}
-                className="rounded"
-              />
-              <label htmlFor={`req-${index}`} className="text-xs text-muted-foreground">
-                必填
-              </label>
-            </div>
-          </div>
-        ))}
-
-        <button
-          onClick={handleAdd}
-          className="w-full py-2.5 rounded-md border-2 border-dashed border-muted-foreground/30 text-sm text-muted-foreground hover:border-indigo-400 hover:text-indigo-500 transition-colors"
-        >
-          + 添加输入参数
-        </button>
-      </div>
-    </div>
+          <Button
+            variant="ghost"
+            onClick={handleAdd}
+            className="w-full py-2.5 border-2 border-dashed border-muted-foreground/30 hover:border-indigo-400 hover:text-indigo-500"
+          >
+            + 添加输入参数
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }

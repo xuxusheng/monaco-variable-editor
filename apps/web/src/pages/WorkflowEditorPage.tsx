@@ -75,7 +75,7 @@ import {
   Wrench, Save, Download, FileText, LayoutDashboard,
   ClipboardList, Package, Rocket, Play, Zap,
   History, Copy, FolderOpen, ScrollText, Undo2, Redo2, Trash2,
-  CheckCircle, XCircle, Globe, Settings,
+  CheckCircle, XCircle, Globe, Settings, Maximize2, Search, X,
 } from "lucide-react"
 import { trpc } from "@/lib/trpc"
 import { toast } from "sonner"
@@ -318,6 +318,35 @@ export default function WorkflowEditorPage() {
   const triggers = useWorkflowStore((s) => s.triggers)
   const setTriggers = useWorkflowStore((s) => s.setTriggers)
 
+  // ---- 节点搜索定位 (Ctrl+F) ----
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [_searchHighlightId, setSearchHighlightId] = useState<string | null>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return []
+    const q = searchQuery.toLowerCase()
+    return wfNodes.filter((n) => n.name.toLowerCase().includes(q))
+  }, [searchQuery, wfNodes])
+
+  const handleSearchSelect = useCallback(
+    (nodeId: string) => {
+      const node = wfNodes.find((n) => n.id === nodeId)
+      if (!node) return
+      setSearchHighlightId(nodeId)
+      setSelectedNodeId(nodeId)
+      // Pan to the node position
+      const pos = node.ui ?? { x: 150, y: 50 }
+      fitView({ nodes: [{ id: nodeId, position: pos, data: {} } as Node], padding: 1, maxZoom: 1.5, duration: 400 })
+      // The fitView with nodes option centers on the specific node
+      setSearchOpen(false)
+      setSearchQuery("")
+      setTimeout(() => setSearchHighlightId(null), 2000)
+    },
+    [wfNodes, fitView, setSelectedNodeId],
+  )
+
   // ---- 过滤折叠容器的子节点 ----
   const visibleWfNodes = useMemo(() => filterVisibleNodes(wfNodes), [wfNodes])
   const visibleNodeIds = useMemo(
@@ -536,6 +565,34 @@ export default function WorkflowEditorPage() {
   useHotkeys("delete, backspace", () => handleDeleteSelected(), {
     enabled: !!selectedNodeId,
   })
+  useHotkeys("mod+s", (e) => {
+    e.preventDefault()
+    handleSaveDraft()
+  })
+  useHotkeys("mod+a", (e) => {
+    e.preventDefault()
+    // Select all visible nodes
+    if (visibleWfNodes.length > 0) {
+      setSelectedNodeId(visibleWfNodes[0].id)
+    }
+  })
+  useHotkeys("mod+d", (e) => {
+    e.preventDefault()
+    if (selectedNodeId) handleDuplicate()
+  })
+  useHotkeys("escape", () => {
+    setSelectedNodeId(null)
+    setRightPanel("none")
+    setContextMenu(null)
+    setSearchOpen(false)
+    setSearchQuery("")
+  })
+  useHotkeys("mod+f", (e) => {
+    e.preventDefault()
+    setSearchOpen(true)
+    setSearchQuery("")
+    setTimeout(() => searchInputRef.current?.focus(), 50)
+  })
 
   // ---- 保存/加载（tRPC useUtils） ----
   const utils = trpc.useUtils()
@@ -551,6 +608,14 @@ export default function WorkflowEditorPage() {
     onSuccess: () => {
       utils.workflow.list.invalidate()
     },
+  })
+
+  const duplicateWorkflow = trpc.workflow.duplicate.useMutation({
+    onSuccess: (result) => {
+      toast.success(`已复制为「${result.name}」`)
+      utils.workflow.list.invalidate()
+    },
+    onError: () => toast.error("复制失败"),
   })
 
   const handleSaveToApi = useCallback(() => {
@@ -953,6 +1018,13 @@ export default function WorkflowEditorPage() {
           >
             <LayoutDashboard className="w-4 h-4" />
           </button>
+          <button
+            onClick={() => fitView({ padding: 0.2, maxZoom: 1, duration: 300 })}
+            className="w-7 h-7 rounded-md text-sm flex items-center justify-center hover:bg-muted"
+            title="适应画布"
+          >
+            <Maximize2 className="w-4 h-4" />
+          </button>
           {selectedNodeId && (
             <button
               onClick={handleDuplicate}
@@ -1017,6 +1089,20 @@ export default function WorkflowEditorPage() {
             className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors"
           >
             <FolderOpen className="w-3.5 h-3.5" /> 加载
+          </button>
+          <button
+            onClick={() => {
+              if (!savedWorkflowId) {
+                toast.warning("请先保存工作流后再复制")
+                return
+              }
+              duplicateWorkflow.mutate({ workflowId: savedWorkflowId })
+            }}
+            disabled={!savedWorkflowId || duplicateWorkflow.isPending}
+            title={!savedWorkflowId ? "请先保存工作流" : "复制当前工作流"}
+            className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors disabled:opacity-50 flex items-center gap-1"
+          >
+            <Copy className="w-3.5 h-3.5" /> 复制
           </button>
           <button
             onClick={handleSaveToApi}
@@ -1084,7 +1170,7 @@ export default function WorkflowEditorPage() {
 
           <button
             onClick={() => setRightPanel("settings")}
-            title="命名空间设置"
+            title="项目空间设置"
             className="px-2 py-1 rounded-md text-xs font-medium bg-muted hover:bg-muted/80 transition-colors flex items-center gap-1"
           >
             <Settings className="w-3.5 h-3.5" /> 设置
@@ -1178,6 +1264,52 @@ export default function WorkflowEditorPage() {
             />
           </ReactFlow>
         </div>
+
+        {/* Ctrl+F 搜索定位 */}
+        {searchOpen && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 w-80 bg-card border border-border rounded-lg shadow-lg">
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
+              <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && searchResults.length > 0) {
+                    handleSearchSelect(searchResults[0].id)
+                  }
+                }}
+                placeholder="搜索节点名称..."
+                className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              />
+              <button
+                onClick={() => { setSearchOpen(false); setSearchQuery("") }}
+                className="w-5 h-5 flex items-center justify-center rounded hover:bg-muted"
+              >
+                <X className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
+            </div>
+            {searchQuery.trim() && (
+              <div className="max-h-60 overflow-y-auto py-1">
+                {searchResults.length === 0 ? (
+                  <div className="px-3 py-2 text-xs text-muted-foreground">无匹配节点</div>
+                ) : (
+                  searchResults.map((node) => (
+                    <button
+                      key={node.id}
+                      onClick={() => handleSearchSelect(node.id)}
+                      className="w-full text-left px-3 py-1.5 text-sm hover:bg-muted flex items-center gap-2"
+                    >
+                      <span className="truncate">{node.name}</span>
+                      <span className="text-[10px] text-muted-foreground ml-auto shrink-0">{node.type}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 左侧插件面板 */}
         <NodeCreatePanel

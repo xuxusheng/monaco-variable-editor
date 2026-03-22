@@ -11,6 +11,12 @@ import type { ApiWorkflowVariable } from "@/types/api"
 import { toKestraYaml, fromKestraYaml } from "@/lib/yamlConverter"
 import { toast } from "sonner"
 import { FileText, Copy, Save } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 interface KestraYamlPanelProps {
   nodes: WorkflowNode[]
@@ -86,125 +92,130 @@ export function KestraYamlPanel({
   }, [importYaml, onImport])
 
   return (
-    <div className="fixed top-0 right-0 h-screen w-full md:w-[560px] bg-card border-l border-border shadow-xl z-50 flex flex-col animate-in slide-in-from-right duration-200">
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-        <div className="flex items-center gap-2">
-          <span className="text-lg"><FileText className="w-4 h-4" /></span>
-          <h2 className="text-base font-semibold">
-            {mode === "preview" ? "Kestra YAML" : "导入 YAML"}
-          </h2>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Mode toggle */}
-          <div className="flex rounded-md border border-border overflow-hidden text-xs">
+    <Dialog open={true} onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent
+        showCloseButton={false}
+        className="fixed top-0 right-0 left-auto translate-x-0 translate-y-0 h-screen w-full md:w-[560px] max-w-none rounded-none ring-0 p-0 flex flex-col gap-0 animate-in slide-in-from-right duration-200 zoom-in-100 zoom-out-100 fade-in-0 fade-out-0"
+      >
+        {/* Header */}
+        <DialogHeader className="flex flex-row items-center justify-between px-5 py-4 border-b border-border gap-0">
+          <div className="flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            <DialogTitle>
+              {mode === "preview" ? "Kestra YAML" : "导入 YAML"}
+            </DialogTitle>
+          </div>
+          <div className="flex items-center gap-2">
+            {/* Mode toggle */}
+            <div className="flex rounded-md border border-border overflow-hidden text-xs">
+              <button
+                onClick={() => setMode("preview")}
+                className={`px-3 py-1.5 transition-colors ${
+                  mode === "preview"
+                    ? "bg-indigo-500 text-white"
+                    : "hover:bg-muted"
+                }`}
+              >
+                预览
+              </button>
+              <button
+                onClick={() => setMode("import")}
+                className={`px-3 py-1.5 transition-colors ${
+                  mode === "import"
+                    ? "bg-indigo-500 text-white"
+                    : "hover:bg-muted"
+                }`}
+              >
+                导入
+              </button>
+            </div>
             <button
-              onClick={() => setMode("preview")}
-              className={`px-3 py-1.5 transition-colors ${
-                mode === "preview"
-                  ? "bg-indigo-500 text-white"
-                  : "hover:bg-muted"
-              }`}
+              onClick={onClose}
+              className="w-8 h-8 rounded-md hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
             >
-              预览
-            </button>
-            <button
-              onClick={() => setMode("import")}
-              className={`px-3 py-1.5 transition-colors ${
-                mode === "import"
-                  ? "bg-indigo-500 text-white"
-                  : "hover:bg-muted"
-              }`}
-            >
-              导入
+              ✕
             </button>
           </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-md hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-          >
-            ✕
-          </button>
-        </div>
-      </div>
+        </DialogHeader>
 
-      {/* Content */}
-      <div className="flex-1 overflow-hidden">
-        {mode === "preview" ? (
-          <Editor
-            height="100%"
-            language="yaml"
-            theme="vs"
-            value={yaml}
-            options={{
-              readOnly: true,
-              fontSize: 13,
-              lineHeight: 22,
-              minimap: { enabled: false },
-              padding: { top: 12 },
-              scrollBeyondLastLine: false,
-              wordWrap: "on",
-              automaticLayout: true,
-            }}
-          />
-        ) : (
-          <Editor
-            height="100%"
-            language="yaml"
-            theme="vs"
-            value={importYaml}
-            onChange={(v) => setImportYaml(v ?? "")}
-            options={{
-              fontSize: 13,
-              lineHeight: 22,
-              minimap: { enabled: false },
-              padding: { top: 12 },
-              scrollBeyondLastLine: false,
-              wordWrap: "on",
-              automaticLayout: true,
-              placeholder: "粘贴 Kestra YAML 在此处...",
-            }}
-          />
-        )}
-      </div>
-
-      {/* Footer */}
-      <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-border">
-        {mode === "preview" ? (
-          <>
-            <button
-              onClick={handleCopy}
-              className="px-3 py-1.5 rounded-md bg-muted hover:bg-muted/80 text-sm transition-colors"
-            >
-              <Copy className="w-3.5 h-3.5" /> 复制
-            </button>
-            <button
-              onClick={handleDownload}
-              className="px-3 py-1.5 rounded-md bg-indigo-500 text-white text-sm font-medium hover:bg-indigo-600 transition-colors"
-            >
-              <Save className="w-3.5 h-3.5" /> 下载 .yaml
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              onClick={() => {
-                setMode("preview")
-                setImportYaml("")
+        {/* Content — scrolls inside the dialog */}
+        <div className="flex-1 overflow-y-auto">
+          {mode === "preview" ? (
+            <Editor
+              height="100%"
+              language="yaml"
+              theme="vs"
+              value={yaml}
+              options={{
+                readOnly: true,
+                fontSize: 13,
+                lineHeight: 22,
+                minimap: { enabled: false },
+                padding: { top: 12 },
+                scrollBeyondLastLine: false,
+                wordWrap: "on",
+                automaticLayout: true,
               }}
-              className="px-3 py-1.5 rounded-md bg-muted hover:bg-muted/80 text-sm transition-colors"
-            >
-              取消
-            </button>
-            <button
-              onClick={handleImport}
-              className="px-3 py-1.5 rounded-md bg-indigo-500 text-white text-sm font-medium hover:bg-indigo-600 transition-colors"
-            >
-              导入到画布
-            </button>
-          </>
-        )}
-      </div>
-    </div>
+            />
+          ) : (
+            <Editor
+              height="100%"
+              language="yaml"
+              theme="vs"
+              value={importYaml}
+              onChange={(v) => setImportYaml(v ?? "")}
+              options={{
+                fontSize: 13,
+                lineHeight: 22,
+                minimap: { enabled: false },
+                padding: { top: 12 },
+                scrollBeyondLastLine: false,
+                wordWrap: "on",
+                automaticLayout: true,
+                placeholder: "粘贴 Kestra YAML 在此处...",
+              }}
+            />
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-border">
+          {mode === "preview" ? (
+            <>
+              <button
+                onClick={handleCopy}
+                className="px-3 py-1.5 rounded-md bg-muted hover:bg-muted/80 text-sm transition-colors"
+              >
+                <Copy className="w-3.5 h-3.5" /> 复制
+              </button>
+              <button
+                onClick={handleDownload}
+                className="px-3 py-1.5 rounded-md bg-indigo-500 text-white text-sm font-medium hover:bg-indigo-600 transition-colors"
+              >
+                <Save className="w-3.5 h-3.5" /> 下载 .yaml
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => {
+                  setMode("preview")
+                  setImportYaml("")
+                }}
+                className="px-3 py-1.5 rounded-md bg-muted hover:bg-muted/80 text-sm transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleImport}
+                className="px-3 py-1.5 rounded-md bg-indigo-500 text-white text-sm font-medium hover:bg-indigo-600 transition-colors"
+              >
+                导入到画布
+              </button>
+            </>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }

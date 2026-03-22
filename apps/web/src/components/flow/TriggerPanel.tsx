@@ -3,8 +3,8 @@
  * 显示当前 workflow 的所有触发器，支持启用/禁用、删除
  */
 
-import { useCallback, useState } from "react"
-import { Clock, Webhook, Trash2, Power, Plus, Inbox, Copy, Key, Eye, EyeOff } from "lucide-react"
+import { useCallback, useMemo, useState } from "react"
+import { Clock, Webhook, Trash2, Power, Plus, Inbox, Copy, Key, Eye, EyeOff, CalendarClock, CheckCircle2, XCircle } from "lucide-react"
 import { trpc } from "@/lib/trpc"
 import { toast } from "sonner"
 
@@ -21,6 +21,16 @@ interface TriggerItem {
   kestraFlowId: string
   disabled: boolean
   createdAt: string | Date
+}
+
+interface TriggerStatusItem {
+  triggerId: string
+  nextFireAt: string | null
+  lastExecution: {
+    state: string
+    startedAt: string | null
+    endedAt: string | null
+  } | null
 }
 
 function getTypeIcon(type: string) {
@@ -48,10 +58,53 @@ function getTriggerDetail(item: TriggerItem, workflowId: string): string | null 
   return null
 }
 
+function formatRelativeTime(iso: string): string {
+  const date = new Date(iso)
+  const now = Date.now()
+  const diffMs = date.getTime() - now
+  const absDiff = Math.abs(diffMs)
+
+  if (absDiff < 60_000) return diffMs >= 0 ? "即将" : "刚刚"
+
+  const minutes = Math.floor(absDiff / 60_000)
+  if (minutes < 60) return diffMs >= 0 ? `${minutes} 分钟后` : `${minutes} 分钟前`
+
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return diffMs >= 0 ? `${hours} 小时后` : `${hours} 小时前`
+
+  const days = Math.floor(hours / 24)
+  if (days < 30) return diffMs >= 0 ? `${days} 天后` : `${days} 天前`
+
+  return date.toLocaleDateString("zh-CN")
+}
+
+function formatDateTime(iso: string | null): string {
+  if (!iso) return "—"
+  const d = new Date(iso)
+  return d.toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
+}
+
+function StateBadge({ state }: { state: string }) {
+  const isSuccess = state === "SUCCESS"
+  const isFailed = state === "FAILED" || state === "KILLED" || state === "CANCELLED"
+  if (isSuccess) {
+    return <span className="inline-flex items-center gap-0.5 text-[11px] text-green-600"><CheckCircle2 className="w-3 h-3" /> 成功</span>
+  }
+  if (isFailed) {
+    return <span className="inline-flex items-center gap-0.5 text-[11px] text-red-500"><XCircle className="w-3 h-3" /> 失败</span>
+  }
+  return <span className="inline-flex items-center gap-0.5 text-[11px] text-muted-foreground">{state}</span>
+}
+
 export function TriggerPanel({ workflowId, onCreate }: TriggerPanelProps) {
   const { data, isLoading, refetch } = trpc.workflow.triggerList.useQuery(
     { workflowId },
     { enabled: !!workflowId },
+  )
+
+  const { data: statusData } = trpc.workflow.triggerStatus.useQuery(
+    { workflowId },
+    { enabled: !!workflowId, refetchInterval: 30_000 },
   )
 
   const toggleMutation = trpc.workflow.triggerToggle.useMutation({
@@ -87,6 +140,13 @@ export function TriggerPanel({ workflowId, onCreate }: TriggerPanelProps) {
   )
 
   const triggers = (data ?? []) as TriggerItem[]
+  const statusMap = useMemo(() => {
+    const m = new Map<string, TriggerStatusItem>()
+    for (const s of (statusData ?? []) as TriggerStatusItem[]) {
+      m.set(s.triggerId, s)
+    }
+    return m
+  }, [statusData])
 
   return (
     <div className="flex flex-col h-full">
@@ -120,10 +180,11 @@ export function TriggerPanel({ workflowId, onCreate }: TriggerPanelProps) {
           <div className="p-3 space-y-2">
             {triggers.map((item) => {
               const detail = getTriggerDetail(item, workflowId)
+              const status = statusMap.get(item.id)
               return (
                 <div
                   key={item.id}
-                  className="bg-muted/50 rounded-md px-3 py-2 flex items-start gap-2.5 group"
+                  className="bg-muted/50 rounded-md px-3 py-2.5 flex items-start gap-2.5 group"
                 >
                   <span className="mt-0.5 shrink-0">{getTypeIcon(item.type)}</span>
                   <div className="flex-1 min-w-0">
@@ -139,7 +200,35 @@ export function TriggerPanel({ workflowId, onCreate }: TriggerPanelProps) {
                     {item.type === "webhook" && (
                       <WebhookActions item={item} workflowId={workflowId} />
                     )}
-                    <div className="flex items-center gap-1.5 mt-1">
+
+                    {/* Enhanced info: next fire + last execution */}
+                    {status && (
+                      <div className="mt-1.5 space-y-0.5">
+                        {item.type === "schedule" && status.nextFireAt && (
+                          <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                            <CalendarClock className="w-3 h-3 text-amber-500/70" />
+                            下次执行: {formatRelativeTime(status.nextFireAt)}
+                            <span className="text-muted-foreground/50">
+                              ({formatDateTime(status.nextFireAt)})
+                            </span>
+                          </div>
+                        )}
+                        {status.lastExecution ? (
+                          <div className="flex items-center gap-1 text-[11px]">
+                            <StateBadge state={status.lastExecution.state} />
+                            <span className="text-muted-foreground/50">
+                              {formatDateTime(status.lastExecution.endedAt ?? status.lastExecution.startedAt)}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="text-[11px] text-muted-foreground/50">
+                            暂无执行记录
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-1.5 mt-1.5">
                       <span
                         className={`inline-block w-1.5 h-1.5 rounded-full ${
                           item.disabled ? "bg-gray-400" : "bg-green-500"

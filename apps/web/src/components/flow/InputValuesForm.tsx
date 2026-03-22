@@ -6,6 +6,11 @@
 
 import { useState, useCallback } from "react"
 import type { WorkflowInput } from "@/types/workflow"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { Button } from "@/components/ui/button"
 
 interface InputValuesFormProps {
   inputs: WorkflowInput[]
@@ -29,16 +34,13 @@ export function InputValuesForm({ inputs, onSubmit, onCancel }: InputValuesFormP
   )
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-card rounded-lg shadow-xl w-full max-w-md mx-4 flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <h3 className="text-sm font-semibold">▶ 运行测试</h3>
-          <button onClick={onCancel} className="text-muted-foreground hover:text-foreground text-lg leading-none">✕</button>
-        </div>
+    <Dialog open={true} onOpenChange={(open) => { if (!open) onCancel() }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>▶ 运行测试</DialogTitle>
+        </DialogHeader>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {inputs.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">
               该工作流没有定义输入参数，点击运行直接执行。
@@ -46,68 +48,64 @@ export function InputValuesForm({ inputs, onSubmit, onCancel }: InputValuesFormP
           ) : (
             inputs.map((input) => (
               <div key={input.id} className="space-y-1">
-                <label className="text-xs font-medium">
+                <Label className="text-xs font-medium">
                   {input.displayName || input.id}
                   {input.required && <span className="text-red-500 ml-1">*</span>}
-                </label>
+                </Label>
                 {input.description && (
                   <p className="text-xs text-muted-foreground">{input.description}</p>
                 )}
                 {input.type === "SELECT" || input.type === "MULTISELECT" ? (
-                  <select
+                  <Select
                     value={values[input.id] ?? ""}
-                    onChange={(e) => handleChange(input.id, e.target.value)}
-                    required={input.required}
-                    className="w-full text-sm bg-muted border border-border rounded-md px-3 py-2"
+                    onValueChange={(value) => handleChange(input.id, value ?? "")}
                   >
-                    <option value="">请选择...</option>
-                    {(input.values ?? []).map((v) => (
-                      <option key={v} value={v}>{v}</option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="text-sm mt-1">
+                      <SelectValue placeholder="请选择..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(input.values ?? []).map((v) => (
+                        <SelectItem key={v} value={v}>{v}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 ) : input.type === "BOOL" ? (
-                  <select
+                  <Select
                     value={values[input.id] ?? ""}
-                    onChange={(e) => handleChange(input.id, e.target.value)}
-                    required={input.required}
-                    className="w-full text-sm bg-muted border border-border rounded-md px-3 py-2"
+                    onValueChange={(value) => handleChange(input.id, value ?? "")}
                   >
-                    <option value="">请选择...</option>
-                    <option value="true">true</option>
-                    <option value="false">false</option>
-                  </select>
+                    <SelectTrigger className="text-sm mt-1">
+                      <SelectValue placeholder="请选择..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="true">true</SelectItem>
+                      <SelectItem value="false">false</SelectItem>
+                    </SelectContent>
+                  </Select>
                 ) : (
-                  <input
+                  <Input
                     type={input.type === "INT" || input.type === "FLOAT" ? "number" : "text"}
                     value={values[input.id] ?? ""}
                     onChange={(e) => handleChange(input.id, e.target.value)}
                     required={input.required}
                     placeholder={input.defaults != null ? String(input.defaults) : ""}
-                    className="w-full text-sm bg-muted border border-border rounded-md px-3 py-2"
+                    className="text-sm mt-1"
                   />
                 )}
               </div>
             ))
           )}
 
-          {/* Actions */}
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="px-4 py-2 text-xs font-medium rounded-md border border-border hover:bg-muted transition-colors"
-            >
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onCancel} size="sm">
               取消
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 text-xs font-medium rounded-md bg-blue-500 text-white hover:bg-blue-600 transition-colors"
-            >
+            </Button>
+            <Button type="submit" size="sm">
               ▶ 运行
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
