@@ -8,10 +8,16 @@
     "build": "vp run -r build",
     "check": "vp run -r check",
     "lint": "vp run -r lint",
-    "start": "vp run -r start"
+    "start": "vp run -r start",
+    "prepare": "husky"
   },
   "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "vite-plus": "catalog:"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": "eslint --fix"
   },
   "packageManager": "pnpm@9.15.4",
   "dependencies": {
