@@ -39,7 +39,7 @@ export interface OutputHandle {
 }
 
 /** 获取容器节点的输出 Handle 列表 */
-export function getOutputHandles(type: string): OutputHandle[] {
+export function getOutputHandles(type: string, spec?: Record<string, unknown>): OutputHandle[] {
   const short = type.split(".").pop()
   switch (short) {
     case "If":
@@ -47,8 +47,18 @@ export function getOutputHandles(type: string): OutputHandle[] {
         { id: "then", label: "then", color: "#22c55e" },
         { id: "else", label: "else", color: "#ef4444" },
       ]
-    case "Switch":
-      return [] // 动态，由 spec 中的 cases 决定
+    case "Switch": {
+      const cases = spec?.cases as Record<string, unknown> | undefined
+      if (!cases || Object.keys(cases).length === 0) {
+        return [{ id: "default", label: "default", color: "#6366f1" }]
+      }
+      const colors = ["#3b82f6", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"]
+      return Object.keys(cases).map((key, i) => ({
+        id: key,
+        label: key,
+        color: colors[i % colors.length],
+      }))
+    }
     default:
       return [{ id: "sequence", label: "", color: "#6366f1" }]
   }

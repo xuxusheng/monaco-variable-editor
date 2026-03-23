@@ -142,7 +142,7 @@ const genEdgeId = () => `edge_${crypto.randomUUID().slice(0, 8)}`
 // ========== 数据转换层 ==========
 
 /** 业务节点 → React Flow 节点 */
-function toCanvasNodes(wfNodes: WorkflowNode[], nodesWithMissingRefs?: Set<string>): Node[] {
+function toCanvasNodes(wfNodes: WorkflowNode[], nodesWithMissingRefs?: Set<string>, dragOverId?: string | null): Node[] {
   return wfNodes.map((n) => ({
     id: n.id,
     type: "workflowNode" as const,
@@ -158,6 +158,7 @@ function toCanvasNodes(wfNodes: WorkflowNode[], nodesWithMissingRefs?: Set<strin
       collapsed: n.ui?.collapsed ?? false,
       childCount: getChildCount(n.id, wfNodes),
       hasMissingRefs: nodesWithMissingRefs?.has(n.id) ?? false,
+      isDragOver: n.id === dragOverId,
     },
   }))
 }
@@ -170,6 +171,8 @@ function toCanvasEdges(wfEdges: WorkflowEdge[]): Edge[] {
       id: e.id,
       source: e.source,
       target: e.target,
+      sourceHandle: e.type === "case" ? e.label : undefined,
+      targetHandle: undefined,
       type: "workflowEdge" as const,
       data: { edgeType: e.type, label: e.label },
       animated: e.type === "sequence",
@@ -346,6 +349,7 @@ export default function WorkflowEditorPage() {
   // ---- 引用检测 ----
   const [missingRefsWarning, setMissingRefsWarning] = useState<MissingReference[] | null>(null)
   const [pendingAction, setPendingAction] = useState<"save" | "publish" | null>(null)
+  const [dragOverContainerId, setDragOverContainerId] = useState<string | null>(null)
   const [settingsTab, setSettingsTab] = useState<"variables" | "secrets">("variables")
 
   /** 获取当前工作流中所有缺失的引用 */
@@ -481,8 +485,8 @@ export default function WorkflowEditorPage() {
 
   // ---- 过滤后的业务状态变更 → 同步画布 ----
   useEffect(() => {
-    setCanvasNodes(toCanvasNodes(visibleWfNodes, nodesWithMissingRefs))
-  }, [visibleWfNodes, nodesWithMissingRefs, setCanvasNodes])
+    setCanvasNodes(toCanvasNodes(visibleWfNodes, nodesWithMissingRefs, dragOverContainerId))
+  }, [visibleWfNodes, nodesWithMissingRefs, dragOverContainerId, setCanvasNodes])
 
   useEffect(() => {
     setCanvasEdges(toCanvasEdges(visibleWfEdges))
@@ -579,7 +583,20 @@ export default function WorkflowEditorPage() {
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault()
     event.dataTransfer.dropEffect = "move"
-  }, [])
+
+    // 检测悬浮在哪个展开的容器上方
+    const position = screenToFlowPosition({ x: event.clientX, y: event.clientY })
+    let found: string | null = null
+    for (const n of wfNodes) {
+      if (!isContainer(n.type) || n.ui?.collapsed) continue
+      const w = 220, h = 80
+      const nx = n.ui?.x ?? 150, ny = n.ui?.y ?? 50
+      if (position.x >= nx && position.x <= nx + w && position.y >= ny && position.y <= ny + h) {
+        found = n.id
+      }
+    }
+    setDragOverContainerId(found)
+  }, [screenToFlowPosition, wfNodes])
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
@@ -633,9 +650,14 @@ export default function WorkflowEditorPage() {
       }
 
       setWfNodes((prev) => [...prev, newNode])
+      setDragOverContainerId(null)
     },
     [screenToFlowPosition, wfNodes, setWfNodes],
   )
+
+  const onDragLeave = useCallback(() => {
+    setDragOverContainerId(null)
+  }, [])
 
   // ---- 任务配置更新：解析 YAML 回写 spec ----
   const handleTaskUpdate = useCallback(
@@ -1559,6 +1581,7 @@ export default function WorkflowEditorPage() {
             onNodeContextMenu={viewMode === "running" ? undefined : onNodeContextMenu}
             onPaneClick={onPaneClick}
             onDragOver={viewMode === "running" ? undefined : onDragOver}
+            onDragLeave={viewMode === "running" ? undefined : onDragLeave}
             onDrop={viewMode === "running" ? undefined : onDrop}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
