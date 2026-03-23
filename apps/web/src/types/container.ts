@@ -48,21 +48,16 @@ export function getOutputHandles(type: string, spec?: Record<string, unknown>): 
         { id: "else", label: "else", color: "#ef4444" },
       ]
     case "Switch": {
-      const rawCases = spec?.cases
-      let caseKeys: string[] = []
-      if (Array.isArray(rawCases)) {
-        caseKeys = rawCases.map(String)
-      } else if (rawCases && typeof rawCases === "object") {
-        caseKeys = Object.keys(rawCases as Record<string, unknown>)
+      const cases = spec?.cases as Record<string, unknown> | undefined
+      if (!cases || Object.keys(cases).length === 0) {
+        return [{ id: "default", label: "default", color: "#6366f1" }]
       }
       const colors = ["#3b82f6", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"]
-      const handles: OutputHandle[] = caseKeys.map((key, i) => ({
+      return Object.keys(cases).map((key, i) => ({
         id: key,
         label: key,
         color: colors[i % colors.length],
       }))
-      handles.push({ id: "default", label: "default", color: "#6366f1" })
-      return handles
     }
     default:
       return [{ id: "sequence", label: "", color: "#6366f1" }]
