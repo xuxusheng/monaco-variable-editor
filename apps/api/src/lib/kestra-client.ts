@@ -84,7 +84,7 @@ export class KestraClient {
 
   async healthCheck(): Promise<boolean> {
     try {
-      await this.request("GET", "/api/v1/health")
+      await this.request("GET", "/health")
       return true
     } catch {
       return false
@@ -93,7 +93,7 @@ export class KestraClient {
 
   async healthCheckDetailed(): Promise<{ healthy: boolean; error?: string }> {
     try {
-      await this.request("GET", "/api/v1/health")
+      await this.request("GET", "/health")
       return { healthy: true }
     } catch (err) {
       if (err instanceof KestraError) {
