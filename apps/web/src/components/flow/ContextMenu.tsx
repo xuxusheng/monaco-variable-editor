@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react"
-import { Copy, FolderOpen, AlertTriangle, Trash2, Flag } from "lucide-react"
+import { Copy, FolderOpen, AlertTriangle, Flag, Trash2 } from "lucide-react"
 
 interface ContextMenuProps {
   position: { x: number; y: number }
@@ -9,6 +9,7 @@ interface ContextMenuProps {
   onAddErrors?: () => void
   onAddFinally?: () => void
   isContainer?: boolean
+  isCollapsed?: boolean
   onToggleCollapse?: () => void
 }
 
@@ -20,6 +21,7 @@ export function ContextMenu({
   onAddErrors,
   onAddFinally,
   isContainer,
+  isCollapsed,
   onToggleCollapse,
 }: ContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null)
@@ -65,11 +67,13 @@ export function ContextMenu({
           className="w-full px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground cursor-default flex items-center gap-2 rounded-sm"
           onClick={onToggleCollapse}
         >
-          <FolderOpen className="w-3.5 h-3.5" /> 折叠/展开
+          <FolderOpen className="w-3.5 h-3.5" /> {isCollapsed ? "展开" : "折叠"}
         </button>
       )}
 
       <div className="h-px bg-border my-1" />
+
+      {(onAddErrors || onAddFinally) && <div className="h-px bg-border my-1" />}
 
       {onAddErrors && (
         <button
@@ -91,7 +95,7 @@ export function ContextMenu({
         </button>
       )}
 
-      <div className="h-px bg-border my-1" />
+      {(onAddErrors || onAddFinally) && <div className="h-px bg-border my-1" />}
 
       <button
         role="menuitem"

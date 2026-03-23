@@ -3,29 +3,34 @@ import type { WorkflowNode, WorkflowEdge } from "@/types/workflow"
 /** 最大容器嵌套层级 */
 export const MAX_CONTAINER_DEPTH = 4
 
-/** 计算节点的嵌套深度（从顶层开始为 0） */
+/** 计算节点的嵌套深度（从顶层开始为 0），含环路保护 */
 export function getNodeDepth(nodeId: string, nodes: WorkflowNode[]): number {
   const nodeMap = new Map(nodes.map((n) => [n.id, n]))
+  const visited = new Set<string>()
   let depth = 0
   let current = nodeMap.get(nodeId)
   while (current?.containerId) {
+    if (visited.has(current.containerId)) break // 环路保护
+    visited.add(current.containerId)
     depth++
     current = nodeMap.get(current.containerId)
   }
   return depth
 }
 
-/** 收集指定容器的所有后代节点 ID（BFS 递归） */
+/** 收集指定容器的所有后代节点 ID（BFS），含环路保护 */
 export function collectDescendants(
   containerId: string,
   nodes: WorkflowNode[],
 ): string[] {
   const result: string[] = []
+  const visited = new Set<string>([containerId])
   const queue = [containerId]
   while (queue.length > 0) {
     const parentId = queue.shift()!
     for (const n of nodes) {
-      if (n.containerId === parentId) {
+      if (n.containerId === parentId && !visited.has(n.id)) {
+        visited.add(n.id)
         result.push(n.id)
         queue.push(n.id)
       }
