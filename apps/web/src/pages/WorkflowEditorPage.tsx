@@ -47,6 +47,7 @@ import {
   useEdgesState,
   BackgroundVariant,
   useReactFlow,
+  useViewport,
   MarkerType,
 } from "@xyflow/react"
 import type { Connection, Node, Edge } from "@xyflow/react"
@@ -278,6 +279,17 @@ const FitViewOnMount = memo(function FitViewOnMount() {
     }
   }, [fitView])
   return null
+})
+
+/** 缩放百分比指示器 — 悬浮在画布右下角 */
+const ZoomIndicator = memo(function ZoomIndicator() {
+  const { zoom } = useViewport()
+  const pct = Math.round(zoom * 100)
+  return (
+    <div className="absolute bottom-3 right-3 z-10 select-none rounded-md border border-border bg-card/90 backdrop-blur-sm px-2 py-1 text-xs font-mono text-muted-foreground shadow-sm">
+      {pct}%
+    </div>
+  )
 })
 
 // ========== 主组件 ==========
@@ -658,15 +670,20 @@ export default function WorkflowEditorPage() {
 
   // ---- 删除选中节点 ----
   const handleDeleteSelected = useCallback(() => {
-    if (!selectedNodeId) return
-    const deletedNode = wfNodes.find((n) => n.id === selectedNodeId)
+    // 从 store 读实时状态，避免闭包过期（特别是 context menu 中先 setSelectedNodeId 再调用时）
+    const state = useWorkflowStore.getState()
+    const currentSelectedId = state.selectedNodeId
+    if (!currentSelectedId) return
+    const currentNodes = state.nodes
+
+    const deletedNode = currentNodes.find((n) => n.id === currentSelectedId)
 
     // Collect ALL descendant node IDs (BFS - handles nested containers)
-    const selectedIds = new Set([selectedNodeId])
+    const selectedIds = new Set([currentSelectedId])
     let changed = true
     while (changed) {
       changed = false
-      for (const n of wfNodes) {
+      for (const n of currentNodes) {
         if (n.containerId && selectedIds.has(n.containerId) && !selectedIds.has(n.id)) {
           selectedIds.add(n.id)
           changed = true
@@ -694,7 +711,6 @@ export default function WorkflowEditorPage() {
       ),
     )
     // 从 expandedContainers 中移除被删除的容器 ID
-    const state = useWorkflowStore.getState()
     const staleIds = state.expandedContainers.filter((id) => selectedIds.has(id))
     if (staleIds.length > 0) {
       useWorkflowStore.setState({
@@ -703,7 +719,7 @@ export default function WorkflowEditorPage() {
     }
     setSelectedNodeId(null)
     setRightPanel("none")
-  }, [selectedNodeId, wfNodes, setWfNodes, setWfEdges, setSelectedNodeId, setRightPanel])
+  }, [setWfNodes, setWfEdges, setSelectedNodeId, setRightPanel])
 
   // ---- 复制节点 ----
   const handleDuplicate = useCallback(() => {
@@ -805,6 +821,14 @@ export default function WorkflowEditorPage() {
     setSearchOpen(true)
     setSearchQuery("")
     setTimeout(() => searchInputRef.current?.focus(), 50)
+  })
+  useHotkeys("shift+a", (e) => {
+    e.preventDefault()
+    handleAutoLayout()
+  }, { enabled: !isEditorPanelOpen && viewMode !== "running" })
+  useHotkeys("shift+f", (e) => {
+    e.preventDefault()
+    fitView({ padding: 0.2, maxZoom: 1 })
   })
 
   // ---- 保存/加载（tRPC useUtils） ----
@@ -1566,17 +1590,26 @@ export default function WorkflowEditorPage() {
             }}
           >
             <FitViewOnMount />
-            <Controls className="!bg-card !border !border-border !rounded-lg !shadow-sm" />
+            <Controls
+              className="!bg-card !border !border-border !rounded-lg !shadow-sm !left-3 !bottom-14"
+              showZoom
+              showFitView
+              showInteractive={false}
+            />
             <Background
               variant={BackgroundVariant.Dots}
-              gap={16}
-              size={1}
-              color="#e2e8f0"
+              gap={20}
+              size={1.2}
+              color="var(--border, #e2e8f0)"
             />
             <MiniMap
-              className="!bg-card !border !border-border !rounded-lg hidden md:block"
-              nodeColor="#818cf8"
+              className="!bg-card !border !border-border !rounded-lg !shadow-sm hidden md:block"
+              nodeColor="var(--muted-foreground, #818cf8)"
+              maskColor="var(--background, rgba(0,0,0,0.15))"
+              pannable
+              zoomable
             />
+            <ZoomIndicator />
           </ReactFlow>
         </div>
 
