@@ -716,15 +716,17 @@ export default function WorkflowEditorPage() {
   }, [canvasNodes, canvasEdges, setWfNodes, fitView])
 
   // ---- 键盘快捷键 ----
-  useHotkeys("mod+z", () => undo(), { enabled: canUndo })
-  useHotkeys("mod+shift+z", () => redo(), { enabled: canRedo })
+  // 编辑器面板打开时禁用会与 Monaco 冲突的快捷键
+  const isEditorPanelOpen = rightPanel === "task" || rightPanel === "inputs" || rightPanel === "yaml"
+  useHotkeys("mod+z", () => undo(), { enabled: canUndo && !isEditorPanelOpen })
+  useHotkeys("mod+shift+z", () => redo(), { enabled: canRedo && !isEditorPanelOpen })
   useHotkeys("delete, backspace", () => handleDeleteSelected(), {
-    enabled: !!selectedNodeId,
+    enabled: !!selectedNodeId && !isEditorPanelOpen,
   })
   useHotkeys("mod+s", (e) => {
     e.preventDefault()
     handleSaveDraft()
-  })
+  }, { enabled: !isEditorPanelOpen })
   useHotkeys("mod+a", (e) => {
     e.preventDefault()
     // Select all visible nodes — mark all as selected in React Flow
@@ -736,11 +738,11 @@ export default function WorkflowEditorPage() {
         }))
       )
     }
-  })
+  }, { enabled: !isEditorPanelOpen })
   useHotkeys("mod+d", (e) => {
     e.preventDefault()
     if (selectedNodeId) handleDuplicate()
-  })
+  }, { enabled: !isEditorPanelOpen })
   useHotkeys("escape", () => {
     setWfNodes((prev) => prev.map((n) => ({ ...n, selected: false })))
     setSelectedNodeId(null)
