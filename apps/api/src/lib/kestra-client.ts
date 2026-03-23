@@ -3,6 +3,8 @@
  *
  * 代理所有 Kestra API 调用，Basic Auth 认证。
  * 浏览器永远不直接接触 Kestra。
+ *
+ * 兼容 Kestra 1.3.x（API 路径需 {tenant} 前缀）
  */
 
 import type {
@@ -32,6 +34,7 @@ export interface KestraConfig {
   url: string
   username: string
   password: string
+  tenant: string
 }
 
 const TERMINAL_STATES = new Set([
@@ -59,16 +62,23 @@ export class KestraClient {
     return `Basic ${Buffer.from(`${this.config.username}:${this.config.password}`).toString("base64")}`
   }
 
-  async request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  /** Kestra 1.3.x API 基础路径 */
+  get basePath(): string {
+    return `/api/v1/${this.config.tenant}`
+  }
+
+  async request<T>(method: string, path: string, body?: unknown, contentType = "application/json"): Promise<T> {
     const url = `${this.config.url}${path}`
+
+    const headers: Record<string, string> = {
+      Authorization: this.authHeader(),
+    }
+    if (contentType) headers["Content-Type"] = contentType
 
     const res = await fetch(url, {
       method,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: this.authHeader(),
-      },
-      body: body ? JSON.stringify(body) : undefined,
+      headers,
+      body: body ? (typeof body === "string" ? body : JSON.stringify(body)) : undefined,
     })
 
     if (!res.ok) {
@@ -84,7 +94,8 @@ export class KestraClient {
 
   async healthCheck(): Promise<boolean> {
     try {
-      await this.request("GET", "/health")
+      // Kestra 1.3.x 没有 /health，用 flows/search 代替
+      await this.request("GET", `${this.basePath}/flows/search?size=1`)
       return true
     } catch {
       return false
@@ -93,7 +104,7 @@ export class KestraClient {
 
   async healthCheckDetailed(): Promise<{ healthy: boolean; error?: string }> {
     try {
-      await this.request("GET", "/health")
+      await this.request("GET", `${this.basePath}/flows/search?size=1`)
       return { healthy: true }
     } catch (err) {
       if (err instanceof KestraError) {
@@ -118,20 +129,17 @@ export class KestraClient {
   // ─── Flow ───
 
   async upsertFlow(namespace: string, flowId: string, yaml: string): Promise<KestraFlow> {
-    // Kestra PUT API: body 只需要 id + namespace + source
-    return this.request("PUT", `/api/v1/flows/${namespace}/${flowId}`, {
-      id: flowId,
-      namespace,
-      source: yaml,
-    })
+    // Kestra 1.3.x: POST /api/v1/{tenant}/flows 用 YAML 创建/更新
+    // 注意：Content-Type 需要是 application/x-yaml
+    return this.request("POST", `${this.basePath}/flows`, yaml, "application/x-yaml")
   }
 
   async getFlow(namespace: string, flowId: string): Promise<KestraFlow> {
-    return this.request("GET", `/api/v1/flows/${namespace}/${flowId}`)
+    return this.request("GET", `${this.basePath}/flows/${namespace}/${flowId}`)
   }
 
   async deleteFlow(namespace: string, flowId: string): Promise<void> {
-    await this.request("DELETE", `/api/v1/flows/${namespace}/${flowId}`)
+    await this.request("DELETE", `${this.basePath}/flows/${namespace}/${flowId}`)
   }
 
   // ─── Execution ───
@@ -142,11 +150,11 @@ export class KestraClient {
     inputs?: Record<string, string>,
   ): Promise<KestraExecution> {
     const qs = inputs ? "?" + new URLSearchParams(inputs).toString() : ""
-    return this.request("POST", `/api/v1/executions/${namespace}/${flowId}${qs}`)
+    return this.request("POST", `${this.basePath}/executions/${namespace}/${flowId}${qs}`)
   }
 
   async getExecution(executionId: string): Promise<KestraExecution> {
-    return this.request("GET", `/api/v1/executions/${executionId}`)
+    return this.request("GET", `${this.basePath}/executions/${executionId}`)
   }
 
   async listExecutions(params: {
@@ -165,15 +173,15 @@ export class KestraClient {
     if (params.state) {
       for (const s of params.state) qs.append("state", s)
     }
-    return this.request("GET", `/api/v1/executions?${qs}`)
+    return this.request("GET", `${this.basePath}/executions?${qs}`)
   }
 
   async killExecution(executionId: string): Promise<void> {
-    await this.request("DELETE", `/api/v1/executions/${executionId}`)
+    await this.request("DELETE", `${this.basePath}/executions/${executionId}/kill`)
   }
 
   async retryExecution(executionId: string): Promise<KestraExecution> {
-    return this.request("POST", `/api/v1/executions/${executionId}/retry`)
+    return this.request("POST", `${this.basePath}/executions/${executionId}/restart`)
   }
 
   async replayExecution(
@@ -183,8 +191,8 @@ export class KestraClient {
   ): Promise<KestraExecution> {
     return this.request(
       "POST",
-      `/api/v1/executions/${executionId}/replay/${taskRunId}`,
-      { latestRevision },
+      `${this.basePath}/executions/${executionId}/replay`,
+      { taskRunId, latestRevision },
     )
   }
 
@@ -199,7 +207,7 @@ export class KestraClient {
     if (params?.minLevel) qs.set("minLevel", params.minLevel)
     return this.request(
       "GET",
-      `/api/v1/logs/${executionId}${qs.size > 0 ? "?" + qs : ""}`,
+      `${this.basePath}/logs/${executionId}${qs.size > 0 ? "?" + qs : ""}`,
     )
   }
 }
@@ -213,12 +221,13 @@ export function getKestraClient(): KestraClient {
     const url = process.env.KESTRA_URL
     const username = process.env.KESTRA_USERNAME
     const password = process.env.KESTRA_PASSWORD
+    const tenant = process.env.KESTRA_TENANT || "main"
 
     if (!url || !username || !password) {
       throw new Error("Missing KESTRA_URL / KESTRA_USERNAME / KESTRA_PASSWORD environment variables")
     }
 
-    instance = new KestraClient({ url, username, password })
+    instance = new KestraClient({ url, username, password, tenant })
   }
   return instance
 }
