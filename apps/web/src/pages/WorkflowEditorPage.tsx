@@ -66,7 +66,7 @@ import { ReleaseHistory } from "@/components/flow/ReleaseHistory"
 import { PublishDialog } from "@/components/flow/PublishDialog"
 import { ExecutionDrawer } from "@/components/flow/ExecutionDrawer"
 import { fromKestraYaml, toKestraYaml } from "@/lib/yamlConverter"
-import { checkReferences, type MissingReference } from "@/lib/referenceChecker"
+import { checkReferences } from "@/lib/referenceChecker"
 import { ExecutionHistory } from "@/components/flow/ExecutionHistory"
 import { ProductionExecHistory } from "@/components/flow/ProductionExecHistory"
 import { NamespaceSettings } from "@/components/flow/NamespaceSettings"
@@ -88,19 +88,11 @@ import {
   Plus,
   AlertTriangle, ArrowLeft,
   MoreHorizontal, FileCode2, GitBranch, History, Settings2,
+  ChevronRight,
 } from "lucide-react"
 import { trpc } from "@/lib/trpc"
 import { Button } from "@/components/ui/button"
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogAction,
-  AlertDialogCancel,
-} from "@/components/ui/alert-dialog"
+
 import { toast } from "sonner"
 import { useHotkeys } from "react-hotkeys-hook"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -347,25 +339,14 @@ export default function WorkflowEditorPage() {
   const [wfVariables, setWfVariables] = useState<ApiWorkflowVariable[]>([])
 
   // ---- 引用检测 ----
-  const [missingRefsWarning, setMissingRefsWarning] = useState<MissingReference[] | null>(null)
-  const [pendingAction, setPendingAction] = useState<"save" | "publish" | null>(null)
+  const [missingRefsExpanded, setMissingRefsExpanded] = useState(false)
   const [dragOverContainerId, setDragOverContainerId] = useState<string | null>(null)
   const [settingsTab, setSettingsTab] = useState<"variables" | "secrets">("variables")
-
-  /** 获取当前工作流中所有缺失的引用 */
-  const getMissingRefs = useCallback((): MissingReference[] => {
-    const ids = inputs.map((i) => i.id)
-    const yaml = toKestraYaml(wfNodes, wfEdges, inputs, [], workflowMeta.flowId, workflowMeta.namespace)
-    const result = checkReferences(yaml, { secrets: [], variables: [], inputs: ids })
-    return result.missing
-  }, [wfNodes, wfEdges, inputs, workflowMeta.flowId, workflowMeta.namespace])
 
   /** 跳转到 Namespace Settings 的指定 tab */
   const navigateToSettings = useCallback((tab: "variables" | "secrets") => {
     setSettingsTab(tab)
     setRightPanel("settings")
-    setMissingRefsWarning(null)
-    setPendingAction(null)
   }, [setRightPanel])
 
   const handleTemplateSelect = useCallback(
@@ -447,16 +428,14 @@ export default function WorkflowEditorPage() {
 
   // ---- 引用检测（每个节点的 spec 中是否有缺失引用） ----
   const inputIds = useMemo(() => inputs.map((i) => i.id), [inputs])
-  const nodesWithMissingRefs = useMemo(() => {
+  const refCheckResult = useMemo(() => {
     const yaml = toKestraYaml(wfNodes, wfEdges, inputs, [], workflowMeta.flowId, workflowMeta.namespace)
-    const result = checkReferences(yaml, { secrets: [], variables: [], inputs: inputIds })
-    if (result.missing.length === 0) return new Set<string>()
+    return checkReferences(yaml, { secrets: [], variables: [], inputs: inputIds })
+  }, [wfNodes, wfEdges, inputs, inputIds, workflowMeta.flowId, workflowMeta.namespace])
 
-    // 构建缺失引用名称集合，避免对每个节点重复做 YAML 解析
-    const missingNames = new Set(result.missing.map((r) => r.name))
-
-    // 检查每个节点的 spec 是否引用了缺失的 secret/variable/input
-    // 用正则匹配完整 JSON 字符串值（带引号边界），避免 "url" 误匹配 "requestUrl"
+  const nodesWithMissingRefs = useMemo(() => {
+    if (refCheckResult.missing.length === 0) return new Set<string>()
+    const missingNames = new Set(refCheckResult.missing.map((r) => r.name))
     const escapedNames = [...missingNames].map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
     const namePattern = new RegExp(`"(${escapedNames.join("|")})"`, "g")
     const set = new Set<string>()
@@ -467,7 +446,9 @@ export default function WorkflowEditorPage() {
       }
     }
     return set
-  }, [wfNodes, wfEdges, inputs, inputIds, workflowMeta.flowId, workflowMeta.namespace])
+  }, [refCheckResult, wfNodes])
+
+  const missingRefs = refCheckResult.missing
 
   // ---- zundo temporal (undo/redo) ----
   const undo = useUndo()
@@ -998,18 +979,15 @@ export default function WorkflowEditorPage() {
 
   // Sync query data (drafts/releases fetched via tRPC, displayed directly)
 
-  // Save draft action — 有缺失引用时弹窗警告但允许忽略
+  // Save draft action — 缺失引用只 toast 提示，不阻塞
   const handleSaveDraft = useCallback(
     (message?: string) => {
       if (!savedWorkflowId) {
         toast.warning("请先保存工作流到 API")
         return
       }
-      const missing = getMissingRefs()
-      if (missing.length > 0) {
-        setMissingRefsWarning(missing)
-        setPendingAction("save")
-        return
+      if (missingRefs.length > 0) {
+        toast.warning(`有 ${missingRefs.length} 个缺失引用，已保存但请注意修复`)
       }
       draftSave.mutate({
         workflowId: savedWorkflowId,
@@ -1020,7 +998,7 @@ export default function WorkflowEditorPage() {
         variables: wfVariables,
       })
     },
-    [savedWorkflowId, draftSave, getMissingRefs, wfNodes, wfEdges, inputs, wfVariables],
+    [savedWorkflowId, draftSave, missingRefs, wfNodes, wfEdges, inputs, wfVariables],
   )
 
   // Publish action — 缺失引用时阻止发布
@@ -1030,32 +1008,15 @@ export default function WorkflowEditorPage() {
         toast.warning("请先保存工作流到 API")
         return
       }
-      const missing = getMissingRefs()
-      if (missing.length > 0) {
-        setMissingRefsWarning(missing)
-        setPendingAction("publish")
+      if (missingRefs.length > 0) {
+        toast.error(`有 ${missingRefs.length} 个缺失引用，请先修复后再发布`)
+        setMissingRefsExpanded(true)
         return
       }
       releasePublish.mutate({ workflowId: savedWorkflowId, name, yaml })
     },
-    [savedWorkflowId, releasePublish, getMissingRefs],
+    [savedWorkflowId, releasePublish, missingRefs],
   )
-
-  // 弹窗确认后的处理
-  const handleIgnoreAndSave = useCallback(() => {
-    setMissingRefsWarning(null)
-    if (pendingAction === "save" && savedWorkflowId) {
-      draftSave.mutate({
-        workflowId: savedWorkflowId,
-        nodes: wfNodes,
-        edges: wfEdges,
-        inputs,
-        variables: wfVariables,
-      })
-    }
-    // publish 不允许忽略
-    setPendingAction(null)
-  }, [pendingAction, savedWorkflowId, draftSave])
 
   // Draft rollback action
   const handleDraftRollback = useCallback(
@@ -1900,64 +1861,56 @@ export default function WorkflowEditorPage() {
         onSelect={handleTemplateSelect}
       />
 
-      {/* 缺失引用警告弹窗 */}
-      <AlertDialog
-        open={!!missingRefsWarning}
-        onOpenChange={(open) => { if (!open) { setMissingRefsWarning(null); setPendingAction(null) } }}
-      >
-        <AlertDialogContent size="default">
-          <AlertDialogHeader>
-            <div className="flex justify-center mb-2">
-              <AlertTriangle className="w-8 h-8 text-amber-500" />
-            </div>
-            <AlertDialogTitle>
-              {pendingAction === "publish" ? "存在缺失引用，无法发布" : "存在缺失引用"}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              以下引用在当前项目空间中不存在：
-            </AlertDialogDescription>
-          </AlertDialogHeader>
+      {/* 底部状态条：缺失引用 */}
+      {missingRefs.length > 0 && (
+        <div className="absolute bottom-0 left-0 right-0 z-40 border-t bg-card/95 backdrop-blur-sm">
+          <button
+            onClick={() => setMissingRefsExpanded(!missingRefsExpanded)}
+            className="w-full flex items-center gap-2 px-4 py-2 text-xs hover:bg-muted/50 transition-colors"
+          >
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+            <span className="font-medium text-amber-600 dark:text-amber-400">
+              {missingRefs.length} 个缺失引用
+            </span>
+            <span className="text-muted-foreground">
+              — 发布前请先修复
+            </span>
+            <ChevronRight className={`w-3.5 h-3.5 ml-auto text-muted-foreground transition-transform ${missingRefsExpanded ? "rotate-90" : ""}`} />
+          </button>
 
-          {/* 缺失引用列表 */}
-          <div className="max-h-48 overflow-y-auto space-y-1.5 px-1">
-            {missingRefsWarning?.map((ref, i) => (
-              <div key={i} className="flex items-center justify-between gap-2 text-sm bg-muted/50 rounded-md px-3 py-2">
-                <div className="min-w-0">
-                  <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
-                    ref.type === "secret" ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
-                    : ref.type === "variable" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
-                    : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
-                  }`}>
-                    {ref.type === "secret" ? "密钥" : ref.type === "variable" ? "变量" : "输入"}
-                  </span>
-                  <span className="ml-2 font-mono text-xs">{ref.name}</span>
+          {missingRefsExpanded && (
+            <div className="px-4 pb-3 space-y-1.5 max-h-48 overflow-y-auto border-t">
+              {missingRefs.map((ref, i) => (
+                <div key={i} className="flex items-center justify-between gap-2 text-sm bg-muted/50 rounded-md px-3 py-1.5">
+                  <div className="min-w-0 flex items-center gap-2">
+                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
+                      ref.type === "secret" ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
+                      : ref.type === "variable" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                      : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+                    }`}>
+                      {ref.type === "secret" ? "密钥" : ref.type === "variable" ? "变量" : "输入"}
+                    </span>
+                    <span className="font-mono text-xs">{ref.name}</span>
+                  </div>
+                  {(ref.type === "secret" || ref.type === "variable") && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="shrink-0 text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        navigateToSettings(ref.type === "secret" ? "secrets" : "variables")
+                      }}
+                    >
+                      去创建
+                    </Button>
+                  )}
                 </div>
-                {(ref.type === "secret" || ref.type === "variable") && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="shrink-0 text-xs"
-                    onClick={() => navigateToSettings(ref.type === "secret" ? "secrets" : "variables")}
-                  >
-                    去创建
-                  </Button>
-                )}
-              </div>
-            ))}
-          </div>
-
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => { setMissingRefsWarning(null); setPendingAction(null) }}>
-              关闭
-            </AlertDialogCancel>
-            {pendingAction === "save" && (
-              <AlertDialogAction onClick={handleIgnoreAndSave}>
-                忽略并保存
-              </AlertDialogAction>
-            )}
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
     </div>
   )
