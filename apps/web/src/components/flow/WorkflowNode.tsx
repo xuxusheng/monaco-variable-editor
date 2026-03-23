@@ -41,6 +41,7 @@ interface WorkflowNodeData {
   collapsed: boolean
   childCount: number
   hasMissingRefs: boolean
+  isDragOver: boolean
 }
 
 export const WorkflowNode = memo(({ data, selected, id }: NodeProps) => {
@@ -70,18 +71,25 @@ export const WorkflowNode = memo(({ data, selected, id }: NodeProps) => {
   )
 
   // 容器节点：获取输出 Handle 列表
-  const outputHandles = d.isContainer ? getOutputHandles(d.type) : []
+  const outputHandles = d.isContainer ? getOutputHandles(d.type, d.spec) : []
 
   // 容器节点样式
   if (d.isContainer) {
     return (
       <div
-        className={`relative px-4 py-3 rounded-2xl border-2 border-dashed bg-white shadow-sm min-w-[220px] transition-all ${
-          selected ? "shadow-lg" : "hover:shadow-md"
-        } ${execStyle?.pulse ? "animate-pulse" : ""}`}
+        className={`relative px-4 py-3 rounded-2xl border-2 bg-white shadow-sm min-w-[220px] transition-all ${
+          d.isDragOver ? "border-solid scale-[1.02] shadow-lg ring-2 ring-primary/30" : "border-dashed"
+        } ${selected ? "shadow-lg" : "hover:shadow-md"}
+        ${execStyle?.pulse ? "animate-pulse" : ""}`}
         style={{
-          borderColor: execStyle ? execStyle.border : selected ? color : `${color}88`,
-          background: `${color}08`,
+          borderColor: d.isDragOver
+            ? color
+            : execStyle
+              ? execStyle.border
+              : selected
+                ? color
+                : `${color}88`,
+          background: d.isDragOver ? `${color}15` : `${color}08`,
           boxShadow: execStyle?.glow ?? undefined,
         }}
       >
@@ -130,8 +138,8 @@ export const WorkflowNode = memo(({ data, selected, id }: NodeProps) => {
         {/* 展开时显示分隔线 */}
         {!d.collapsed && (
           <div className="mt-2 pt-2 border-t border-dashed" style={{ borderColor: `${color}33` }}>
-            <div className="text-xs text-muted-foreground/60">
-              拖入子节点
+            <div className={`text-xs transition-colors ${d.isDragOver ? "text-primary font-medium" : "text-muted-foreground/60"}`}>
+              {d.isDragOver ? "松开以放入" : "拖入子节点"}
             </div>
           </div>
         )}
