@@ -587,10 +587,15 @@ export default function WorkflowEditorPage() {
       const rawData = event.dataTransfer.getData("application/reactflow")
       if (!rawData) return
 
-      const { type, name, defaultSpec } = JSON.parse(rawData) as {
-        type: string
-        name: string
-        defaultSpec?: Record<string, unknown>
+      let type: string, name: string, defaultSpec: Record<string, unknown> | undefined
+      try {
+        const parsed = JSON.parse(rawData)
+        type = parsed.type
+        name = parsed.name
+        defaultSpec = parsed.defaultSpec
+      } catch {
+        toast.error("拖拽数据异常，请重试")
+        return
       }
 
       const position = screenToFlowPosition({
@@ -598,15 +603,30 @@ export default function WorkflowEditorPage() {
         y: event.clientY,
       })
 
-      const maxSort = wfNodes
-        .filter((n) => n.containerId === null)
-        .reduce((max, n) => Math.max(max, n.sortIndex), -1)
+      // 判断 drop 位置是否在某个展开的容器节点内
+      let targetContainerId: string | null = null
+      for (const n of wfNodes) {
+        if (!isContainer(n.type) || n.ui?.collapsed) continue
+        const w = 220 // min-w-[220px] from WorkflowNode container style
+        const h = 80  // approximate container height
+        const nx = n.ui?.x ?? 150
+        const ny = n.ui?.y ?? 50
+        if (
+          position.x >= nx && position.x <= nx + w &&
+          position.y >= ny && position.y <= ny + h
+        ) {
+          targetContainerId = n.id
+        }
+      }
+
+      const siblings = wfNodes.filter((n) => n.containerId === targetContainerId)
+      const maxSort = siblings.reduce((max, n) => Math.max(max, n.sortIndex), -1)
 
       const newNode: WorkflowNode = {
         id: genNodeId(),
         type,
         name,
-        containerId: null,
+        containerId: targetContainerId,
         sortIndex: maxSort + 1,
         spec: defaultSpec ?? {},
         ui: { x: position.x, y: position.y },
@@ -667,6 +687,14 @@ export default function WorkflowEditorPage() {
         (e) => !selectedIds.has(e.source) && !selectedIds.has(e.target),
       ),
     )
+    // 从 expandedContainers 中移除被删除的容器 ID
+    const state = useWorkflowStore.getState()
+    const staleIds = state.expandedContainers.filter((id) => selectedIds.has(id))
+    if (staleIds.length > 0) {
+      useWorkflowStore.setState({
+        expandedContainers: state.expandedContainers.filter((id) => !selectedIds.has(id)),
+      })
+    }
     setSelectedNodeId(null)
     setRightPanel("none")
   }, [selectedNodeId, wfNodes, setWfNodes, setWfEdges, setSelectedNodeId, setRightPanel])
@@ -693,15 +721,30 @@ export default function WorkflowEditorPage() {
       },
     }
 
-    // Clone container children if the source is a container
-    const children = wfNodes.filter((n) => n.containerId === sourceNode.id)
-    const clonedChildren = children.map((child) => ({
-      ...structuredClone(child),
-      id: genNodeId(),
-      containerId: newNodeId,
-    }))
+    // Clone all descendants if the source is a container (recursive)
+    const idMap = new Map<string, string>() // oldId → newId
+    idMap.set(sourceNode.id, newNodeId)
 
-    setWfNodes((prev) => [...prev, newNode, ...clonedChildren])
+    const clonedDescendants: typeof wfNodes = []
+    const queue = [sourceNode.id]
+    while (queue.length > 0) {
+      const parentId = queue.shift()!
+      const newParentId = idMap.get(parentId)!
+      for (const child of wfNodes) {
+        if (child.containerId === parentId) {
+          const newChildId = genNodeId()
+          idMap.set(child.id, newChildId)
+          clonedDescendants.push({
+            ...structuredClone(child),
+            id: newChildId,
+            containerId: newParentId,
+          })
+          queue.push(child.id)
+        }
+      }
+    }
+
+    setWfNodes((prev) => [...prev, newNode, ...clonedDescendants])
   }, [selectedNodeId, wfNodes, setWfNodes])
 
   // ---- 自动布局 ----
@@ -1655,15 +1698,8 @@ export default function WorkflowEditorPage() {
               handleDuplicate()
               setContextMenu(null)
             }}
-            onAddErrors={() => {
-              toast.info("errors 边：请从节点拖出连线（后续完善目标选择）")
-              setContextMenu(null)
-            }}
-            onAddFinally={() => {
-              toast.info("finally 边：请从节点拖出连线（后续完善目标选择）")
-              setContextMenu(null)
-            }}
             isContainer={isContainer(ctxNode.type)}
+            isCollapsed={ctxNode.ui?.collapsed ?? false}
             onToggleCollapse={() => {
               const state = useWorkflowStore.getState()
               const node = state.nodes.find((n) => n.id === contextMenu.nodeId)
