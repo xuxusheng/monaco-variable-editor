@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react"
-import { Link, useNavigate } from "@tanstack/react-router"
+import { useNavigate } from "@tanstack/react-router"
 import { trpc } from "@/lib/trpc"
 import { useWorkflowStore } from "@/stores/workflow"
 import { Button } from "@/components/ui/button"
@@ -288,49 +288,36 @@ export default function WorkflowListPage() {
         {filteredWorkflows && filteredWorkflows.length > 0 && (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filteredWorkflows.map((wf) => (
-              <Card key={wf.id} className="group relative transition-shadow hover:shadow-md">
+              <Card
+                key={wf.id}
+                className="group relative cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:ring-foreground/20"
+                onClick={() => navigate({ to: "/workflows/$workflowId/edit", params: { workflowId: wf.id } })}
+              >
                 <CardHeader>
                   <div className="flex items-start justify-between">
-                    <div className="min-w-0 flex-1">
-                      <CardTitle className="truncate">
-                        <Link
-                          to="/workflows/$workflowId/edit"
-                          params={{ workflowId: wf.id }}
-                          className="hover:underline"
-                        >
-                          {wf.name}
-                        </Link>
-                      </CardTitle>
-                      <CardDescription className="mt-1 flex items-center gap-1 text-xs">
-                        <GitBranch className="h-3 w-3" />
-                        {wf.flowId}
-                      </CardDescription>
-                    </div>
-                    <CardAction className="flex items-center gap-1.5">
+                    <CardTitle className="truncate pr-2 text-base">
+                      {wf.name}
+                    </CardTitle>
+                    <CardAction>
                       {wf.publishedVersion > 0 ? (
                         <Badge variant="default" className="gap-0.5 bg-green-500/15 text-green-700 dark:text-green-400">
-                          已发布 v{wf.publishedVersion}
+                          v{wf.publishedVersion}
                         </Badge>
                       ) : (
                         <Badge variant="outline">草稿</Badge>
                       )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
-                        onClick={(e) => {
-                          e.preventDefault()
-                          setDeleteTarget(wf.id)
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
                     </CardAction>
                   </div>
+                  <CardDescription className="flex items-center gap-1 text-xs">
+                    <GitBranch className="h-3 w-3" />
+                    {wf.flowId}
+                  </CardDescription>
+                </CardHeader>
 
+                <CardContent className="space-y-2.5">
                   {/* Triggers */}
                   {wf.triggers.length > 0 && (
-                    <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       {wf.triggers.map((trigger) => (
                         <Badge
                           key={trigger.id}
@@ -350,20 +337,33 @@ export default function WorkflowListPage() {
 
                   {/* Last execution */}
                   {wf.lastExecution && (
-                    <div className="mt-2 flex items-center gap-1.5 text-xs">
+                    <div className="flex items-center gap-1.5 text-xs">
                       <StateIcon state={wf.lastExecution.state} />
                       <span className="text-muted-foreground">
                         {stateLabel(wf.lastExecution.state)} · {formatRelativeTime(wf.lastExecution.createdAt)}
                       </span>
                     </div>
                   )}
+                </CardContent>
 
-                  {/* Updated at */}
-                  <div className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
+                {/* Footer */}
+                <div className="flex items-center justify-between border-t px-4 pb-3 pt-2.5">
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
                     <Clock className="h-3 w-3" />
                     {formatDate(wf.updatedAt)}
                   </div>
-                </CardHeader>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground opacity-0 transition-all hover:text-destructive group-hover:opacity-100"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setDeleteTarget(wf.id)
+                    }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </Card>
             ))}
           </div>
