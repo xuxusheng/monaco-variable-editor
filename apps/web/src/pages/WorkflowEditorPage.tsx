@@ -601,9 +601,12 @@ export default function WorkflowEditorPage() {
         y: event.clientY,
       })
 
+      // 从 store 读实时状态，避免闭包过期
+      const currentNodes = useWorkflowStore.getState().nodes
+
       // 判断 drop 位置是否在某个展开的容器节点内
       let targetContainerId: string | null = null
-      for (const n of wfNodes) {
+      for (const n of currentNodes) {
         if (!isContainer(n.type) || n.ui?.collapsed) continue
         const w = 220 // min-w-[220px] from WorkflowNode container style
         const h = 80  // approximate container height
@@ -617,7 +620,7 @@ export default function WorkflowEditorPage() {
         }
       }
 
-      const siblings = wfNodes.filter((n) => n.containerId === targetContainerId)
+      const siblings = currentNodes.filter((n) => n.containerId === targetContainerId)
       const maxSort = siblings.reduce((max, n) => Math.max(max, n.sortIndex), -1)
 
       const newNode: WorkflowNode = {
@@ -633,7 +636,7 @@ export default function WorkflowEditorPage() {
       setWfNodes((prev) => [...prev, newNode])
       setDragOverContainerId(null)
     },
-    [screenToFlowPosition, wfNodes, setWfNodes],
+    [screenToFlowPosition, setWfNodes],
   )
 
   const onDragLeave = useCallback(() => {
@@ -1552,9 +1555,6 @@ export default function WorkflowEditorPage() {
             // 左键操控节点/框选，右键拖拽平移画布
             panOnDrag={viewMode !== "running" ? [1] : true}
             selectionOnDrag={viewMode !== "running"}
-            onContextMenu={viewMode !== "running"
-              ? (e: React.MouseEvent) => e.preventDefault()
-              : undefined}
             fitView
             fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
             minZoom={0.2}
