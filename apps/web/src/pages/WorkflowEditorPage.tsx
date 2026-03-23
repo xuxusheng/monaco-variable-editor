@@ -1077,10 +1077,12 @@ export default function WorkflowEditorPage() {
     isExecuting,
     currentExecution,
     kestraHealthy,
+    kestraError,
   } = useWorkflowStore(useShallow((s) => ({
     isExecuting: s.isExecuting,
     currentExecution: s.currentExecution,
     kestraHealthy: s.kestraHealthy,
+    kestraError: s.kestraError,
   })))
   const setIsExecuting = useWorkflowStore((s) => s.setIsExecuting)
   const setCurrentExecution = useWorkflowStore((s) => s.setCurrentExecution)
@@ -1095,9 +1097,9 @@ export default function WorkflowEditorPage() {
     const utilsRef = utils
     const check = () => {
       utilsRef.workflow.kestraHealth.fetch().then((res) => {
-        if (isMounted) setKestraHealthy(res.healthy)
-      }).catch(() => {
-        if (isMounted) setKestraHealthy(false)
+        if (isMounted) setKestraHealthy(res.healthy, res.error)
+      }).catch((err) => {
+        if (isMounted) setKestraHealthy(false, err instanceof Error ? err.message : "健康检查失败")
       }).finally(() => {
         if (isMounted) healthTimerRef.current = setTimeout(check, 5 * 60_000)
       })
@@ -1205,7 +1207,7 @@ export default function WorkflowEditorPage() {
       return
     }
     if (!kestraHealthy) {
-      toast.warning("Kestra 未连接，请稍后再试")
+      toast.warning(kestraError ? `Kestra 未连接：${kestraError}` : "Kestra 未连接，请稍后再试")
       return
     }
     if (inputs.length > 0) {
@@ -1213,7 +1215,7 @@ export default function WorkflowEditorPage() {
     } else {
       executeTest.mutate({ workflowId: savedWorkflowId })
     }
-  }, [savedWorkflowId, kestraHealthy, inputs, executeTest])
+  }, [savedWorkflowId, kestraHealthy, kestraError, inputs, executeTest])
 
   const handleExecuteWithInputs = useCallback(
     (inputValues: Record<string, string>) => {
@@ -1303,9 +1305,16 @@ export default function WorkflowEditorPage() {
         </div>
         <div className="flex items-center gap-1 md:gap-2">
           {/* Kestra health indicator — 桌面端 */}
-          <div className="flex items-center gap-1 px-1 hidden md:flex" title={kestraHealthy ? "Kestra 已连接" : "Kestra 未连接"}>
-            <div className={`w-2 h-2 rounded-full ${kestraHealthy ? "bg-green-500" : "bg-red-400"}`} />
-            <span className="text-[10px] text-muted-foreground">Kestra</span>
+          <div
+            className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] hidden md:flex transition-colors ${
+              kestraHealthy
+                ? "text-muted-foreground"
+                : "bg-red-50 text-red-600 border border-red-200 cursor-help dark:bg-red-950 dark:text-red-400 dark:border-red-800"
+            }`}
+            title={kestraHealthy ? "Kestra 已连接" : (kestraError || "Kestra 未连接")}
+          >
+            <div className={`w-2 h-2 rounded-full ${kestraHealthy ? "bg-green-500" : "bg-red-400 animate-pulse"}`} />
+            <span>Kestra{!kestraHealthy && kestraError ? ` · ${kestraError.slice(0, 40)}${kestraError.length > 40 ? "…" : ""}` : ""}</span>
           </div>
 
           {/* === 移动端紧凑按钮 === */}

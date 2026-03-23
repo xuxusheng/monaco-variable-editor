@@ -91,6 +91,21 @@ export class KestraClient {
     }
   }
 
+  async healthCheckDetailed(): Promise<{ healthy: boolean; error?: string }> {
+    try {
+      await this.request("GET", "/api/v1/health")
+      return { healthy: true }
+    } catch (err) {
+      if (err instanceof KestraError) {
+        return { healthy: false, error: `HTTP ${err.statusCode}: ${err.responseBody}` }
+      }
+      if (err instanceof TypeError && err.message.includes("fetch")) {
+        return { healthy: false, error: `无法连接到 ${this.config.url}，请检查地址和网络` }
+      }
+      return { healthy: false, error: err instanceof Error ? err.message : "未知错误" }
+    }
+  }
+
   isHealthy(): boolean {
     return this.healthy
   }

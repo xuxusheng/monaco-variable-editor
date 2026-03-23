@@ -98,6 +98,7 @@ interface WorkflowState {
   isExecuting: boolean
   currentExecution: ExecutionSummary | null
   kestraHealthy: boolean
+  kestraError: string | null
 
   // Namespace
   currentNamespace: string | null
@@ -142,7 +143,7 @@ interface WorkflowState {
   toggleCollapse: (nodeId: string) => void
   setIsExecuting: (v: boolean) => void
   setCurrentExecution: (exec: ExecutionSummary | null) => void
-  setKestraHealthy: (v: boolean) => void
+  setKestraHealthy: (v: boolean, error?: string | null) => void
 
   // Running view
   enterRunningMode: (snapshot: RunningSnapshot, source: "draft" | "release", releaseVersion?: number) => void
@@ -190,6 +191,7 @@ export const useWorkflowStore = create<WorkflowState>()(
       isExecuting: false,
       currentExecution: null,
       kestraHealthy: false,
+      kestraError: null,
 
       // Namespace
       currentNamespace: null,
@@ -269,7 +271,7 @@ export const useWorkflowStore = create<WorkflowState>()(
           }
           state.currentExecution = exec
         }),
-      setKestraHealthy: (v) => set({ kestraHealthy: v }),
+      setKestraHealthy: (v, error) => set({ kestraHealthy: v, kestraError: error ?? null }),
       setCurrentNamespace: (id) => set({ currentNamespace: id, namespaceId: id }),
       setHasNamespaces: (has) => set({ hasNamespaces: has }),
       setNamespaceId: (id) => set({ currentNamespace: id, namespaceId: id }),

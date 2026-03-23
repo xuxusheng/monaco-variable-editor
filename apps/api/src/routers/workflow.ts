@@ -521,10 +521,11 @@ export const workflowRouter = t.router({
     try {
       const { getKestraClient } = await import("../lib/kestra-client.js")
       const client = getKestraClient()
-      const healthy = await client.refreshHealth()
-      return { healthy, timestamp: new Date().toISOString() }
-    } catch {
-      return { healthy: false, timestamp: new Date().toISOString() }
+      const result = await client.healthCheckDetailed()
+      client.healthy = result.healthy
+      return { healthy: result.healthy, error: result.error, timestamp: new Date().toISOString() }
+    } catch (err) {
+      return { healthy: false, error: err instanceof Error ? err.message : "Kestra 客户端未初始化", timestamp: new Date().toISOString() }
     }
   }),
 
