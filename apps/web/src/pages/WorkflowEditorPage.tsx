@@ -1588,6 +1588,12 @@ export default function WorkflowEditorPage() {
             nodesDraggable={viewMode !== "running"}
             nodesConnectable={viewMode !== "running"}
             elementsSelectable={viewMode !== "running"}
+            // 左键操控节点/框选，右键拖拽平移画布
+            panOnDrag={viewMode !== "running" ? [1] : true}
+            selectionOnDrag={viewMode !== "running"}
+            onContextMenu={viewMode !== "running"
+              ? (e: React.MouseEvent) => e.preventDefault()
+              : undefined}
             fitView
             fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
             minZoom={0.2}
