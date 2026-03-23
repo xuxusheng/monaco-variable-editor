@@ -128,9 +128,9 @@ export class KestraClient {
 
   // ─── Flow ───
 
-  async upsertFlow(namespace: string, flowId: string, yaml: string): Promise<KestraFlow> {
+  async upsertFlow(_namespace: string, _flowId: string, yaml: string): Promise<KestraFlow> {
     // Kestra 1.3.x: POST /api/v1/{tenant}/flows 用 YAML 创建/更新
-    // 注意：Content-Type 需要是 application/x-yaml
+    // namespace 和 flowId 在 YAML body 中指定，参数保留用于兼容
     return this.request("POST", `${this.basePath}/flows`, yaml, "application/x-yaml")
   }
 
