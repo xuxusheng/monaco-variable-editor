@@ -90,6 +90,30 @@ export class KestraClient {
     return res.json() as Promise<T>
   }
 
+  async requestForm<T>(method: string, path: string, fields: Record<string, string>): Promise<T> {
+    const url = `${this.config.url}${path}`
+    const form = new FormData()
+    for (const [k, v] of Object.entries(fields)) {
+      form.append(k, v)
+    }
+
+    const res = await fetch(url, {
+      method,
+      headers: {
+        Authorization: this.authHeader(),
+      },
+      body: form,
+    })
+
+    if (!res.ok) {
+      const text = await res.text()
+      throw new KestraError(res.status, text)
+    }
+
+    if (res.status === 204) return undefined as T
+    return res.json() as Promise<T>
+  }
+
   // ─── Health ───
 
   async healthCheck(): Promise<boolean> {
@@ -149,8 +173,12 @@ export class KestraClient {
     flowId: string,
     inputs?: Record<string, string>,
   ): Promise<KestraExecution> {
-    const qs = inputs ? "?" + new URLSearchParams(inputs).toString() : ""
-    return this.request("POST", `${this.basePath}/executions/${namespace}/${flowId}${qs}`)
+    const path = `${this.basePath}/executions/${namespace}/${flowId}`
+    // Kestra 执行接口：有 inputs 时用 multipart/form-data，无 inputs 时普通 POST
+    if (inputs && Object.keys(inputs).length > 0) {
+      return this.requestForm("POST", path, inputs)
+    }
+    return this.request("POST", path)
   }
 
   async getExecution(executionId: string): Promise<KestraExecution> {
