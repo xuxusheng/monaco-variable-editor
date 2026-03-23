@@ -1,43 +1,16 @@
 import { useCallback, useRef, useMemo, useEffect, memo, useState } from "react"
 import { useParams, Link } from "@tanstack/react-router"
-import type { TaskRun, ExecutionSummary, RunningSnapshot } from "@/stores/workflow"
-
-function isTerminalState(state: string): boolean {
-  return ["SUCCESS", "WARNING", "FAILED", "KILLED", "CANCELLED", "RETRIED"].includes(state)
-}
-
-/** 将 API 返回的执行记录转为 store 格式 */
-function toExecutionSummary(result: {
-  id: string; kestraExecId: string; state: string; taskRuns: unknown;
-  triggeredBy: string; createdAt: Date | string; endedAt?: Date | string | null;
-}): ExecutionSummary {
-  // 规范化 taskRuns：数据库存的是完整 KestraTaskRun（state 是嵌套对象），
-  // 前端期望扁平的 state: string
-  const raw = (result.taskRuns ?? []) as Record<string, unknown>[]
-  const taskRuns: TaskRun[] = raw.map((tr) => ({
-    id: String(tr.id ?? ""),
-    taskId: String(tr.taskId ?? ""),
-    state: typeof tr.state === "string"
-      ? tr.state
-      : String((tr.state as Record<string, unknown>)?.current ?? "UNKNOWN"),
-    startDate: tr.startDate ? String(tr.startDate) : undefined,
-    endDate: tr.endDate ? String(tr.endDate) : undefined,
-    attempts: typeof tr.attempts === "number" ? tr.attempts : undefined,
-    outputs: tr.outputs as Record<string, unknown> | undefined,
-  }))
-  return {
-    id: result.id,
-    kestraExecId: result.kestraExecId,
-    state: result.state,
-    taskRuns,
-    triggeredBy: result.triggeredBy,
-    createdAt: result.createdAt instanceof Date ? result.createdAt.toISOString() : String(result.createdAt),
-    endedAt: (result as Record<string, unknown>).endedAt
-      ? String((result as Record<string, unknown>).endedAt)
-      : undefined,
-  }
-}
-import { nameToSlug } from "@/lib/slug"
+import type { RunningSnapshot } from "@/stores/workflow"
+import {
+  isTerminalState,
+  toExecutionSummary,
+  inferEdgeType,
+  fromApiNode,
+  fromApiEdge,
+  fromApiInput,
+} from "@/lib/apiTransforms"
+import { toCanvasNodes, toCanvasEdges, syncPositions } from "@/lib/canvasTransforms"
+import { parseYamlToNodeFields, yamlFromSpec } from "@/lib/yamlNodeUtils"
 import {
   ReactFlow,
   Controls,
@@ -48,9 +21,8 @@ import {
   BackgroundVariant,
   useReactFlow,
   useViewport,
-  MarkerType,
 } from "@xyflow/react"
-import type { Connection, Node, Edge } from "@xyflow/react"
+import type { Connection, Node } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 
 import { WorkflowNode as WorkflowNodeComponent } from "@/components/flow/WorkflowNode"
@@ -80,7 +52,7 @@ import { CanvasToolbar } from "@/components/flow/CanvasToolbar"
 import type { WorkflowTemplate } from "@/lib/templates"
 import { saveUserTemplate } from "@/lib/templates"
 import { getLayoutedElements } from "@/lib/autoLayout"
-import { filterVisibleNodes, filterVisibleEdges, getChildCount, canExpandContainer } from "@/lib/containerUtils"
+import { filterVisibleNodes, filterVisibleEdges, canExpandContainer } from "@/lib/containerUtils"
 import { isContainer } from "@/types/container"
 import {
   Rocket, Play,
@@ -102,9 +74,7 @@ import type {
   WorkflowNode,
   WorkflowEdge,
   WorkflowInput,
-  EdgeType,
 } from "@/types/workflow"
-import { EDGE_STYLES } from "@/types/workflow"
 import type { KestraInput } from "@/types/kestra"
 import type { ApiWorkflowNode, ApiWorkflowEdge, ApiWorkflowInput, ApiWorkflowVariable } from "@/types/api"
 import { useShallow } from "zustand/react/shallow"
@@ -116,14 +86,6 @@ import {
   useCanRedo,
 } from "@/stores/workflow"
 
-// ---- 边类型推断 ----
-function inferEdgeType(sourceHandle: string | null): EdgeType {
-  if (sourceHandle === "then" || sourceHandle === "else") return sourceHandle
-  if (sourceHandle?.startsWith("case-")) return "case"
-  if (sourceHandle === "sequence") return "sequence"
-  return "sequence"
-}
-
 // ---- React Flow 自定义类型注册（稳定引用，不随组件重渲染） ----
 const nodeTypes = { workflowNode: WorkflowNodeComponent }
 const edgeTypes = { workflowEdge: WorkflowEdgeComponent }
@@ -131,139 +93,6 @@ const edgeTypes = { workflowEdge: WorkflowEdgeComponent }
 // ---- ID 生成：使用 crypto.randomUUID，无冲突风险 ----
 const genNodeId = () => `node_${crypto.randomUUID().slice(0, 8)}`
 const genEdgeId = () => `edge_${crypto.randomUUID().slice(0, 8)}`
-
-// ========== 数据转换层 ==========
-
-/** 业务节点 → React Flow 节点 */
-function toCanvasNodes(wfNodes: WorkflowNode[], nodesWithMissingRefs?: Set<string>, dragOverId?: string | null): Node[] {
-  return wfNodes.map((n) => ({
-    id: n.id,
-    type: "workflowNode" as const,
-    position: n.ui ?? { x: 150, y: 50 },
-    selected: n.selected ?? false,
-    data: {
-      label: n.name,
-      type: n.type,
-      spec: n.spec,
-      containerId: n.containerId,
-      sortIndex: n.sortIndex,
-      isContainer: isContainer(n.type),
-      collapsed: n.ui?.collapsed ?? false,
-      childCount: getChildCount(n.id, wfNodes),
-      hasMissingRefs: nodesWithMissingRefs?.has(n.id) ?? false,
-      isDragOver: n.id === dragOverId,
-    },
-  }))
-}
-
-/** 业务边 → React Flow 边 */
-function toCanvasEdges(wfEdges: WorkflowEdge[]): Edge[] {
-  return wfEdges.map((e) => {
-    const style = EDGE_STYLES[e.type]
-    return {
-      id: e.id,
-      source: e.source,
-      target: e.target,
-      sourceHandle: e.type === "case" ? e.label : undefined,
-      targetHandle: undefined,
-      type: "workflowEdge" as const,
-      data: { edgeType: e.type, label: e.label },
-      animated: e.type === "sequence",
-      style: {
-        stroke: style.stroke,
-        strokeWidth: style.strokeWidth,
-        strokeDasharray: style.strokeDasharray,
-      },
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        color: style.stroke,
-        width: 16,
-        height: 16,
-      },
-    }
-  })
-}
-
-/** React Flow 节点 → 业务节点（同步 position 到 ui），用 Map 优化到 O(n) */
-function syncPositions(
-  wfNodes: WorkflowNode[],
-  canvasNodes: Node[],
-): WorkflowNode[] {
-  const posMap = new Map(canvasNodes.map((c) => [c.id, c.position]))
-  return wfNodes.map((n) => {
-    const pos = posMap.get(n.id)
-    if (!pos) return n
-    return { ...n, ui: { x: pos.x, y: pos.y } }
-  })
-}
-
-// ========== YAML 工具函数（用 yaml 库） ==========
-
-import * as YAML from "yaml"
-
-/** 从 YAML 字符串解析出 id, type, spec */
-function parseYamlToNodeFields(yamlStr: string): {
-  id: string
-  type: string
-  spec: Record<string, unknown>
-} {
-  const parsed = YAML.parse(yamlStr) as Record<string, unknown> | null
-  if (!parsed || typeof parsed !== "object") {
-    return { id: "", type: "", spec: {} }
-  }
-  const { id, type, ...spec } = parsed
-  return {
-    id: String(id ?? ""),
-    type: String(type ?? ""),
-    spec: spec as Record<string, unknown>,
-  }
-}
-
-/** WorkflowNode spec → YAML 字符串 */
-function yamlFromSpec(
-  type: string,
-  name: string,
-  spec: Record<string, unknown>,
-): string {
-  return YAML.stringify({ id: nameToSlug(name), type, ...spec }, { lineWidth: 0 })
-}
-
-// ========== 类型转换层（API → 前端） ==========
-
-function fromApiNode(n: ApiWorkflowNode): WorkflowNode {
-  return {
-    id: n.id,
-    type: n.type,
-    name: n.name,
-    description: n.description,
-    containerId: n.containerId,
-    sortIndex: n.sortIndex,
-    spec: n.spec ?? {},
-    ui: n.ui,
-  }
-}
-
-function fromApiEdge(e: ApiWorkflowEdge): WorkflowEdge {
-  return {
-    id: e.id,
-    source: e.source,
-    target: e.target,
-    type: e.type,
-    label: e.label,
-  }
-}
-
-function fromApiInput(i: ApiWorkflowInput): WorkflowInput {
-  return {
-    id: i.id,
-    type: i.type,
-    displayName: i.displayName,
-    description: i.description,
-    required: i.required,
-    defaults: i.defaults,
-    values: i.values,
-  }
-}
 
 // ========== FitView 工具（首次加载自适应） ==========
 
