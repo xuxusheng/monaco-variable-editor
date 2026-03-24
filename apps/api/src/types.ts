@@ -20,7 +20,7 @@ export const workflowNodeSchema = z.object({
   description: z.string().optional(),
   containerId: z.string().nullable(),
   sortIndex: z.number(),
-  spec: z.record(z.unknown()),
+  spec: z.record(z.string(), z.unknown()),
   ui: z
     .object({
       x: z.number(),

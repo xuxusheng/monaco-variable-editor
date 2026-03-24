@@ -1,8 +1,7 @@
 import "dotenv/config";
 import { timingSafeEqual } from "node:crypto";
 import type { Prisma } from "./generated/prisma/client.js";
-import { serve } from "@hono/node-server";
-import { serveStatic } from "@hono/node-server/serve-static";
+import { serveStatic } from "hono/bun";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
@@ -110,7 +109,31 @@ app.post("/api/webhook/:workflowId/:triggerName", async (c) => {
 })
 
 // --- Static assets ---
-const STATIC_ROOT = process.env.STATIC_ROOT || "/web/dist/";
+import { join, dirname } from "node:path";
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+function getStaticRoot(): string {
+  if (process.env.STATIC_ROOT) {
+    return process.env.STATIC_ROOT;
+  }
+
+  const __dirname = dirname(fileURLToPath(import.meta.url));
+  const fromApiDir = join(__dirname, "../../web/dist");
+  if (existsSync(fromApiDir)) {
+    return fromApiDir;
+  }
+
+  const fromProjectRoot = join(process.cwd(), "apps/web/dist");
+  if (existsSync(fromProjectRoot)) {
+    return fromProjectRoot;
+  }
+
+  return "/web/dist/";
+}
+
+const STATIC_ROOT = getStaticRoot();
+console.log(`[static] Serving from: ${STATIC_ROOT}`);
 
 // Hashed assets (/assets/*) → long cache, immutable
 app.use(
@@ -142,18 +165,16 @@ app.onError((err, c) => {
   return c.json({ error: err.message ?? "Internal Server Error" }, 500);
 });
 
-const port = Number(process.env.PORT) || 3001;
-
-const server = serve({ fetch: app.fetch, port }, (info) => {
-  console.log(`🚀 Server running on http://localhost:${info.port}`);
-});
+export default {
+  port: process.env.PORT ? Number(process.env.PORT) : undefined,
+  fetch: app.fetch,
+}
 
 // Graceful shutdown
 function shutdown(signal: string) {
   console.log(`\n${signal} received, shutting down...`);
   clearInterval(syncTimer);
-  server.close(async () => {
-    await prisma.$disconnect();
+  prisma.$disconnect().then(() => {
     console.log("Server closed");
     process.exit(0);
   });

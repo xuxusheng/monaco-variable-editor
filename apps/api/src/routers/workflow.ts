@@ -533,7 +533,7 @@ export const workflowRouter = t.router({
     .input(
       z.object({
         workflowId: z.string(),
-        inputValues: z.record(z.string()).optional(),
+        inputValues: z.record(z.string(), z.string()).optional(),
       }),
     )
     .mutation(async ({ input }) => {
@@ -1049,8 +1049,8 @@ export const workflowRouter = t.router({
         workflowId: z.string(),
         name: z.string().min(1).max(100),
         type: z.enum(["schedule", "webhook"]),
-        config: z.record(z.unknown()),
-        inputs: z.record(z.string()).optional(),
+        config: z.record(z.string(), z.unknown()),
+        inputs: z.record(z.string(), z.string()).optional(),
         releaseId: z.string().optional(),
       }),
     )
@@ -1195,8 +1195,8 @@ export const workflowRouter = t.router({
       z.object({
         id: z.string(),
         name: z.string().min(1).max(100).optional(),
-        config: z.record(z.unknown()).optional(),
-        inputs: z.record(z.string()).optional(),
+        config: z.record(z.string(), z.unknown()).optional(),
+        inputs: z.record(z.string(), z.string()).optional(),
         disabled: z.boolean().optional(),
       }),
     )
