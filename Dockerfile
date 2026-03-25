@@ -16,9 +16,6 @@ RUN bun run --parallel --filter '*' build
 FROM oven/bun:1-slim
 WORKDIR /app
 
-# Install prisma CLI for migrations at runtime
-RUN bun install -g prisma
-
 # Copy single bundled backend (includes Prisma WASM, no node_modules needed)
 COPY --from=builder /app/apps/api/dist/index.js ./index.js
 
@@ -37,6 +34,7 @@ ENV NODE_ENV=production
 ENV STATIC_ROOT=/web/dist/
 EXPOSE 3000
 
-USER bun
+# Install prisma CLI as bun user for migrations at runtime
+RUN bun install -g prisma
 ENTRYPOINT ["./docker-entrypoint.sh"]
 CMD ["bun", "run", "index.js"]

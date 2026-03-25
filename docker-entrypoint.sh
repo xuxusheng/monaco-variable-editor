@@ -7,16 +7,23 @@ if [ -z "$SKIP_MIGRATE" ]; then
   RETRY_COUNT=0
 
   while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    if prisma migrate deploy; then
+    MIGRATE_OUTPUT=$(bunx prisma migrate deploy 2>&1)
+    MIGRATE_EXIT_CODE=$?
+    
+    if [ $MIGRATE_EXIT_CODE -eq 0 ]; then
       break
     fi
     
     RETRY_COUNT=$((RETRY_COUNT + 1))
     if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-      echo "迁移失败，5秒后重试... (第 $RETRY_COUNT/$MAX_RETRIES 次)"
+      echo "迁移失败 (第 $RETRY_COUNT/$MAX_RETRIES 次)，错误信息:"
+      echo "$MIGRATE_OUTPUT"
+      echo "5秒后重试..."
       sleep 5
     else
       echo "错误: 迁移在 $MAX_RETRIES 次尝试后仍然失败，应用启动中止"
+      echo "最后的错误信息:"
+      echo "$MIGRATE_OUTPUT"
       exit 1
     fi
   done

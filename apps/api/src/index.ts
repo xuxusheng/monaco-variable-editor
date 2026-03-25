@@ -135,7 +135,7 @@ function getStaticRoot(): string {
 const STATIC_ROOT = getStaticRoot();
 console.log(`[static] Serving from: ${STATIC_ROOT}`);
 
-// Hashed assets (/assets/*) → long cache, immutable
+// Hashed assets (/assets/*) → long cache, immutable, with precompressed support
 app.use(
   "/assets/*",
   async (c, next) => {
@@ -144,7 +144,7 @@ app.use(
       c.header("Cache-Control", "public, max-age=31536000, immutable");
     }
   },
-  serveStatic({ root: STATIC_ROOT }),
+  serveStatic({ root: STATIC_ROOT, precompressed: true }),
 );
 
 // SPA fallback: skip known file extensions, no-cache for index.html

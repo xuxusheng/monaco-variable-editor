@@ -2,6 +2,7 @@ import { defineConfig } from "vite-plus";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import reactScan from "@react-scan/vite-plugin-react-scan";
+import { compression } from "vite-plugin-compression2";
 
 export default defineConfig({
   plugins: [
@@ -14,6 +15,8 @@ export default defineConfig({
         animationSpeed: "fast",
       },
     }),
+    compression({ algorithms: ["gzip"], exclude: [/\.(png|jpe?g|gif|woff2?|ttf)$/i] }),
+    compression({ algorithms: ["brotliCompress"], exclude: [/\.(png|jpe?g|gif|woff2?|ttf)$/i] }),
   ],
   resolve: {
     alias: {
@@ -41,5 +44,8 @@ export default defineConfig({
   },
   worker: {
     format: "es",
+  },
+  lint: {
+    ignorePatterns: ["**/dist/**"],
   },
 });
