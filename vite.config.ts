@@ -7,5 +7,8 @@ export default defineConfig({
   lint: {
     ignorePatterns: ["**/generated/**"],
     options: { typeAware: true, typeCheck: true },
+    rules: {
+      "unicorn/no-thenable": "off",
+    },
   },
 });

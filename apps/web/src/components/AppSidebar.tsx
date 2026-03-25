@@ -1,12 +1,6 @@
-import { useState } from "react"
-import { Link, useMatchRoute } from "@tanstack/react-router"
-import {
-  Workflow,
-  Settings,
-  BookTemplate,
-  ChevronsLeft,
-  Plus,
-} from "lucide-react"
+import { useState } from "react";
+import { Link, useMatchRoute } from "@tanstack/react-router";
+import { Workflow, Settings, BookTemplate, ChevronsLeft, Plus } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -19,24 +13,36 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarTrigger,
-} from "@/components/ui/sidebar"
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
-import { useWorkflowStore } from "@/stores/workflow"
-import { trpc } from "@/lib/trpc"
-import { NamespaceCreateDialog } from "@/components/flow/NamespaceCreateDialog"
+} from "@/components/ui/sidebar";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { useWorkflowStore } from "@/stores/workflow";
+import { trpc } from "@/lib/trpc";
+import { NamespaceCreateDialog } from "@/components/flow/NamespaceCreateDialog";
 
 const workflowItems = [
   { label: "工作流编辑器", to: "/workflows", icon: Workflow },
   { label: "模板库", to: "/templates", icon: BookTemplate },
-] as const
+] as const;
 
-const settingItems = [
-  { label: "项目空间设置", to: "/settings", icon: Settings },
-] as const
+const settingItems = [{ label: "项目空间设置", to: "/settings", icon: Settings }] as const;
 
-function NavItem({ label, to, icon: Icon }: { label: string; to: string; icon: React.ComponentType<{ className?: string }> }) {
-  const matchRoute = useMatchRoute()
-  const isActive = !!matchRoute({ to: to as any })
+function NavItem({
+  label,
+  to,
+  icon: Icon,
+}: {
+  label: string;
+  to: string;
+  icon: React.ComponentType<{ className?: string }>;
+}) {
+  const matchRoute = useMatchRoute();
+  const isActive = !!matchRoute({ to: to as any });
 
   return (
     <SidebarMenuItem>
@@ -51,29 +57,29 @@ function NavItem({ label, to, icon: Icon }: { label: string; to: string; icon: R
         }
       />
     </SidebarMenuItem>
-  )
+  );
 }
 
 export function AppSidebar() {
-  const currentNamespace = useWorkflowStore((s) => s.currentNamespace)
-  const setCurrentNamespace = useWorkflowStore((s) => s.setCurrentNamespace)
-  const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const currentNamespace = useWorkflowStore((s) => s.currentNamespace);
+  const setCurrentNamespace = useWorkflowStore((s) => s.setCurrentNamespace);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
-  const { data: namespaces } = trpc.namespace.list.useQuery()
-  const utils = trpc.useUtils()
+  const { data: namespaces } = trpc.namespace.list.useQuery();
+  const utils = trpc.useUtils();
 
   const handleValueChange = (v: string | null) => {
     if (v === "__create__") {
-      setCreateDialogOpen(true)
-      return
+      setCreateDialogOpen(true);
+      return;
     }
-    if (v) setCurrentNamespace(v)
-  }
+    if (v) setCurrentNamespace(v);
+  };
 
   const handleCreated = (id: string) => {
-    setCurrentNamespace(id)
-    utils.namespace.list.invalidate()
-  }
+    setCurrentNamespace(id);
+    void utils.namespace.list.invalidate();
+  };
 
   return (
     <>
@@ -92,16 +98,15 @@ export function AppSidebar() {
           <SidebarGroup className="group-data-[collapsible=icon]:hidden">
             <SidebarGroupLabel>项目空间</SidebarGroupLabel>
             <SidebarGroupContent>
-              <Select
-                value={currentNamespace ?? ""}
-                onValueChange={handleValueChange}
-              >
+              <Select value={currentNamespace ?? ""} onValueChange={handleValueChange}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="选择项目空间" />
                 </SelectTrigger>
                 <SelectContent className="w-[--radix-select-trigger-width]">
                   {namespaces?.map((ns) => (
-                    <SelectItem key={ns.id} value={ns.id}>{ns.name}</SelectItem>
+                    <SelectItem key={ns.id} value={ns.id}>
+                      {ns.name}
+                    </SelectItem>
                   ))}
                   <SelectItem value="__create__">
                     <span className="flex items-center gap-1">
@@ -150,5 +155,5 @@ export function AppSidebar() {
         onCreated={handleCreated}
       />
     </>
-  )
+  );
 }

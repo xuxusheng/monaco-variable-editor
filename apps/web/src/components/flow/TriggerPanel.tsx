@@ -3,10 +3,24 @@
  * 显示当前 workflow 的所有触发器，支持启用/禁用、删除
  */
 
-import { useCallback, useMemo, useState } from "react"
-import { Clock, Webhook, Trash2, Power, Plus, Inbox, Copy, Key, Eye, EyeOff, CalendarClock, CheckCircle2, XCircle } from "lucide-react"
-import { trpc } from "@/lib/trpc"
-import { toast } from "sonner"
+import { useCallback, useMemo, useState } from "react";
+import {
+  Clock,
+  Webhook,
+  Trash2,
+  Power,
+  Plus,
+  Inbox,
+  Copy,
+  Key,
+  Eye,
+  EyeOff,
+  CalendarClock,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
+import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -16,153 +30,167 @@ import {
   AlertDialogFooter,
   AlertDialogAction,
   AlertDialogCancel,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
 interface TriggerPanelProps {
-  workflowId: string
-  onCreate: () => void
+  workflowId: string;
+  onCreate: () => void;
 }
 
 interface TriggerItem {
-  id: string
-  name: string
-  type: string
-  config: Record<string, unknown>
-  kestraFlowId: string
-  disabled: boolean
-  createdAt: string | Date
+  id: string;
+  name: string;
+  type: string;
+  config: Record<string, unknown>;
+  kestraFlowId: string;
+  disabled: boolean;
+  createdAt: string | Date;
 }
 
 interface TriggerStatusItem {
-  triggerId: string
-  nextFireAt: string | null
+  triggerId: string;
+  nextFireAt: string | null;
   lastExecution: {
-    state: string
-    startedAt: string | null
-    endedAt: string | null
-  } | null
+    state: string;
+    startedAt: string | null;
+    endedAt: string | null;
+  } | null;
 }
 
 function getTypeIcon(type: string) {
-  if (type === "schedule") return <Clock className="w-4 h-4 text-amber-500" />
-  if (type === "webhook") return <Webhook className="w-4 h-5 text-blue-500" />
-  return null
+  if (type === "schedule") return <Clock className="w-4 h-4 text-amber-500" />;
+  if (type === "webhook") return <Webhook className="w-4 h-5 text-blue-500" />;
+  return null;
 }
 
 function getTypeLabel(type: string) {
-  if (type === "schedule") return "定时"
-  if (type === "webhook") return "Webhook"
-  return type
+  if (type === "schedule") return "定时";
+  if (type === "webhook") return "Webhook";
+  return type;
 }
 
 function getTriggerDetail(item: TriggerItem, workflowId: string): string | null {
   if (item.type === "schedule") {
-    const cron = item.config.cron as string | undefined
-    return cron ? `Cron: ${cron}` : null
+    const cron = item.config.cron as string | undefined;
+    return cron ? `Cron: ${cron}` : null;
   }
   if (item.type === "webhook") {
-    const url = `${window.location.origin}/api/webhook/${workflowId}/${item.kestraFlowId}`
-    if (url.length > 40) return `${url.slice(0, 37)}…`
-    return url
+    const url = `${window.location.origin}/api/webhook/${workflowId}/${item.kestraFlowId}`;
+    if (url.length > 40) return `${url.slice(0, 37)}…`;
+    return url;
   }
-  return null
+  return null;
 }
 
 function formatRelativeTime(iso: string): string {
-  const date = new Date(iso)
-  const now = Date.now()
-  const diffMs = date.getTime() - now
-  const absDiff = Math.abs(diffMs)
+  const date = new Date(iso);
+  const now = Date.now();
+  const diffMs = date.getTime() - now;
+  const absDiff = Math.abs(diffMs);
 
-  if (absDiff < 60_000) return diffMs >= 0 ? "即将" : "刚刚"
+  if (absDiff < 60_000) return diffMs >= 0 ? "即将" : "刚刚";
 
-  const minutes = Math.floor(absDiff / 60_000)
-  if (minutes < 60) return diffMs >= 0 ? `${minutes} 分钟后` : `${minutes} 分钟前`
+  const minutes = Math.floor(absDiff / 60_000);
+  if (minutes < 60) return diffMs >= 0 ? `${minutes} 分钟后` : `${minutes} 分钟前`;
 
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return diffMs >= 0 ? `${hours} 小时后` : `${hours} 小时前`
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return diffMs >= 0 ? `${hours} 小时后` : `${hours} 小时前`;
 
-  const days = Math.floor(hours / 24)
-  if (days < 30) return diffMs >= 0 ? `${days} 天后` : `${days} 天前`
+  const days = Math.floor(hours / 24);
+  if (days < 30) return diffMs >= 0 ? `${days} 天后` : `${days} 天前`;
 
-  return date.toLocaleDateString("zh-CN")
+  return date.toLocaleDateString("zh-CN");
 }
 
 function formatDateTime(iso: string | null): string {
-  if (!iso) return "—"
-  const d = new Date(iso)
-  return d.toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return d.toLocaleString("zh-CN", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function StateBadge({ state }: { state: string }) {
-  const isSuccess = state === "SUCCESS"
-  const isFailed = state === "FAILED" || state === "KILLED" || state === "CANCELLED"
+  const isSuccess = state === "SUCCESS";
+  const isFailed = state === "FAILED" || state === "KILLED" || state === "CANCELLED";
   if (isSuccess) {
-    return <span className="inline-flex items-center gap-0.5 text-[11px] text-green-600"><CheckCircle2 className="w-3 h-3" /> 成功</span>
+    return (
+      <span className="inline-flex items-center gap-0.5 text-[11px] text-green-600">
+        <CheckCircle2 className="w-3 h-3" /> 成功
+      </span>
+    );
   }
   if (isFailed) {
-    return <span className="inline-flex items-center gap-0.5 text-[11px] text-red-500"><XCircle className="w-3 h-3" /> 失败</span>
+    return (
+      <span className="inline-flex items-center gap-0.5 text-[11px] text-red-500">
+        <XCircle className="w-3 h-3" /> 失败
+      </span>
+    );
   }
-  return <span className="inline-flex items-center gap-0.5 text-[11px] text-muted-foreground">{state}</span>
+  return (
+    <span className="inline-flex items-center gap-0.5 text-[11px] text-muted-foreground">
+      {state}
+    </span>
+  );
 }
 
 export function TriggerPanel({ workflowId, onCreate }: TriggerPanelProps) {
   const { data, isLoading, refetch } = trpc.workflow.triggerList.useQuery(
     { workflowId },
     { enabled: !!workflowId },
-  )
+  );
 
   const { data: statusData } = trpc.workflow.triggerStatus.useQuery(
     { workflowId },
     { enabled: !!workflowId, refetchInterval: 30_000 },
-  )
+  );
 
   const toggleMutation = trpc.workflow.triggerToggle.useMutation({
     onSuccess: () => {
-      refetch()
-      toast.success("已更新触发器状态")
+      void refetch();
+      toast.success("已更新触发器状态");
     },
     onError: () => toast.error("操作失败"),
-  })
+  });
 
   const deleteMutation = trpc.workflow.triggerDelete.useMutation({
     onSuccess: () => {
-      refetch()
-      toast.success("已删除触发器")
+      void refetch();
+      toast.success("已删除触发器");
     },
     onError: () => toast.error("删除失败"),
-  })
+  });
 
-  const [deleteTarget, setDeleteTarget] = useState<TriggerItem | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<TriggerItem | null>(null);
 
   const handleToggle = useCallback(
     (item: TriggerItem) => {
-      toggleMutation.mutate({ id: item.id, disabled: !item.disabled })
+      toggleMutation.mutate({ id: item.id, disabled: !item.disabled });
     },
     [toggleMutation],
-  )
+  );
 
-  const handleDelete = useCallback(
-    (item: TriggerItem) => {
-      setDeleteTarget(item)
-    },
-    [],
-  )
+  const handleDelete = useCallback((item: TriggerItem) => {
+    setDeleteTarget(item);
+  }, []);
 
   const confirmDelete = useCallback(() => {
     if (deleteTarget) {
-      deleteMutation.mutate({ id: deleteTarget.id })
-      setDeleteTarget(null)
+      deleteMutation.mutate({ id: deleteTarget.id });
+      setDeleteTarget(null);
     }
-  }, [deleteTarget, deleteMutation])
+  }, [deleteTarget, deleteMutation]);
 
-  const triggers = (data ?? []) as TriggerItem[]
+  const triggers = (data ?? []) as TriggerItem[];
   const statusMap = useMemo(() => {
-    const m = new Map<string, TriggerStatusItem>()
+    const m = new Map<string, TriggerStatusItem>();
     for (const s of (statusData ?? []) as TriggerStatusItem[]) {
-      m.set(s.triggerId, s)
+      m.set(s.triggerId, s);
     }
-    return m
-  }, [statusData])
+    return m;
+  }, [statusData]);
 
   return (
     <div className="flex flex-col h-full">
@@ -195,8 +223,8 @@ export function TriggerPanel({ workflowId, onCreate }: TriggerPanelProps) {
         ) : (
           <div className="p-3 space-y-2">
             {triggers.map((item) => {
-              const detail = getTriggerDetail(item, workflowId)
-              const status = statusMap.get(item.id)
+              const detail = getTriggerDetail(item, workflowId);
+              const status = statusMap.get(item.id);
               return (
                 <div
                   key={item.id}
@@ -233,13 +261,13 @@ export function TriggerPanel({ workflowId, onCreate }: TriggerPanelProps) {
                           <div className="flex items-center gap-1 text-[11px]">
                             <StateBadge state={status.lastExecution.state} />
                             <span className="text-muted-foreground/50">
-                              {formatDateTime(status.lastExecution.endedAt ?? status.lastExecution.startedAt)}
+                              {formatDateTime(
+                                status.lastExecution.endedAt ?? status.lastExecution.startedAt,
+                              )}
                             </span>
                           </div>
                         ) : (
-                          <div className="text-[11px] text-muted-foreground/50">
-                            暂无执行记录
-                          </div>
+                          <div className="text-[11px] text-muted-foreground/50">暂无执行记录</div>
                         )}
                       </div>
                     )}
@@ -272,14 +300,19 @@ export function TriggerPanel({ workflowId, onCreate }: TriggerPanelProps) {
                     </button>
                   </div>
                 </div>
-              )
+              );
             })}
           </div>
         )}
       </div>
 
       {/* 删除确认 */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>确认删除触发器</AlertDialogTitle>
@@ -294,25 +327,25 @@ export function TriggerPanel({ workflowId, onCreate }: TriggerPanelProps) {
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  )
+  );
 }
 
 function WebhookActions({ item, workflowId }: { item: TriggerItem; workflowId: string }) {
-  const [showSecret, setShowSecret] = useState(false)
-  const webhookUrl = `${window.location.origin}/api/webhook/${workflowId}/${item.kestraFlowId}`
-  const secret = item.config.secret as string | undefined
+  const [showSecret, setShowSecret] = useState(false);
+  const webhookUrl = `${window.location.origin}/api/webhook/${workflowId}/${item.kestraFlowId}`;
+  const secret = item.config.secret as string | undefined;
 
   const copyUrl = useCallback(() => {
-    navigator.clipboard.writeText(webhookUrl)
-    toast.success("已复制 URL")
-  }, [webhookUrl])
+    void navigator.clipboard.writeText(webhookUrl);
+    toast.success("已复制 URL");
+  }, [webhookUrl]);
 
   const copySecret = useCallback(() => {
     if (secret) {
-      navigator.clipboard.writeText(secret)
-      toast.success("已复制密钥")
+      void navigator.clipboard.writeText(secret);
+      toast.success("已复制密钥");
     }
-  }, [secret])
+  }, [secret]);
 
   return (
     <div className="flex items-center gap-1.5 mt-1">
@@ -340,5 +373,5 @@ function WebhookActions({ item, workflowId }: { item: TriggerItem; workflowId: s
         </button>
       )}
     </div>
-  )
+  );
 }

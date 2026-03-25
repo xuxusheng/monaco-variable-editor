@@ -1,25 +1,25 @@
-import { useState, lazy, Suspense } from "react"
-import { parseVariables, getAllVariables, defaultVariableGroups } from "@/types/variables"
-import { FileText, Search, HelpCircle, Loader2 } from "lucide-react"
+import { useState, lazy, Suspense } from "react";
+import { parseVariables, getAllVariables, defaultVariableGroups } from "@/types/variables";
+import { FileText, Search, HelpCircle, Loader2 } from "lucide-react";
 
-const MonacoVariableEditor = lazy(() => 
-  import("@/components/monaco-variable-editor").then(mod => ({ 
-    default: mod.MonacoVariableEditor 
-  }))
-)
+const MonacoVariableEditor = lazy(() =>
+  import("@/components/monaco-variable-editor").then((mod) => ({
+    default: mod.MonacoVariableEditor,
+  })),
+);
 
 function EditorLoading() {
   return (
     <div className="flex items-center justify-center h-[400px] bg-muted/30 rounded-lg border border-border">
       <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
     </div>
-  )
+  );
 }
 
 export function MonacoVariableEditorPage() {
-  const [value, setValue] = useState("")
-  const allVariables = getAllVariables(defaultVariableGroups)
-  const parsed = parseVariables(value)
+  const [value, setValue] = useState("");
+  const allVariables = getAllVariables(defaultVariableGroups);
+  const parsed = parseVariables(value);
 
   return (
     <div className="max-w-6xl mx-auto px-4 md:px-6 py-6">
@@ -39,23 +39,32 @@ export function MonacoVariableEditorPage() {
 
         <div className="flex flex-col gap-3">
           <div className="rounded-lg border border-border p-4">
-            <h3 className="text-sm font-medium mb-2 flex items-center gap-1"><Search className="w-4 h-4" /> 变量 ({parsed.length})</h3>
+            <h3 className="text-sm font-medium mb-2 flex items-center gap-1">
+              <Search className="w-4 h-4" /> 变量 ({parsed.length})
+            </h3>
             <div className="flex flex-col gap-1">
               {parsed.map((v, i) => {
-                const item = allVariables.find((a) => a.value === v.variable)
+                const item = allVariables.find((a) => a.value === v.variable);
                 return (
-                  <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded bg-muted/50 text-sm">
+                  <div
+                    key={i}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded bg-muted/50 text-sm"
+                  >
                     <span>{item?.icon ?? <HelpCircle className="w-4 h-4" />}</span>
                     <span className="font-medium text-primary">{item?.label ?? v.variable}</span>
                   </div>
-                )
+                );
               })}
-              {parsed.length === 0 && <p className="text-sm text-muted-foreground text-center py-3">还没有引用变量</p>}
+              {parsed.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-3">还没有引用变量</p>
+              )}
             </div>
           </div>
 
           <div className="rounded-lg border border-border p-4">
-            <h3 className="text-sm font-medium mb-2"><FileText className="w-4 h-4 inline" /> 实际值</h3>
+            <h3 className="text-sm font-medium mb-2">
+              <FileText className="w-4 h-4 inline" /> 实际值
+            </h3>
             <pre className="text-xs text-muted-foreground bg-muted/50 p-2 rounded overflow-auto max-h-32 whitespace-pre-wrap break-all font-mono">
               {value || "空"}
             </pre>
@@ -63,5 +72,5 @@ export function MonacoVariableEditorPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -1,4 +1,4 @@
-import type { WorkflowNode, WorkflowEdge, WorkflowInput } from "./workflow"
+import type { WorkflowNode, WorkflowEdge, WorkflowInput } from "./workflow";
 
 // ========== M1 基础 fixture（保持不变作为 fallback） ==========
 
@@ -82,7 +82,7 @@ export const FIXTURE_NODES: WorkflowNode[] = [
     spec: { message: "工作流完成" },
     ui: { x: 200, y: 880 },
   },
-]
+];
 
 export const FIXTURE_EDGES: WorkflowEdge[] = [
   // 顶级 sequence
@@ -105,10 +105,10 @@ export const FIXTURE_EDGES: WorkflowEdge[] = [
 
   // 错误处理
   { id: "e11", source: "download", target: "alert", type: "errors" },
-]
+];
 
 export const FIXTURE_INPUTS: WorkflowInput[] = [
   { id: "env", type: "STRING", defaults: "dev", description: "运行环境" },
   { id: "count", type: "INT", defaults: "10", description: "数据量" },
   { id: "version", type: "STRING", defaults: "1.0.0", description: "版本号" },
-]
+];

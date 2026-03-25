@@ -4,25 +4,32 @@
  * 三个 Tab：概览 / 任务列表 / 日志
  */
 
-import { useState, useCallback, useRef, useEffect } from "react"
-import { toast } from "sonner"
-import { trpc } from "@/lib/trpc"
-import { useWorkflowStore } from "@/stores/workflow"
-import type { TaskRun } from "@/stores/workflow"
+import { useState, useCallback, useRef, useEffect } from "react";
+import { toast } from "sonner";
+import { trpc } from "@/lib/trpc";
+import { useWorkflowStore } from "@/stores/workflow";
+import type { TaskRun } from "@/stores/workflow";
 import {
-  Clock, Loader, CheckCircle, XCircle, AlertTriangle,
-  XOctagon, Ban, Pause, ListTodo, RefreshCw, HelpCircle,
-} from "lucide-react"
-import {
-  Drawer, DrawerContent, DrawerHeader, DrawerTitle,
-} from "@/components/ui/drawer"
+  Clock,
+  Loader,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  XOctagon,
+  Ban,
+  Pause,
+  ListTodo,
+  RefreshCw,
+  HelpCircle,
+} from "lucide-react";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 
 const STATE_ICONS: Record<string, React.ReactNode> = {
   CREATED: <Clock className="w-4 h-4 text-muted-foreground" />,
@@ -36,7 +43,7 @@ const STATE_ICONS: Record<string, React.ReactNode> = {
   QUEUED: <ListTodo className="w-4 h-4 text-muted-foreground" />,
   RETRYING: <RefreshCw className="w-4 h-4 text-blue-500 animate-spin" />,
   RESTARTED: <RefreshCw className="w-4 h-4 text-blue-500 animate-spin" />,
-}
+};
 
 const STATE_COLORS: Record<string, string> = {
   CREATED: "text-muted-foreground",
@@ -46,57 +53,64 @@ const STATE_COLORS: Record<string, string> = {
   WARNING: "text-amber-500",
   KILLED: "text-gray-500",
   CANCELLED: "text-gray-500",
-}
+};
 
-type Tab = "overview" | "tasks" | "logs"
+type Tab = "overview" | "tasks" | "logs";
 
 interface ExecutionDrawerProps {
-  onClose: () => void
-  onReplay?: (executionId: string, taskRunId: string) => void
+  onClose: () => void;
+  onReplay?: (executionId: string, taskRunId: string) => void;
 }
 
 export function ExecutionDrawer({ onClose, onReplay }: ExecutionDrawerProps) {
-  const [tab, setTab] = useState<Tab>("overview")
-  const currentExecution = useWorkflowStore((s) => s.currentExecution)
-  const isExecuting = useWorkflowStore((s) => s.isExecuting)
+  const [tab, setTab] = useState<Tab>("overview");
+  const currentExecution = useWorkflowStore((s) => s.currentExecution);
+  const isExecuting = useWorkflowStore((s) => s.isExecuting);
   const executionKill = trpc.workflow.executionKill.useMutation({
     onSuccess: () => toast.success("已发送停止信号"),
     onError: (err) => toast.error(`停止失败: ${err.message}`),
-  })
+  });
 
-  if (!currentExecution) return null
+  if (!currentExecution) return null;
 
-  const duration = currentExecution.taskRuns
-    ? formatDuration(currentExecution)
-    : "—"
+  const duration = currentExecution.taskRuns ? formatDuration(currentExecution) : "—";
 
   const progress = currentExecution.taskRuns
     ? `${currentExecution.taskRuns.filter((tr: TaskRun) => ["SUCCESS", "WARNING"].includes(tr.state)).length}/${currentExecution.taskRuns.length}`
-    : "—"
+    : "—";
 
   const handleKill = useCallback(() => {
-    executionKill.mutate({ executionId: currentExecution.id })
-  }, [currentExecution.id, executionKill])
+    executionKill.mutate({ executionId: currentExecution.id });
+  }, [currentExecution.id, executionKill]);
 
   const handleReplay = useCallback(
     (taskRunId: string) => {
-      onReplay?.(currentExecution.id, taskRunId)
+      onReplay?.(currentExecution.id, taskRunId);
     },
     [currentExecution.id, onReplay],
-  )
+  );
 
   return (
-    <Drawer open onOpenChange={(open) => { if (!open) onClose() }} direction="right">
+    <Drawer
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      direction="right"
+    >
       <DrawerContent className="h-full w-full sm:max-w-lg">
         <DrawerHeader className="flex flex-row items-center justify-between">
           <div className="flex items-center gap-3">
             <DrawerTitle>执行详情</DrawerTitle>
-            <span className={`text-xs font-medium px-2 py-0.5 rounded ${STATE_COLORS[currentExecution.state] ?? "text-muted-foreground"}`}>
-              {STATE_ICONS[currentExecution.state] ?? <HelpCircle className="w-4 h-4 text-muted-foreground" />} {currentExecution.state}
+            <span
+              className={`text-xs font-medium px-2 py-0.5 rounded ${STATE_COLORS[currentExecution.state] ?? "text-muted-foreground"}`}
+            >
+              {STATE_ICONS[currentExecution.state] ?? (
+                <HelpCircle className="w-4 h-4 text-muted-foreground" />
+              )}{" "}
+              {currentExecution.state}
             </span>
-            {isExecuting && (
-              <span className="text-xs text-blue-500 animate-pulse">执行中...</span>
-            )}
+            {isExecuting && <span className="text-xs text-blue-500 animate-pulse">执行中...</span>}
           </div>
           <div className="flex items-center gap-2">
             {isExecuting && (
@@ -140,33 +154,47 @@ export function ExecutionDrawer({ onClose, onReplay }: ExecutionDrawerProps) {
               onReplay={handleReplay}
             />
           )}
-          {tab === "logs" && (
-            <LogsTab kestraExecId={currentExecution.kestraExecId} />
-          )}
+          {tab === "logs" && <LogsTab kestraExecId={currentExecution.kestraExecId} />}
         </div>
       </DrawerContent>
     </Drawer>
-  )
+  );
 }
 
 // ========== Overview Tab ==========
 
-function OverviewTab({ execution, duration, progress }: {
-  execution: { id: string; kestraExecId: string; state: string; triggeredBy: string; createdAt: string }
-  duration: string
-  progress: string
+function OverviewTab({
+  execution,
+  duration,
+  progress,
+}: {
+  execution: {
+    id: string;
+    kestraExecId: string;
+    state: string;
+    triggeredBy: string;
+    createdAt: string;
+  };
+  duration: string;
+  progress: string;
 }) {
   return (
     <div className="space-y-3 text-sm">
       <InfoRow label="平台 ID" value={execution.id} />
       <InfoRow label="Kestra ID" value={execution.kestraExecId} />
-      <InfoRow label="状态" value={`${STATE_ICONS[execution.state] ?? ""} ${execution.state}`} />
+      <div className="flex items-start gap-3">
+        <span className="text-muted-foreground w-20 shrink-0 text-right">状态</span>
+        <span className="font-mono text-xs break-all flex items-center gap-1">
+          {STATE_ICONS[execution.state] ?? <HelpCircle className="w-4 h-4 text-muted-foreground" />}
+          {execution.state}
+        </span>
+      </div>
       <InfoRow label="触发方式" value={formatTriggeredBy(execution.triggeredBy)} />
       <InfoRow label="进度" value={progress} />
       <InfoRow label="耗时" value={duration} />
       <InfoRow label="创建时间" value={formatTime(execution.createdAt)} />
     </div>
-  )
+  );
 }
 
 function InfoRow({ label, value }: { label: string; value: string }) {
@@ -175,24 +203,28 @@ function InfoRow({ label, value }: { label: string; value: string }) {
       <span className="text-muted-foreground w-20 shrink-0 text-right">{label}</span>
       <span className="font-mono text-xs break-all">{value}</span>
     </div>
-  )
+  );
 }
 
 // ========== Tasks Tab ==========
 
-function TasksTab({ execution, isExecuting, onReplay }: {
-  execution: { state: string; taskRuns: TaskRun[] }
-  isExecuting: boolean
-  onReplay: (taskRunId: string) => void
+function TasksTab({
+  execution,
+  isExecuting,
+  onReplay,
+}: {
+  execution: { state: string; taskRuns: TaskRun[] };
+  isExecuting: boolean;
+  onReplay: (taskRunId: string) => void;
 }) {
-  const taskRuns = execution.taskRuns ?? []
+  const taskRuns = execution.taskRuns ?? [];
 
   if (taskRuns.length === 0) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
         {isExecuting ? "等待任务执行..." : "暂无任务数据"}
       </div>
-    )
+    );
   }
 
   return (
@@ -202,7 +234,9 @@ function TasksTab({ execution, isExecuting, onReplay }: {
           key={tr.id}
           className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-muted/50 group"
         >
-          <span className="text-base shrink-0">{STATE_ICONS[tr.state] ?? <HelpCircle className="w-4 h-4 text-muted-foreground" />}</span>
+          <span className="text-base shrink-0">
+            {STATE_ICONS[tr.state] ?? <HelpCircle className="w-4 h-4 text-muted-foreground" />}
+          </span>
           <span className="text-sm font-medium truncate flex-1">{tr.taskId}</span>
           <span className={`text-xs ${STATE_COLORS[tr.state] ?? ""}`}>{tr.state}</span>
           <span className="text-xs text-muted-foreground w-14 text-right shrink-0">
@@ -217,37 +251,38 @@ function TasksTab({ execution, isExecuting, onReplay }: {
               onClick={() => onReplay(tr.id)}
               className="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 opacity-0 group-hover:opacity-100 transition-opacity"
             >
-              <RefreshCw className="w-3 h-3 mr-1" />重跑
+              <RefreshCw className="w-3 h-3 mr-1" />
+              重跑
             </button>
           )}
         </div>
       ))}
     </div>
-  )
+  );
 }
 
 // ========== Logs Tab ==========
 
 function LogsTab({ kestraExecId }: { kestraExecId: string }) {
-  const [level, setLevel] = useState<"TRACE" | "DEBUG" | "INFO" | "WARN" | "ERROR" | "">("")
+  const [level, setLevel] = useState<"TRACE" | "DEBUG" | "INFO" | "WARN" | "ERROR" | "">("");
   const logsQuery = trpc.workflow.executionLogs.useQuery(
     { kestraExecId, minLevel: level || undefined },
     { enabled: !!kestraExecId, refetchInterval: 5000 },
-  )
+  );
 
-  const logs = logsQuery.data?.results ?? []
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const logs = logsQuery.data?.results ?? [];
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [logs.length])
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [logs.length]);
 
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-2 mb-3 shrink-0">
         <Select
           value={level || "__all__"}
-          onValueChange={(v) => setLevel(v === "__all__" ? "" : v as typeof level)}
+          onValueChange={(v) => setLevel(v === "__all__" ? "" : (v as typeof level))}
         >
           <SelectTrigger size="sm" className="w-[120px]">
             <SelectValue />
@@ -265,8 +300,13 @@ function LogsTab({ kestraExecId }: { kestraExecId: string }) {
       </div>
       <div className="flex-1 overflow-y-auto font-mono text-xs space-y-0.5">
         {logs.map((log, i) => (
-          <div key={`${log.timestamp}-${log.level}-${i}`} className={`flex gap-2 ${levelColor(log.level)}`}>
-            <span className="text-muted-foreground shrink-0">{log.timestamp?.slice(11, 19) ?? ""}</span>
+          <div
+            key={`${log.timestamp}-${log.level}-${i}`}
+            className={`flex gap-2 ${levelColor(log.level)}`}
+          >
+            <span className="text-muted-foreground shrink-0">
+              {log.timestamp?.slice(11, 19) ?? ""}
+            </span>
             <span className="shrink-0 w-10">[{log.level}]</span>
             <span className="break-all">{log.message}</span>
           </div>
@@ -274,7 +314,7 @@ function LogsTab({ kestraExecId }: { kestraExecId: string }) {
         <div ref={bottomRef} />
       </div>
     </div>
-  )
+  );
 }
 
 // ========== Helpers ==========
@@ -286,46 +326,54 @@ function formatTime(iso: string): string {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
-  })
+  });
 }
 
 function formatDuration(exec: { state: string; taskRuns: TaskRun[] }): string {
-  const runs = exec.taskRuns ?? []
-  if (runs.length === 0) return "—"
+  const runs = exec.taskRuns ?? [];
+  if (runs.length === 0) return "—";
 
   const starts = runs
-    .map((r: TaskRun) => r.startDate ? new Date(r.startDate).getTime() : 0)
-    .filter((t: number) => t > 0)
+    .map((r: TaskRun) => (r.startDate ? new Date(r.startDate).getTime() : 0))
+    .filter((t: number) => t > 0);
   const ends = runs
-    .map((r: TaskRun) => r.endDate ? new Date(r.endDate).getTime() : 0)
-    .filter((t: number) => t > 0)
+    .map((r: TaskRun) => (r.endDate ? new Date(r.endDate).getTime() : 0))
+    .filter((t: number) => t > 0);
 
-  if (starts.length === 0) return "—"
-  const start = Math.min(...starts)
+  if (starts.length === 0) return "—";
+  const start = Math.min(...starts);
 
-  if (["SUCCESS", "FAILED", "WARNING", "KILLED", "CANCELLED"].includes(exec.state) && ends.length > 0) {
-    const end = Math.max(...ends)
-    return `${((end - start) / 1000).toFixed(1)}s`
+  if (
+    ["SUCCESS", "FAILED", "WARNING", "KILLED", "CANCELLED"].includes(exec.state) &&
+    ends.length > 0
+  ) {
+    const end = Math.max(...ends);
+    return `${((end - start) / 1000).toFixed(1)}s`;
   }
 
-  return `${((Date.now() - start) / 1000).toFixed(1)}s（进行中）`
+  return `${((Date.now() - start) / 1000).toFixed(1)}s（进行中）`;
 }
 
 function formatTriggeredBy(triggeredBy: string): string {
-  if (triggeredBy === "manual") return "手动测试"
+  if (triggeredBy === "manual") return "手动测试";
   if (triggeredBy.startsWith("replay:")) {
-    const parts = triggeredBy.split(":")
-    return `Replay (从 ${parts[1]?.slice(0, 8)}... ${parts[2]?.slice(0, 8)}...)`
+    const parts = triggeredBy.split(":");
+    return `Replay (从 ${parts[1]?.slice(0, 8)}... ${parts[2]?.slice(0, 8)}...)`;
   }
-  return triggeredBy
+  return triggeredBy;
 }
 
 function levelColor(level: string): string {
   switch (level) {
-    case "ERROR": return "text-red-500"
-    case "WARN": return "text-amber-500"
-    case "DEBUG": return "text-muted-foreground"
-    case "TRACE": return "text-muted-foreground/50"
-    default: return ""
+    case "ERROR":
+      return "text-red-500";
+    case "WARN":
+      return "text-amber-500";
+    case "DEBUG":
+      return "text-muted-foreground";
+    case "TRACE":
+      return "text-muted-foreground/50";
+    default:
+      return "";
   }
 }

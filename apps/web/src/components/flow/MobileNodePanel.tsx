@@ -1,12 +1,12 @@
-import { useState, useCallback, useMemo, type DragEvent } from "react"
-import { Search, X } from "lucide-react"
+import { useState, useCallback, useMemo, type DragEvent } from "react";
+import { Search, X } from "lucide-react";
 import {
   PLUGIN_CATALOG,
   CATEGORY_COLORS,
   type PluginEntry,
   type PluginCategory,
-} from "@/types/workflow"
-import { Input } from "@/components/ui/input"
+} from "@/types/workflow";
+import { Input } from "@/components/ui/input";
 
 const CATEGORY_LABELS: Record<PluginCategory, string> = {
   flow: "控制流",
@@ -16,7 +16,7 @@ const CATEGORY_LABELS: Record<PluginCategory, string> = {
   serdes: "序列化",
   storage: "存储",
   other: "其他",
-}
+};
 
 const FILTER_TAGS = [
   { key: "all", label: "全部" },
@@ -24,72 +24,67 @@ const FILTER_TAGS = [
   { key: "task", label: "Task" },
   { key: "trigger", label: "Trigger" },
   { key: "script", label: "Script" },
-] as const
+] as const;
 
-type FilterTag = (typeof FILTER_TAGS)[number]["key"]
+type FilterTag = (typeof FILTER_TAGS)[number]["key"];
 
 function tagToCategories(tag: FilterTag): Set<PluginCategory> | "all" {
-  if (tag === "all") return "all"
-  if (tag === "flow") return new Set(["flow"])
-  if (tag === "script") return new Set(["script"])
-  if (tag === "task") return new Set(["http", "jdbc", "serdes", "storage", "other"])
-  return new Set<PluginCategory>()
+  if (tag === "all") return "all";
+  if (tag === "flow") return new Set(["flow"]);
+  if (tag === "script") return new Set(["script"]);
+  if (tag === "task") return new Set(["http", "jdbc", "serdes", "storage", "other"]);
+  return new Set<PluginCategory>();
 }
 
 function fuzzyMatch(query: string, text: string): boolean {
-  if (!query) return true
-  const q = query.toLowerCase()
-  const t = text.toLowerCase()
-  if (t.includes(q)) return true
-  let qi = 0
+  if (!query) return true;
+  const q = query.toLowerCase();
+  const t = text.toLowerCase();
+  if (t.includes(q)) return true;
+  let qi = 0;
   for (let ti = 0; ti < t.length && qi < q.length; ti++) {
-    if (t[ti] === q[qi]) qi++
+    if (t[ti] === q[qi]) qi++;
   }
-  return qi === q.length
+  return qi === q.length;
 }
 
 export function MobileNodePanel() {
-  const [search, setSearch] = useState("")
-  const [activeTag, setActiveTag] = useState<FilterTag>("all")
+  const [search, setSearch] = useState("");
+  const [activeTag, setActiveTag] = useState<FilterTag>("all");
 
   const filteredPlugins = useMemo(() => {
-    let pool = PLUGIN_CATALOG
-    const cats = tagToCategories(activeTag)
+    let pool = PLUGIN_CATALOG;
+    const cats = tagToCategories(activeTag);
     if (cats !== "all") {
-      pool = pool.filter((p) => cats.has(p.category))
+      pool = pool.filter((p) => cats.has(p.category));
     }
     if (search) {
-      pool = pool.filter(
-        (p) => fuzzyMatch(search, p.name) || fuzzyMatch(search, p.type),
-      )
+      pool = pool.filter((p) => fuzzyMatch(search, p.name) || fuzzyMatch(search, p.type));
     }
-    return pool
-  }, [search, activeTag])
+    return pool;
+  }, [search, activeTag]);
 
   const grouped = useMemo(
     () =>
       filteredPlugins.reduce(
         (acc, plugin) => {
-          const cat = plugin.category
-          if (!acc[cat]) acc[cat] = []
-          acc[cat].push(plugin)
-          return acc
+          const cat = plugin.category;
+          if (!acc[cat]) acc[cat] = [];
+          acc[cat].push(plugin);
+          return acc;
         },
         {} as Record<string, PluginEntry[]>,
       ),
     [filteredPlugins],
-  )
+  );
 
-  const onDragStart = useCallback(
-    (event: DragEvent, plugin: PluginEntry) => {
-      event.dataTransfer.setData(
-        "application/reactflow",
-        JSON.stringify({ type: plugin.type, name: plugin.name, defaultSpec: plugin.defaultSpec }),
-      )
-      event.dataTransfer.effectAllowed = "move"
-    },
-    [],
-  )
+  const onDragStart = useCallback((event: DragEvent, plugin: PluginEntry) => {
+    event.dataTransfer.setData(
+      "application/reactflow",
+      JSON.stringify({ type: plugin.type, name: plugin.name, defaultSpec: plugin.defaultSpec }),
+    );
+    event.dataTransfer.effectAllowed = "move";
+  }, []);
 
   return (
     <div className="flex flex-col gap-3">
@@ -136,7 +131,9 @@ export function MobileNodePanel() {
             <div className="flex items-center gap-2 px-1 py-1.5 text-xs font-semibold text-muted-foreground">
               <span
                 className="w-2 h-2 rounded-full shrink-0"
-                style={{ background: CATEGORY_COLORS[cat as PluginCategory] ?? CATEGORY_COLORS.other }}
+                style={{
+                  background: CATEGORY_COLORS[cat as PluginCategory] ?? CATEGORY_COLORS.other,
+                }}
               />
               {CATEGORY_LABELS[cat as PluginCategory] ?? cat}
             </div>
@@ -157,11 +154,9 @@ export function MobileNodePanel() {
         ))}
 
         {filteredPlugins.length === 0 && (
-          <div className="py-8 text-center text-sm text-muted-foreground">
-            没有找到匹配的插件
-          </div>
+          <div className="py-8 text-center text-sm text-muted-foreground">没有找到匹配的插件</div>
         )}
       </div>
     </div>
-  )
+  );
 }

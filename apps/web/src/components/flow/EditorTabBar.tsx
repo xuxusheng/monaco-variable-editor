@@ -1,4 +1,4 @@
-import { memo, useCallback } from "react"
+import { memo, useCallback } from "react";
 import {
   LayoutDashboard,
   FileText,
@@ -9,8 +9,8 @@ import {
   Settings,
   X,
   ExternalLink,
-} from "lucide-react"
-import { cn } from "@/lib/utils"
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const TABS = [
   { key: "canvas", label: "画布", icon: LayoutDashboard },
@@ -20,14 +20,14 @@ const TABS = [
   { key: "versions", label: "版本", icon: ScrollText },
   { key: "triggers", label: "触发器", icon: Zap },
   { key: "settings", label: "设置", icon: Settings },
-] as const
+] as const;
 
-export type TabKey = typeof TABS[number]["key"]
+export type TabKey = (typeof TABS)[number]["key"];
 
 interface EditorTabBarProps {
-  activeTab: TabKey
-  onTabChange: (tab: TabKey) => void
-  onOpenInNewPage?: (tab: TabKey) => void
+  activeTab: TabKey;
+  onTabChange: (tab: TabKey) => void;
+  onOpenInNewPage?: (tab: TabKey) => void;
 }
 
 export const EditorTabBar = memo(function EditorTabBar({
@@ -37,19 +37,19 @@ export const EditorTabBar = memo(function EditorTabBar({
 }: EditorTabBarProps) {
   const handleClose = useCallback(
     (e: React.MouseEvent, tab: TabKey) => {
-      e.stopPropagation()
+      e.stopPropagation();
       if (tab === activeTab) {
-        onTabChange("canvas")
+        onTabChange("canvas");
       }
     },
     [activeTab, onTabChange],
-  )
+  );
 
   return (
     <div className="h-9 border-b border-border bg-card flex items-center px-1 md:px-2 shrink-0 overflow-x-auto whitespace-nowrap scrollbar-none">
       {TABS.map((tab) => {
-        const isActive = activeTab === tab.key
-        const Icon = tab.icon
+        const isActive = activeTab === tab.key;
+        const Icon = tab.icon;
         return (
           <div key={tab.key} className="relative flex items-center">
             <button
@@ -76,8 +76,8 @@ export const EditorTabBar = memo(function EditorTabBar({
             {onOpenInNewPage && ["executions", "versions", "triggers"].includes(tab.key) && (
               <button
                 onClick={(e) => {
-                  e.stopPropagation()
-                  onOpenInNewPage(tab.key)
+                  e.stopPropagation();
+                  onOpenInNewPage(tab.key);
                 }}
                 className="p-0.5 rounded hover:bg-muted hidden md:inline-flex text-muted-foreground hover:text-foreground"
                 title="在新页面打开"
@@ -86,8 +86,8 @@ export const EditorTabBar = memo(function EditorTabBar({
               </button>
             )}
           </div>
-        )
+        );
       })}
     </div>
-  )
-})
+  );
+});

@@ -1,20 +1,20 @@
-import { useCallback } from "react"
-import Editor from "@monaco-editor/react"
-import type * as Monaco from "monaco-editor"
-import type { KestraInput } from "@/types/kestra"
-import { setupYamlValidation } from "@/lib/yamlValidation"
-import { Settings } from "lucide-react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { useCallback } from "react";
+import Editor from "@monaco-editor/react";
+import type * as Monaco from "monaco-editor";
+import type { KestraInput } from "@/types/kestra";
+import { setupYamlValidation } from "@/lib/yamlValidation";
+import { Settings } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface TaskConfigPanelProps {
-  nodeId: string
-  label: string
-  taskConfig: string
-  inputs: KestraInput[]
-  onUpdate: (nodeId: string, label: string, taskConfig: string) => void
-  onClose: () => void
+  nodeId: string;
+  label: string;
+  taskConfig: string;
+  inputs: KestraInput[];
+  onUpdate: (nodeId: string, label: string, taskConfig: string) => void;
+  onClose: () => void;
 }
 
 export function TaskConfigPanel({
@@ -27,31 +27,31 @@ export function TaskConfigPanel({
 }: TaskConfigPanelProps) {
   const handleLabelChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      onUpdate(nodeId, e.target.value, taskConfig)
+      onUpdate(nodeId, e.target.value, taskConfig);
     },
     [nodeId, taskConfig, onUpdate],
-  )
+  );
 
   const handleEditorChange = useCallback(
     (value: string | undefined) => {
       if (value !== undefined) {
-        onUpdate(nodeId, label, value)
+        onUpdate(nodeId, label, value);
       }
     },
     [nodeId, label, onUpdate],
-  )
+  );
 
   const handleMount = useCallback(
     (editor: Monaco.editor.IStandaloneCodeEditor, monaco: typeof Monaco) => {
-      const model = editor.getModel()
-      if (!model) return
+      const model = editor.getModel();
+      if (!model) return;
 
       // 1. Input parameter completion
       monaco.languages.registerCompletionItemProvider("yaml", {
         triggerCharacters: ["{", '"'],
         provideCompletionItems(m, position) {
-          const lineContent = m.getLineContent(position.lineNumber)
-          const textBefore = lineContent.substring(0, position.column - 1)
+          const lineContent = m.getLineContent(position.lineNumber);
+          const textBefore = lineContent.substring(0, position.column - 1);
 
           if (!textBefore.includes("{{")) {
             const range = {
@@ -59,7 +59,7 @@ export function TaskConfigPanel({
               startColumn: position.column,
               endLineNumber: position.lineNumber,
               endColumn: position.column,
-            }
+            };
             return {
               suggestions: inputs.map((input) => ({
                 label: `{{ inputs.${input.id} }}`,
@@ -71,7 +71,7 @@ export function TaskConfigPanel({
                 sortText: input.id,
                 filterText: `${input.id} inputs ${input.description || ""}`,
               })),
-            }
+            };
           }
 
           return {
@@ -88,18 +88,23 @@ export function TaskConfigPanel({
                 endColumn: position.column,
               },
             })),
-          }
+          };
         },
-      })
+      });
 
       // 2. YAML validation (schema + business)
-      setupYamlValidation(monaco, model, inputs)
+      setupYamlValidation(monaco, model, inputs);
     },
     [inputs],
-  )
+  );
 
   return (
-    <Dialog open={true} onOpenChange={(open) => { if (!open) onClose() }}>
+    <Dialog
+      open={true}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -121,10 +126,15 @@ export function TaskConfigPanel({
 
           {inputs.length > 0 && (
             <div className="bg-muted/50 rounded-md p-3">
-              <p className="text-xs font-medium text-muted-foreground mb-1.5">可引用的全局输入参数：</p>
+              <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                可引用的全局输入参数：
+              </p>
               <div className="flex flex-wrap gap-1.5">
                 {inputs.map((input) => (
-                  <span key={input.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 text-xs font-mono">
+                  <span
+                    key={input.id}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 text-xs font-mono"
+                  >
                     {`{{ inputs.${input.id} }}`}
                   </span>
                 ))}
@@ -156,11 +166,12 @@ export function TaskConfigPanel({
               />
             </div>
             <p className="text-xs text-muted-foreground mt-1.5">
-              输入 <code className="bg-muted px-1 rounded font-mono">{`{{`}</code> 触发输入参数补全 · 编辑器会自动校验 YAML 结构和业务规则
+              输入 <code className="bg-muted px-1 rounded font-mono">{`{{`}</code> 触发输入参数补全
+              · 编辑器会自动校验 YAML 结构和业务规则
             </p>
           </div>
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

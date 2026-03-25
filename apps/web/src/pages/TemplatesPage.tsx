@@ -1,4 +1,4 @@
-import { BookTemplate } from "lucide-react"
+import { BookTemplate } from "lucide-react";
 
 export function TemplatesPage() {
   return (
@@ -12,5 +12,5 @@ export function TemplatesPage() {
       </div>
       <p className="text-sm text-muted-foreground">此功能即将上线</p>
     </div>
-  )
+  );
 }

@@ -1,13 +1,13 @@
-import type { WorkflowNode, WorkflowEdge, WorkflowInput } from "@/types/workflow"
+import type { WorkflowNode, WorkflowEdge, WorkflowInput } from "@/types/workflow";
 
 export interface WorkflowTemplate {
-  id: string
-  name: string
-  description: string
-  category: string
-  nodes: WorkflowNode[]
-  edges: WorkflowEdge[]
-  inputs: WorkflowInput[]
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  nodes: WorkflowNode[];
+  edges: WorkflowEdge[];
+  inputs: WorkflowInput[];
 }
 
 export const BUILTIN_TEMPLATES: WorkflowTemplate[] = [
@@ -50,7 +50,12 @@ export const BUILTIN_TEMPLATES: WorkflowTemplate[] = [
       { id: "te-2", source: "ts-2", target: "ts-3", type: "sequence" },
     ],
     inputs: [
-      { id: "sync_url", type: "STRING", defaults: "https://api.example.com/sync", description: "同步接口地址" },
+      {
+        id: "sync_url",
+        type: "STRING",
+        defaults: "https://api.example.com/sync",
+        description: "同步接口地址",
+      },
       { id: "cron", type: "STRING", defaults: "0 2 * * *", description: "定时调度表达式" },
     ],
   },
@@ -93,7 +98,11 @@ export const BUILTIN_TEMPLATES: WorkflowTemplate[] = [
         name: "写入目标库",
         containerId: "te-2",
         sortIndex: 1,
-        spec: { url: "jdbc:postgresql://localhost:5432/warehouse", sql: "INSERT INTO staging VALUES (?)", sqlFormat: "QUERY" },
+        spec: {
+          url: "jdbc:postgresql://localhost:5432/warehouse",
+          sql: "INSERT INTO staging VALUES (?)",
+          sqlFormat: "QUERY",
+        },
         ui: { x: 350, y: 380 },
       },
       {
@@ -114,8 +123,18 @@ export const BUILTIN_TEMPLATES: WorkflowTemplate[] = [
       { id: "tee-5", source: "te-3", target: "te-4", type: "sequence" },
     ],
     inputs: [
-      { id: "source_url", type: "STRING", defaults: "https://example.com/data.csv", description: "源数据地址" },
-      { id: "db_url", type: "STRING", defaults: "jdbc:postgresql://localhost:5432/warehouse", description: "目标数据库" },
+      {
+        id: "source_url",
+        type: "STRING",
+        defaults: "https://example.com/data.csv",
+        description: "源数据地址",
+      },
+      {
+        id: "db_url",
+        type: "STRING",
+        defaults: "jdbc:postgresql://localhost:5432/warehouse",
+        description: "目标数据库",
+      },
     ],
   },
   {
@@ -148,7 +167,11 @@ export const BUILTIN_TEMPLATES: WorkflowTemplate[] = [
         name: "错误通知",
         containerId: null,
         sortIndex: 2,
-        spec: { uri: "https://hooks.example.com/alert", method: "POST", body: '{"error": "{{ error.message }}"}' },
+        spec: {
+          uri: "https://hooks.example.com/alert",
+          method: "POST",
+          body: '{"error": "{{ error.message }}"}',
+        },
         ui: { x: 100, y: 380 },
       },
       {
@@ -178,7 +201,12 @@ export const BUILTIN_TEMPLATES: WorkflowTemplate[] = [
       { id: "ehe-5", source: "eh-2", target: "eh-4", type: "finally" },
     ],
     inputs: [
-      { id: "alert_url", type: "STRING", defaults: "https://hooks.example.com/alert", description: "告警通知地址" },
+      {
+        id: "alert_url",
+        type: "STRING",
+        defaults: "https://hooks.example.com/alert",
+        description: "告警通知地址",
+      },
     ],
   },
   {
@@ -325,9 +353,24 @@ export const BUILTIN_TEMPLATES: WorkflowTemplate[] = [
       { id: "pfe-5", source: "pf-2", target: "pf-5", type: "containment" },
     ],
     inputs: [
-      { id: "source_a_url", type: "STRING", defaults: "https://source-a.example.com/data", description: "数据源 A 地址" },
-      { id: "source_b_url", type: "STRING", defaults: "https://source-b.example.com/data", description: "数据源 B 地址" },
-      { id: "source_c_url", type: "STRING", defaults: "https://source-c.example.com/data", description: "数据源 C 地址" },
+      {
+        id: "source_a_url",
+        type: "STRING",
+        defaults: "https://source-a.example.com/data",
+        description: "数据源 A 地址",
+      },
+      {
+        id: "source_b_url",
+        type: "STRING",
+        defaults: "https://source-b.example.com/data",
+        description: "数据源 B 地址",
+      },
+      {
+        id: "source_c_url",
+        type: "STRING",
+        defaults: "https://source-c.example.com/data",
+        description: "数据源 C 地址",
+      },
     ],
   },
   {
@@ -360,7 +403,11 @@ export const BUILTIN_TEMPLATES: WorkflowTemplate[] = [
         name: "发送告警",
         containerId: null,
         sortIndex: 0,
-        spec: { uri: "{{ inputs.alert_url }}", method: "POST", body: '{"status": "down", "service": "{{ inputs.service_name }}"}' },
+        spec: {
+          uri: "{{ inputs.alert_url }}",
+          method: "POST",
+          body: '{"status": "down", "service": "{{ inputs.service_name }}"}',
+        },
         ui: { x: 100, y: 380 },
       },
       {
@@ -379,8 +426,18 @@ export const BUILTIN_TEMPLATES: WorkflowTemplate[] = [
       { id: "ape-3", source: "ap-2", target: "ap-4", type: "else" },
     ],
     inputs: [
-      { id: "health_url", type: "STRING", defaults: "https://api.example.com/health", description: "健康检查地址" },
-      { id: "alert_url", type: "STRING", defaults: "https://hooks.example.com/alert", description: "告警通知地址" },
+      {
+        id: "health_url",
+        type: "STRING",
+        defaults: "https://api.example.com/health",
+        description: "健康检查地址",
+      },
+      {
+        id: "alert_url",
+        type: "STRING",
+        defaults: "https://hooks.example.com/alert",
+        description: "告警通知地址",
+      },
       { id: "service_name", type: "STRING", defaults: "my-service", description: "服务名称" },
     ],
   },
@@ -433,8 +490,18 @@ export const BUILTIN_TEMPLATES: WorkflowTemplate[] = [
       { id: "dbe-3", source: "db-3", target: "db-4", type: "sequence" },
     ],
     inputs: [
-      { id: "db_url", type: "STRING", defaults: "postgresql://user:pass@localhost/mydb", description: "数据库连接地址" },
-      { id: "upload_url", type: "STRING", defaults: "https://storage.example.com/backups", description: "上传地址" },
+      {
+        id: "db_url",
+        type: "STRING",
+        defaults: "postgresql://user:pass@localhost/mydb",
+        description: "数据库连接地址",
+      },
+      {
+        id: "upload_url",
+        type: "STRING",
+        defaults: "https://storage.example.com/backups",
+        description: "上传地址",
+      },
     ],
   },
   {
@@ -467,7 +534,10 @@ export const BUILTIN_TEMPLATES: WorkflowTemplate[] = [
         name: "JSON 处理",
         containerId: null,
         sortIndex: 0,
-        spec: { script: "import json\ndata = json.loads('{{ inputs.payload }}')\nprint(f'处理了 {len(data)} 条记录')" },
+        spec: {
+          script:
+            "import json\ndata = json.loads('{{ inputs.payload }}')\nprint(f'处理了 {len(data)} 条记录')",
+        },
         ui: { x: 100, y: 380 },
       },
       {
@@ -497,32 +567,38 @@ export const BUILTIN_TEMPLATES: WorkflowTemplate[] = [
       { id: "cde-5", source: "cd-4", target: "cd-5", type: "sequence" },
     ],
     inputs: [
-      { id: "data_type", type: "SELECT", defaults: "json", description: "数据类型", values: ["json", "csv", "xml"] },
+      {
+        id: "data_type",
+        type: "SELECT",
+        defaults: "json",
+        description: "数据类型",
+        values: ["json", "csv", "xml"],
+      },
       { id: "payload", type: "STRING", defaults: "", description: "数据内容" },
       { id: "file_path", type: "STRING", defaults: "/tmp/data.csv", description: "文件路径" },
     ],
   },
-]
+];
 
-const STORAGE_KEY = "weave-user-templates"
+const STORAGE_KEY = "weave-user-templates";
 
 export function getUserTemplates(): WorkflowTemplate[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return []
-    return JSON.parse(raw) as WorkflowTemplate[]
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw) as WorkflowTemplate[];
   } catch {
-    return []
+    return [];
   }
 }
 
 export function saveUserTemplate(template: WorkflowTemplate): void {
-  const templates = getUserTemplates()
-  templates.push(template)
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(templates))
+  const templates = getUserTemplates();
+  templates.push(template);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
 }
 
 export function deleteUserTemplate(id: string): void {
-  const templates = getUserTemplates().filter((t) => t.id !== id)
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(templates))
+  const templates = getUserTemplates().filter((t) => t.id !== id);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
 }

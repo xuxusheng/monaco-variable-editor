@@ -1,18 +1,18 @@
-import { useRef, useCallback, useEffect } from "react"
-import Editor from "@monaco-editor/react"
-import type { OnMount } from "@monaco-editor/react"
-import type * as Monaco from "monaco-editor"
-import { getAllVariables, defaultVariableGroups } from "@/types/variables"
-import type { VariableGroup } from "@/types/variables"
-import { cn } from "@/lib/utils"
-import { setupMonacoWorker } from "@/lib/monaco-worker"
+import { useRef, useCallback, useEffect } from "react";
+import Editor from "@monaco-editor/react";
+import type { OnMount } from "@monaco-editor/react";
+import type * as Monaco from "monaco-editor";
+import { getAllVariables, defaultVariableGroups } from "@/types/variables";
+import type { VariableGroup } from "@/types/variables";
+import { cn } from "@/lib/utils";
+import { setupMonacoWorker } from "@/lib/monaco-worker";
 
 interface MonacoVariableEditorProps {
-  value?: string
-  onChange?: (value: string) => void
-  variableGroups?: VariableGroup[]
-  height?: string
-  className?: string
+  value?: string;
+  onChange?: (value: string) => void;
+  variableGroups?: VariableGroup[];
+  height?: string;
+  className?: string;
 }
 
 export function MonacoVariableEditor({
@@ -22,21 +22,21 @@ export function MonacoVariableEditor({
   height = "400px",
   className,
 }: MonacoVariableEditorProps) {
-  const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null)
-  const monacoRef = useRef<typeof Monaco | null>(null)
-  const decorationIdsRef = useRef<string[]>([])
-  const allVariables = getAllVariables(variableGroups)
+  const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
+  const monacoRef = useRef<typeof Monaco | null>(null);
+  const decorationIdsRef = useRef<string[]>([]);
+  const allVariables = getAllVariables(variableGroups);
 
   useEffect(() => {
-    setupMonacoWorker()
-  }, [])
+    void setupMonacoWorker();
+  }, []);
 
   // Inject decoration styles
   useEffect(() => {
-    const id = "variable-editor-styles"
-    if (document.getElementById(id)) return
-    const style = document.createElement("style")
-    style.id = id
+    const id = "variable-editor-styles";
+    if (document.getElementById(id)) return;
+    const style = document.createElement("style");
+    style.id = id;
     style.textContent = `
       .var-hidden {
         font-size: 0 !important;
@@ -64,28 +64,28 @@ export function MonacoVariableEditor({
         border-color: #818cf8 !important;
       }
       .var-after { font-size: 0 !important; }
-    `
-    document.head.appendChild(style)
-  }, [])
+    `;
+    document.head.appendChild(style);
+  }, []);
 
   const updateDecorations = useCallback(() => {
-    const editor = editorRef.current
-    const monaco = monacoRef.current
-    if (!editor || !monaco) return
-    const model = editor.getModel()
-    if (!model) return
+    const editor = editorRef.current;
+    const monaco = monacoRef.current;
+    if (!editor || !monaco) return;
+    const model = editor.getModel();
+    if (!model) return;
 
-    const text = model.getValue()
-    const regex = /\{\{\s*(input\.\w+)\s*\}\}/g
-    const newDecorations: Monaco.editor.IModelDeltaDecoration[] = []
+    const text = model.getValue();
+    const regex = /\{\{\s*(input\.\w+)\s*\}\}/g;
+    const newDecorations: Monaco.editor.IModelDeltaDecoration[] = [];
 
-    let match
+    let match;
     while ((match = regex.exec(text)) !== null) {
-      const startPos = model.getPositionAt(match.index)
-      const endPos = model.getPositionAt(match.index + match[0].length)
-      const variable = match[1]
-      const item = allVariables.find((i) => i.value === variable)
-      const label = item ? item.label : variable
+      const startPos = model.getPositionAt(match.index);
+      const endPos = model.getPositionAt(match.index + match[0].length);
+      const variable = match[1];
+      const item = allVariables.find((i) => i.value === variable);
+      const label = item ? item.label : variable;
 
       newDecorations.push({
         range: new monaco.Range(
@@ -107,35 +107,32 @@ export function MonacoVariableEditor({
               : `**${variable}**`,
           },
         },
-      })
+      });
     }
 
-    decorationIdsRef.current = editor.deltaDecorations(
-      decorationIdsRef.current,
-      newDecorations,
-    )
-  }, [allVariables])
+    decorationIdsRef.current = editor.deltaDecorations(decorationIdsRef.current, newDecorations);
+  }, [allVariables]);
 
   const registerCompletionProvider = useCallback(
     (monaco: typeof Monaco) => {
       monaco.languages.registerCompletionItemProvider("plaintext", {
         triggerCharacters: ["{"],
         provideCompletionItems(model, position) {
-          const lineContent = model.getLineContent(position.lineNumber)
-          const textBeforeCursor = lineContent.substring(0, position.column - 1)
+          const lineContent = model.getLineContent(position.lineNumber);
+          const textBeforeCursor = lineContent.substring(0, position.column - 1);
 
-          const match = textBeforeCursor.match(/\{\{\s*(\w*)$/)
-          if (!match) return { suggestions: [] }
+          const match = textBeforeCursor.match(/\{\{\s*(\w*)$/);
+          if (!match) return { suggestions: [] };
 
-          const openBraceIdx = textBeforeCursor.lastIndexOf("{{")
+          const openBraceIdx = textBeforeCursor.lastIndexOf("{{");
           const replaceRange = {
             startLineNumber: position.lineNumber,
             startColumn: openBraceIdx + 1,
             endLineNumber: position.lineNumber,
             endColumn: position.column,
-          }
+          };
 
-          const suggestions: Monaco.languages.CompletionItem[] = []
+          const suggestions: Monaco.languages.CompletionItem[] = [];
           variableGroups.forEach((group) => {
             group.items.forEach((item) => {
               suggestions.push({
@@ -147,37 +144,37 @@ export function MonacoVariableEditor({
                 range: replaceRange,
                 sortText: group.name + item.label,
                 filterText: `${item.label} ${item.value}`,
-              })
-            })
-          })
+              });
+            });
+          });
 
-          return { suggestions }
+          return { suggestions };
         },
-      })
+      });
     },
     [variableGroups],
-  )
+  );
 
   const handleMount: OnMount = useCallback(
     (editor, monaco) => {
-      editorRef.current = editor
-      monacoRef.current = monaco
-      registerCompletionProvider(monaco)
-      setTimeout(updateDecorations, 100)
+      editorRef.current = editor;
+      monacoRef.current = monaco;
+      registerCompletionProvider(monaco);
+      setTimeout(updateDecorations, 100);
       editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Space, () => {
-        editor.trigger("keyboard", "editor.action.triggerSuggest", {})
-      })
+        editor.trigger("keyboard", "editor.action.triggerSuggest", {});
+      });
     },
     [registerCompletionProvider, updateDecorations],
-  )
+  );
 
   const handleChange = useCallback(
     (newValue: string | undefined) => {
-      setTimeout(updateDecorations, 50)
-      onChange?.(newValue ?? "")
+      setTimeout(updateDecorations, 50);
+      onChange?.(newValue ?? "");
     },
     [updateDecorations, onChange],
-  )
+  );
 
   return (
     <div className={cn("rounded-lg border border-border overflow-hidden shadow-sm", className)}>
@@ -209,5 +206,5 @@ export function MonacoVariableEditor({
         }}
       />
     </div>
-  )
+  );
 }

@@ -1,59 +1,55 @@
-import { useState, useEffect } from "react"
-import { useNavigate } from "@tanstack/react-router"
-import { trpc } from "@/lib/trpc"
-import { useWorkflowStore } from "@/stores/workflow"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-import { toast } from "sonner"
-import { Workflow, Loader2, ChevronDown, ChevronUp } from "lucide-react"
+import { useState, useEffect } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { trpc } from "@/lib/trpc";
+import { useWorkflowStore } from "@/stores/workflow";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { toast } from "sonner";
+import { Workflow, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 
 export default function SetupPage() {
-  const navigate = useNavigate()
-  const setCurrentNamespace = useWorkflowStore((s) => s.setCurrentNamespace)
-  const setHasNamespaces = useWorkflowStore((s) => s.setHasNamespaces)
-  const hasNamespaces = useWorkflowStore((s) => s.hasNamespaces)
+  const navigate = useNavigate();
+  const setCurrentNamespace = useWorkflowStore((s) => s.setCurrentNamespace);
+  const setHasNamespaces = useWorkflowStore((s) => s.setHasNamespaces);
+  const hasNamespaces = useWorkflowStore((s) => s.hasNamespaces);
 
   // 如果已有 namespace，重定向到 /workflows
   useEffect(() => {
     if (hasNamespaces) {
-      navigate({ to: "/workflows" })
+      void navigate({ to: "/workflows" });
     }
-  }, [hasNamespaces, navigate])
+  }, [hasNamespaces, navigate]);
 
-  const [name, setName] = useState("")
-  const [kestraNamespace, setKestraNamespace] = useState("")
-  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [name, setName] = useState("");
+  const [kestraNamespace, setKestraNamespace] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const createNamespace = trpc.namespace.create.useMutation({
     onSuccess: (result) => {
-      setCurrentNamespace(result.id)
-      setHasNamespaces(true)
-      toast.success("项目空间创建成功")
-      navigate({ to: "/workflows" })
+      setCurrentNamespace(result.id);
+      setHasNamespaces(true);
+      toast.success("项目空间创建成功");
+      void navigate({ to: "/workflows" });
     },
     onError: (err) => {
-      toast.error(err.message || "创建失败")
+      toast.error(err.message || "创建失败");
     },
-  })
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     if (!name.trim()) {
-      toast.error("请输入空间名称")
-      return
+      toast.error("请输入空间名称");
+      return;
     }
     createNamespace.mutate({
       name: name.trim(),
       kestraNamespace: kestraNamespace.trim() || name.trim(),
-    })
-  }
+    });
+  };
 
-  const isSubmitDisabled = !name.trim() || createNamespace.isPending
+  const isSubmitDisabled = !name.trim() || createNamespace.isPending;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-background to-muted px-6">
@@ -68,9 +64,7 @@ export default function SetupPage() {
               Weave
             </span>
           </div>
-          <p className="text-sm text-muted-foreground">
-            可视化工作流编排平台
-          </p>
+          <p className="text-sm text-muted-foreground">可视化工作流编排平台</p>
         </div>
 
         {/* Decorative divider */}
@@ -81,9 +75,7 @@ export default function SetupPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Heading */}
             <div className="space-y-2 text-center">
-              <h2 className="text-lg font-semibold tracking-tight">
-                创建您的第一个项目空间
-              </h2>
+              <h2 className="text-lg font-semibold tracking-tight">创建您的第一个项目空间</h2>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 项目空间是您团队组织工作流的单元。
               </p>
@@ -149,5 +141,5 @@ export default function SetupPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

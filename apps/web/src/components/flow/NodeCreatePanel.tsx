@@ -1,17 +1,13 @@
-import { useState, useCallback, useMemo, type DragEvent } from "react"
-import { Package, Clock, Search, X, ChevronRight } from "lucide-react"
+import { useState, useCallback, useMemo, type DragEvent } from "react";
+import { Package, Clock, Search, X, ChevronRight } from "lucide-react";
 import {
   PLUGIN_CATALOG,
   CATEGORY_COLORS,
   type PluginEntry,
   type PluginCategory,
-} from "@/types/workflow"
-import { Input } from "@/components/ui/input"
-import {
-  Collapsible,
-  CollapsibleTrigger,
-  CollapsibleContent,
-} from "@/components/ui/collapsible"
+} from "@/types/workflow";
+import { Input } from "@/components/ui/input";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 
 const CATEGORY_LABELS: Record<PluginCategory, string> = {
   flow: "控制流",
@@ -21,145 +17,138 @@ const CATEGORY_LABELS: Record<PluginCategory, string> = {
   serdes: "序列化",
   storage: "存储",
   other: "其他",
-}
+};
 
 // Task/Trigger/Script filter tags — map to underlying categories
 const FILTER_TAGS = [
   { key: "all", label: "全部" },
   { key: "flow", label: "Flow" },
-  { key: "task", label: "Task" },      // http, jdbc, storage, serdes, other
+  { key: "task", label: "Task" }, // http, jdbc, storage, serdes, other
   { key: "trigger", label: "Trigger" }, // placeholder — no trigger plugins yet
   { key: "script", label: "Script" },
-] as const
+] as const;
 
-type FilterTag = (typeof FILTER_TAGS)[number]["key"]
+type FilterTag = (typeof FILTER_TAGS)[number]["key"];
 
 /** Map a filter tag to the set of PluginCategory values it covers */
 function tagToCategories(tag: FilterTag): Set<PluginCategory> | "all" {
-  if (tag === "all") return "all"
-  if (tag === "flow") return new Set(["flow"])
-  if (tag === "script") return new Set(["script"])
-  if (tag === "task") return new Set(["http", "jdbc", "serdes", "storage", "other"])
+  if (tag === "all") return "all";
+  if (tag === "flow") return new Set(["flow"]);
+  if (tag === "script") return new Set(["script"]);
+  if (tag === "task") return new Set(["http", "jdbc", "serdes", "storage", "other"]);
   // trigger — no plugins yet, return empty set
-  return new Set<PluginCategory>()
+  return new Set<PluginCategory>();
 }
 
 // ---------- Recently-used (localStorage) ----------
 
-const RECENT_KEY = "weave-recent-plugins"
-const MAX_RECENT = 5
+const RECENT_KEY = "weave-recent-plugins";
+const MAX_RECENT = 5;
 
 function loadRecent(): string[] {
   try {
-    const raw = localStorage.getItem(RECENT_KEY)
-    if (!raw) return []
-    return JSON.parse(raw) as string[]
+    const raw = localStorage.getItem(RECENT_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw) as string[];
   } catch {
-    return []
+    return [];
   }
 }
 
 function pushRecent(type: string) {
-  const list = loadRecent().filter((t) => t !== type)
-  list.unshift(type)
-  localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, MAX_RECENT)))
+  const list = loadRecent().filter((t) => t !== type);
+  list.unshift(type);
+  localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, MAX_RECENT)));
 }
 
 // ---------- Fuzzy match ----------
 
 function fuzzyMatch(query: string, text: string): boolean {
-  if (!query) return true
-  const q = query.toLowerCase()
-  const t = text.toLowerCase()
+  if (!query) return true;
+  const q = query.toLowerCase();
+  const t = text.toLowerCase();
   // substring match first
-  if (t.includes(q)) return true
+  if (t.includes(q)) return true;
   // character-sequence match
-  let qi = 0
+  let qi = 0;
   for (let ti = 0; ti < t.length && qi < q.length; ti++) {
-    if (t[ti] === q[qi]) qi++
+    if (t[ti] === q[qi]) qi++;
   }
-  return qi === q.length
+  return qi === q.length;
 }
 
 // ---------- Component ----------
 
 interface NodeCreatePanelProps {
-  isOpen: boolean
-  onToggle: () => void
+  isOpen: boolean;
+  onToggle: () => void;
 }
 
 export function NodeCreatePanel({ isOpen, onToggle }: NodeCreatePanelProps) {
-  const [search, setSearch] = useState("")
-  const [activeTag, setActiveTag] = useState<FilterTag>("all")
-  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(
-    new Set(),
-  )
-  const [recentTypes, setRecentTypes] = useState<string[]>(() => loadRecent())
+  const [search, setSearch] = useState("");
+  const [activeTag, setActiveTag] = useState<FilterTag>("all");
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+  const [recentTypes, setRecentTypes] = useState<string[]>(() => loadRecent());
 
   const filteredPlugins = useMemo(() => {
-    let pool = PLUGIN_CATALOG
+    let pool = PLUGIN_CATALOG;
 
     // Category tag filter
-    const cats = tagToCategories(activeTag)
+    const cats = tagToCategories(activeTag);
     if (cats !== "all") {
-      pool = pool.filter((p) => cats.has(p.category))
+      pool = pool.filter((p) => cats.has(p.category));
     }
 
     // Fuzzy search
     if (search) {
-      pool = pool.filter(
-        (p) => fuzzyMatch(search, p.name) || fuzzyMatch(search, p.type),
-      )
+      pool = pool.filter((p) => fuzzyMatch(search, p.name) || fuzzyMatch(search, p.type));
     }
 
-    return pool
-  }, [search, activeTag])
+    return pool;
+  }, [search, activeTag]);
 
   const grouped = useMemo(
     () =>
       filteredPlugins.reduce(
         (acc, plugin) => {
-          const cat = plugin.category
-          if (!acc[cat]) acc[cat] = []
-          acc[cat].push(plugin)
-          return acc
+          const cat = plugin.category;
+          if (!acc[cat]) acc[cat] = [];
+          acc[cat].push(plugin);
+          return acc;
         },
         {} as Record<string, PluginEntry[]>,
       ),
     [filteredPlugins],
-  )
+  );
 
   // Recently-used plugin entries
   const recentPlugins = useMemo(() => {
-    if (search || activeTag !== "all") return [] // hide when filtering
+    if (search || activeTag !== "all") return []; // hide when filtering
     return recentTypes
       .map((t) => PLUGIN_CATALOG.find((p) => p.type === t))
       .filter((p): p is PluginEntry => !!p)
-      .slice(0, MAX_RECENT)
-  }, [recentTypes, search, activeTag])
+      .slice(0, MAX_RECENT);
+  }, [recentTypes, search, activeTag]);
 
   const toggleCategory = useCallback((cat: string) => {
     setCollapsedCategories((prev) => {
-      const next = new Set(prev)
-      if (next.has(cat)) next.delete(cat)
-      else next.add(cat)
-      return next
-    })
-  }, [])
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+  }, []);
 
-  const onDragStart = useCallback(
-    (event: DragEvent, plugin: PluginEntry) => {
-      event.dataTransfer.setData(
-        "application/reactflow",
-        JSON.stringify({ type: plugin.type, name: plugin.name, defaultSpec: plugin.defaultSpec }),
-      )
-      event.dataTransfer.effectAllowed = "move"
-      // Track recent
-      pushRecent(plugin.type)
-      setRecentTypes(loadRecent())
-    },
-    [],
-  )
+  const onDragStart = useCallback((event: DragEvent, plugin: PluginEntry) => {
+    event.dataTransfer.setData(
+      "application/reactflow",
+      JSON.stringify({ type: plugin.type, name: plugin.name, defaultSpec: plugin.defaultSpec }),
+    );
+    event.dataTransfer.effectAllowed = "move";
+    // Track recent
+    pushRecent(plugin.type);
+    setRecentTypes(loadRecent());
+  }, []);
 
   if (!isOpen) {
     return (
@@ -170,7 +159,7 @@ export function NodeCreatePanel({ isOpen, onToggle }: NodeCreatePanelProps) {
       >
         <Package className="w-4 h-4" />
       </button>
-    )
+    );
   }
 
   return (
@@ -252,17 +241,15 @@ export function NodeCreatePanel({ isOpen, onToggle }: NodeCreatePanelProps) {
         )}
 
         {Object.entries(grouped).map(([cat, plugins]) => {
-          const isCollapsed = collapsedCategories.has(cat)
+          const isCollapsed = collapsedCategories.has(cat);
           return (
-            <Collapsible
-              key={cat}
-              open={!isCollapsed}
-              onOpenChange={() => toggleCategory(cat)}
-            >
+            <Collapsible key={cat} open={!isCollapsed} onOpenChange={() => toggleCategory(cat)}>
               <CollapsibleTrigger className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground hover:bg-muted/50 transition-colors">
                 <span
                   className="w-2 h-2 rounded-full"
-                  style={{ background: CATEGORY_COLORS[cat as PluginCategory] ?? CATEGORY_COLORS.other }}
+                  style={{
+                    background: CATEGORY_COLORS[cat as PluginCategory] ?? CATEGORY_COLORS.other,
+                  }}
                 />
                 {CATEGORY_LABELS[cat as PluginCategory] ?? cat}
                 <ChevronRight
@@ -272,23 +259,23 @@ export function NodeCreatePanel({ isOpen, onToggle }: NodeCreatePanelProps) {
 
               <CollapsibleContent>
                 <div className="pb-1">
-                    {plugins.map((plugin) => (
-                      <div
-                        key={plugin.type}
-                        draggable
-                        onDragStart={(e) => onDragStart(e, plugin)}
-                        className="mx-2 mb-1 px-3 py-2 rounded-md border border-transparent hover:border-border hover:bg-muted/50 cursor-grab active:cursor-grabbing transition-colors"
-                      >
-                        <div className="text-sm font-medium">{plugin.name}</div>
-                        <div className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate">
-                          {plugin.type.split(".").pop()}
-                        </div>
+                  {plugins.map((plugin) => (
+                    <div
+                      key={plugin.type}
+                      draggable
+                      onDragStart={(e) => onDragStart(e, plugin)}
+                      className="mx-2 mb-1 px-3 py-2 rounded-md border border-transparent hover:border-border hover:bg-muted/50 cursor-grab active:cursor-grabbing transition-colors"
+                    >
+                      <div className="text-sm font-medium">{plugin.name}</div>
+                      <div className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate">
+                        {plugin.type.split(".").pop()}
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
+                </div>
               </CollapsibleContent>
             </Collapsible>
-          )
+          );
         })}
 
         {filteredPlugins.length === 0 && (
@@ -303,5 +290,5 @@ export function NodeCreatePanel({ isOpen, onToggle }: NodeCreatePanelProps) {
         拖拽插件到画布创建节点
       </div>
     </div>
-  )
+  );
 }

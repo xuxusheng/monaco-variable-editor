@@ -3,20 +3,26 @@
  * 直接使用 TriggerPanel 组件，带 Sidebar 布局
  */
 
-import { useParams, Link } from "@tanstack/react-router"
-import { Zap, ChevronRight } from "lucide-react"
-import { TriggerPanel } from "@/components/flow/TriggerPanel"
+import { useParams, Link } from "@tanstack/react-router";
+import { Zap, ChevronRight } from "lucide-react";
+import { TriggerPanel } from "@/components/flow/TriggerPanel";
 
 export function TriggersPage() {
-  const { workflowId } = useParams({ from: "/sidebar-layout/workflows/$workflowId/triggers" })
+  const { workflowId } = useParams({ from: "/sidebar-layout/workflows/$workflowId/triggers" });
 
   return (
     <div className="flex flex-col h-full">
       {/* 面包屑 */}
       <div className="flex items-center gap-1.5 px-5 py-3 border-b border-border text-sm text-muted-foreground shrink-0">
-        <Link to="/workflows" className="hover:text-foreground transition-colors">工作流</Link>
+        <Link to="/workflows" className="hover:text-foreground transition-colors">
+          工作流
+        </Link>
         <ChevronRight className="w-3.5 h-3.5" />
-        <Link to="/workflows/$workflowId/edit" params={{ workflowId }} className="hover:text-foreground transition-colors">
+        <Link
+          to="/workflows/$workflowId/edit"
+          params={{ workflowId }}
+          className="hover:text-foreground transition-colors"
+        >
           {workflowId}
         </Link>
         <ChevronRight className="w-3.5 h-3.5" />
@@ -27,11 +33,8 @@ export function TriggersPage() {
 
       {/* 内容 */}
       <div className="flex-1 overflow-hidden">
-        <TriggerPanel
-          workflowId={workflowId}
-          onCreate={() => {}}
-        />
+        <TriggerPanel workflowId={workflowId} onCreate={() => {}} />
       </div>
     </div>
-  )
+  );
 }

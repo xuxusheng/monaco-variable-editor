@@ -1,19 +1,19 @@
-import { useState } from "react"
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { httpBatchLink } from "@trpc/client"
-import superjson from "superjson"
-import { trpc } from "@/lib/trpc"
-import { Toaster } from "sonner"
-import { router } from "./routes"
-import { RouterProvider } from "@tanstack/react-router"
+import { useState } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { httpBatchLink } from "@trpc/client";
+import superjson from "superjson";
+import { trpc } from "@/lib/trpc";
+import { Toaster } from "sonner";
+import { router } from "./routes";
+import { RouterProvider } from "@tanstack/react-router";
 
 function getBaseUrl() {
-  if (typeof window !== "undefined") return ""
-  return "http://localhost:3001"
+  if (typeof window !== "undefined") return "";
+  return "http://localhost:3001";
 }
 
 export default function App() {
-  const [queryClient] = useState(() => new QueryClient())
+  const [queryClient] = useState(() => new QueryClient());
   const [trpcClient] = useState(() =>
     trpc.createClient({
       links: [
@@ -23,7 +23,7 @@ export default function App() {
         }),
       ],
     }),
-  )
+  );
 
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
@@ -32,5 +32,5 @@ export default function App() {
         <RouterProvider router={router} />
       </QueryClientProvider>
     </trpc.Provider>
-  )
+  );
 }

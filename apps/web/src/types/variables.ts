@@ -1,13 +1,13 @@
 export interface VariableItem {
-  label: string
-  value: string
-  desc: string
-  icon?: string
+  label: string;
+  value: string;
+  desc: string;
+  icon?: string;
 }
 
 export interface VariableGroup {
-  name: string
-  items: VariableItem[]
+  name: string;
+  items: VariableItem[];
 }
 
 export const defaultVariableGroups: VariableGroup[] = [
@@ -37,25 +37,25 @@ export const defaultVariableGroups: VariableGroup[] = [
       { label: "时间戳", value: "input.timestamp", desc: "操作时间", icon: "🕐" },
     ],
   },
-]
+];
 
 export function getAllVariables(groups: VariableGroup[]): VariableItem[] {
-  return groups.flatMap((g) => g.items)
+  return groups.flatMap((g) => g.items);
 }
 
 export function parseVariables(
   text: string,
 ): Array<{ raw: string; variable: string; start: number; end: number }> {
-  const regex = /\{\{\s*(input\.\w+)\s*\}\}/g
-  const results: Array<{ raw: string; variable: string; start: number; end: number }> = []
-  let match
+  const regex = /\{\{\s*(input\.\w+)\s*\}\}/g;
+  const results: Array<{ raw: string; variable: string; start: number; end: number }> = [];
+  let match;
   while ((match = regex.exec(text)) !== null) {
     results.push({
       raw: match[0],
       variable: match[1],
       start: match.index,
       end: match.index + match[0].length,
-    })
+    });
   }
-  return results
+  return results;
 }

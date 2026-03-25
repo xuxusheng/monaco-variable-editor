@@ -1,7 +1,7 @@
-import { memo, useCallback } from "react"
-import { useWorkflowStore } from "@/stores/workflow"
-import { getContainerShortName } from "@/types/container"
-import { ChevronRight, Home } from "lucide-react"
+import { memo, useCallback } from "react";
+import { useWorkflowStore } from "@/stores/workflow";
+import { getContainerShortName } from "@/types/container";
+import { ChevronRight, Home } from "lucide-react";
 
 /**
  * 容器嵌套面包屑导航
@@ -9,41 +9,57 @@ import { ChevronRight, Home } from "lucide-react"
  * 点击任意层级可返回该层
  */
 export const Breadcrumb = memo(() => {
-  const expandedContainers = useWorkflowStore((s) => s.expandedContainers)
-  const nodes = useWorkflowStore((s) => s.nodes)
-  const workflowName = useWorkflowStore((s) => s.workflowMeta.name)
-  const collapseToContainer = useWorkflowStore((s) => s.collapseToContainer)
-  const clearExpandedContainers = useWorkflowStore((s) => s.clearExpandedContainers)
+  const expandedContainers = useWorkflowStore((s) => s.expandedContainers);
+  const nodes = useWorkflowStore((s) => s.nodes);
+  const workflowName = useWorkflowStore((s) => s.workflowMeta.name);
+  const collapseToContainer = useWorkflowStore((s) => s.collapseToContainer);
+  const clearExpandedContainers = useWorkflowStore((s) => s.clearExpandedContainers);
 
   // 没有展开的容器时不显示
-  if (expandedContainers.length === 0) return null
+  if (expandedContainers.length === 0) return null;
 
   // 构建面包屑条目
-  const items = expandedContainers.map((id) => {
-    const node = nodes.find((n) => n.id === id)
-    if (!node) return null
-    const shortName = getContainerShortName(node.type)
-    // 尝试从 spec 中获取条件/表达式摘要
-    const spec = node.spec as Record<string, unknown>
-    let summary = ""
-    if (node.type.endsWith(".ForEach") || node.type.endsWith(".ForEachItem")) {
-      summary = String(spec.items ?? "")
-    } else if (node.type.endsWith(".If")) {
-      summary = String(spec.condition ?? "")
-    }
-    return { id, shortName, name: node.name, summary }
-  }).filter(Boolean) as { id: string; shortName: string; name: string; summary: string }[]
+  const items = expandedContainers
+    .map((id) => {
+      const node = nodes.find((n) => n.id === id);
+      if (!node) return null;
+      const shortName = getContainerShortName(node.type);
+      // 尝试从 spec 中获取条件/表达式摘要
+      const spec = node.spec as Record<string, unknown>;
+      let summary = "";
+      if (node.type.endsWith(".ForEach") || node.type.endsWith(".ForEachItem")) {
+        const items = spec.items;
+        summary =
+          typeof items === "string"
+            ? items
+            : Array.isArray(items)
+              ? items.join(", ")
+              : items != null
+                ? JSON.stringify(items)
+                : "";
+      } else if (node.type.endsWith(".If")) {
+        const condition = spec.condition;
+        summary =
+          typeof condition === "string"
+            ? condition
+            : condition != null
+              ? JSON.stringify(condition)
+              : "";
+      }
+      return { id, shortName, name: node.name, summary };
+    })
+    .filter(Boolean) as { id: string; shortName: string; name: string; summary: string }[];
 
   const handleGoHome = useCallback(() => {
-    clearExpandedContainers()
-  }, [clearExpandedContainers])
+    clearExpandedContainers();
+  }, [clearExpandedContainers]);
 
   const handleClick = useCallback(
     (id: string) => {
-      collapseToContainer(id)
+      collapseToContainer(id);
     },
     [collapseToContainer],
-  )
+  );
 
   return (
     <div className="absolute top-2 left-1/2 -translate-x-1/2 z-40 flex items-center gap-0.5 px-2.5 py-1.5 bg-card/95 backdrop-blur-sm border border-border rounded-lg shadow-sm text-xs max-w-[600px] overflow-x-auto">
@@ -82,11 +98,11 @@ export const Breadcrumb = memo(() => {
         </span>
       ))}
     </div>
-  )
-})
+  );
+});
 
-Breadcrumb.displayName = "Breadcrumb"
+Breadcrumb.displayName = "Breadcrumb";
 
 function truncate(s: string, max: number): string {
-  return s.length > max ? s.slice(0, max) + "…" : s
+  return s.length > max ? s.slice(0, max) + "…" : s;
 }

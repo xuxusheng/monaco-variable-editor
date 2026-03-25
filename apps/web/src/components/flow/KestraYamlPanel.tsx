@@ -4,42 +4,41 @@
  * 支持复制、下载、粘贴导入（含变更摘要预览）
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import Editor from "@monaco-editor/react"
-import type { editor } from "monaco-editor"
-import type { WorkflowNode, WorkflowEdge, WorkflowInput } from "@/types/workflow"
-import type { ApiWorkflowVariable } from "@/types/api"
-import { toKestraYaml, fromKestraYaml } from "@/lib/yamlConverter"
-import { toast } from "sonner"
-import { FileText, Copy, Save, Plus, Minus, Pencil } from "lucide-react"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import YAML from "yaml"
-import { setupMonacoWorker } from "@/lib/monaco-worker"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Editor from "@monaco-editor/react";
+import type { editor } from "monaco-editor";
+import type { WorkflowNode, WorkflowEdge, WorkflowInput } from "@/types/workflow";
+import type { ApiWorkflowVariable } from "@/types/api";
+import { toKestraYaml, fromKestraYaml } from "@/lib/yamlConverter";
+import { toast } from "sonner";
+import { FileText, Copy, Save, Plus, Minus, Pencil } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import YAML from "yaml";
+import { setupMonacoWorker } from "@/lib/monaco-worker";
 
 interface KestraYamlPanelProps {
-  nodes: WorkflowNode[]
-  edges: WorkflowEdge[]
-  inputs: WorkflowInput[]
-  variables: ApiWorkflowVariable[]
-  flowId: string
-  namespace: string
-  onImport?: (data: { nodes: WorkflowNode[]; edges: WorkflowEdge[]; inputs: WorkflowInput[] }) => void
-  onClose: () => void
+  nodes: WorkflowNode[];
+  edges: WorkflowEdge[];
+  inputs: WorkflowInput[];
+  variables: ApiWorkflowVariable[];
+  flowId: string;
+  namespace: string;
+  onImport?: (data: {
+    nodes: WorkflowNode[];
+    edges: WorkflowEdge[];
+    inputs: WorkflowInput[];
+  }) => void;
+  onClose: () => void;
 }
 
 interface ImportDiff {
-  added: number
-  removed: number
-  modified: number
-  newNodes: { name: string; type: string }[]
+  added: number;
+  removed: number;
+  modified: number;
+  newNodes: { name: string; type: string }[];
 }
 
-type ImportStep = "edit" | "preview"
+type ImportStep = "edit" | "preview";
 
 export function KestraYamlPanel({
   nodes,
@@ -51,168 +50,180 @@ export function KestraYamlPanel({
   onImport,
   onClose,
 }: KestraYamlPanelProps) {
-  const [mode, setMode] = useState<"preview" | "import">("preview")
-  const [importYaml, setImportYaml] = useState("")
-  const [importStep, setImportStep] = useState<ImportStep>("edit")
-  const [importDiff, setImportDiff] = useState<ImportDiff | null>(null)
-  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
-  const monacoRef = useRef<typeof import("monaco-editor") | null>(null)
+  const [mode, setMode] = useState<"preview" | "import">("preview");
+  const [importYaml, setImportYaml] = useState("");
+  const [importStep, setImportStep] = useState<ImportStep>("edit");
+  const [importDiff, setImportDiff] = useState<ImportDiff | null>(null);
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const monacoRef = useRef<typeof import("monaco-editor") | null>(null);
 
   useEffect(() => {
-    setupMonacoWorker()
-  }, [])
+    void setupMonacoWorker();
+  }, []);
 
   const yaml = useMemo(
     () => toKestraYaml(nodes, edges, inputs, variables, flowId, namespace),
     [nodes, edges, inputs, variables, flowId, namespace],
-  )
+  );
 
   // Current node names for diff comparison
-  const currentNodeNames = useMemo(
-    () => new Set(nodes.map((n) => n.name)),
-    [nodes],
-  )
+  const currentNodeNames = useMemo(() => new Set(nodes.map((n) => n.name)), [nodes]);
 
   const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(yaml)
-    toast.success("已复制到剪贴板")
-  }, [yaml])
+    void navigator.clipboard.writeText(yaml);
+    toast.success("已复制到剪贴板");
+  }, [yaml]);
 
   const handleDownload = useCallback(() => {
-    const blob = new Blob([yaml], { type: "text/yaml" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `${flowId}.yaml`
-    a.click()
-    URL.revokeObjectURL(url)
-    toast.success("YAML 已下载")
-  }, [yaml, flowId])
+    const blob = new Blob([yaml], { type: "text/yaml" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${flowId}.yaml`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("YAML 已下载");
+  }, [yaml, flowId]);
 
   const setParseError = useCallback((message: string, line?: number) => {
-    const monaco = monacoRef.current
-    const editor = editorRef.current
-    if (!monaco || !editor) return
-    const model = editor.getModel()
-    if (!model) return
+    const monaco = monacoRef.current;
+    const editor = editorRef.current;
+    if (!monaco || !editor) return;
+    const model = editor.getModel();
+    if (!model) return;
 
     if (line != null) {
-      monaco.editor.setModelMarkers(model, "yaml-import", [{
-        severity: monaco.MarkerSeverity.Error,
-        message,
-        startLineNumber: line,
-        startColumn: 1,
-        endLineNumber: line,
-        endColumn: model.getLineMaxColumn(line) + 1,
-      }])
+      monaco.editor.setModelMarkers(model, "yaml-import", [
+        {
+          severity: monaco.MarkerSeverity.Error,
+          message,
+          startLineNumber: line,
+          startColumn: 1,
+          endLineNumber: line,
+          endColumn: model.getLineMaxColumn(line) + 1,
+        },
+      ]);
     } else {
-      monaco.editor.setModelMarkers(model, "yaml-import", [{
-        severity: monaco.MarkerSeverity.Error,
-        message,
-        startLineNumber: 1,
-        startColumn: 1,
-        endLineNumber: 1,
-        endColumn: model.getLineMaxColumn(1) + 1,
-      }])
+      monaco.editor.setModelMarkers(model, "yaml-import", [
+        {
+          severity: monaco.MarkerSeverity.Error,
+          message,
+          startLineNumber: 1,
+          startColumn: 1,
+          endLineNumber: 1,
+          endColumn: model.getLineMaxColumn(1) + 1,
+        },
+      ]);
     }
-  }, [])
+  }, []);
 
   const clearMarkers = useCallback(() => {
-    const monaco = monacoRef.current
-    const editor = editorRef.current
-    if (!monaco || !editor) return
-    const model = editor.getModel()
-    if (!model) return
-    monaco.editor.setModelMarkers(model, "yaml-import", [])
-  }, [])
+    const monaco = monacoRef.current;
+    const editor = editorRef.current;
+    if (!monaco || !editor) return;
+    const model = editor.getModel();
+    if (!model) return;
+    monaco.editor.setModelMarkers(model, "yaml-import", []);
+  }, []);
 
   const handlePreviewImport = useCallback(() => {
     if (!importYaml.trim()) {
-      toast.warning("请粘贴 Kestra YAML")
-      return
+      toast.warning("请粘贴 Kestra YAML");
+      return;
     }
 
-    clearMarkers()
+    clearMarkers();
 
     try {
-      YAML.parse(importYaml)
+      YAML.parse(importYaml);
     } catch (err) {
-      const parseErr = err as { message?: string; linePos?: { line: number; col: number }[] }
-      const line = parseErr.linePos?.[0]?.line
-      const msg = parseErr.message || "YAML 解析失败"
-      setParseError(msg, line)
-      toast.error(line ? `第 ${line} 行: ${msg}` : msg)
-      return
+      const parseErr = err as { message?: string; linePos?: { line: number; col: number }[] };
+      const line = parseErr.linePos?.[0]?.line;
+      const msg = parseErr.message || "YAML 解析失败";
+      setParseError(msg, line);
+      toast.error(line ? `第 ${line} 行: ${msg}` : msg);
+      return;
     }
 
     try {
-      const result = fromKestraYaml(importYaml)
+      const result = fromKestraYaml(importYaml);
       if (result.nodes.length === 0) {
-        toast.warning("YAML 中未解析到任务节点")
-        return
+        toast.warning("YAML 中未解析到任务节点");
+        return;
       }
 
-      const newNodeNames = new Set(result.nodes.map((n) => n.name))
-      const added = result.nodes.filter((n) => !currentNodeNames.has(n.name)).length
-      const removed = nodes.filter((n) => !newNodeNames.has(n.name)).length
-      const modified = result.nodes.filter((n) => currentNodeNames.has(n.name)).length
+      const newNodeNames = new Set(result.nodes.map((n) => n.name));
+      const added = result.nodes.filter((n) => !currentNodeNames.has(n.name)).length;
+      const removed = nodes.filter((n) => !newNodeNames.has(n.name)).length;
+      const modified = result.nodes.filter((n) => currentNodeNames.has(n.name)).length;
 
       setImportDiff({
         added,
         removed,
         modified,
         newNodes: result.nodes.map((n) => ({ name: n.name, type: n.type })),
-      })
-      setImportStep("preview")
+      });
+      setImportStep("preview");
     } catch {
-      toast.error("YAML 结构解析失败，请检查格式")
+      toast.error("YAML 结构解析失败，请检查格式");
     }
-  }, [importYaml, nodes, currentNodeNames, setParseError, clearMarkers])
+  }, [importYaml, nodes, currentNodeNames, setParseError, clearMarkers]);
 
   const handleConfirmImport = useCallback(() => {
-    if (!importYaml.trim()) return
+    if (!importYaml.trim()) return;
 
     try {
-      const result = fromKestraYaml(importYaml)
-      onImport?.(result)
-      toast.success(`已导入 ${result.nodes.length} 个节点`)
-      setMode("preview")
-      setImportYaml("")
-      setImportStep("edit")
-      setImportDiff(null)
+      const result = fromKestraYaml(importYaml);
+      onImport?.(result);
+      toast.success(`已导入 ${result.nodes.length} 个节点`);
+      setMode("preview");
+      setImportYaml("");
+      setImportStep("edit");
+      setImportDiff(null);
     } catch {
-      toast.error("导入失败，请重试")
+      toast.error("导入失败，请重试");
     }
-  }, [importYaml, onImport])
+  }, [importYaml, onImport]);
 
   const handleCancelImport = useCallback(() => {
-    setImportStep("edit")
-    setImportDiff(null)
-  }, [])
+    setImportStep("edit");
+    setImportDiff(null);
+  }, []);
 
   const handleSwitchMode = useCallback((newMode: "preview" | "import") => {
-    setMode(newMode)
+    setMode(newMode);
     if (newMode === "preview") {
-      setImportYaml("")
-      setImportStep("edit")
-      setImportDiff(null)
+      setImportYaml("");
+      setImportStep("edit");
+      setImportDiff(null);
     }
-  }, [])
+  }, []);
 
-  const handleEditorMount = useCallback((editorInstance: editor.IStandaloneCodeEditor, monacoInstance: typeof import("monaco-editor")) => {
-    editorRef.current = editorInstance
-    monacoRef.current = monacoInstance
-  }, [])
+  const handleEditorMount = useCallback(
+    (
+      editorInstance: editor.IStandaloneCodeEditor,
+      monacoInstance: typeof import("monaco-editor"),
+    ) => {
+      editorRef.current = editorInstance;
+      monacoRef.current = monacoInstance;
+    },
+    [],
+  );
 
   // Clean up markers when import text changes
   useEffect(() => {
     if (importStep === "edit") {
-      clearMarkers()
+      clearMarkers();
     }
-  }, [importYaml, importStep, clearMarkers])
+  }, [importYaml, importStep, clearMarkers]);
 
   return (
-    <Dialog open={true} onOpenChange={(open) => { if (!open) onClose() }}>
+    <Dialog
+      open={true}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <DialogContent
         showCloseButton={false}
         className="fixed top-0 right-0 left-auto translate-x-0 translate-y-0 h-screen w-full md:w-[560px] max-w-none rounded-none ring-0 p-0 flex flex-col gap-0 animate-in slide-in-from-right duration-200 zoom-in-100 zoom-out-100 fade-in-0 fade-out-0"
@@ -221,9 +232,7 @@ export function KestraYamlPanel({
         <DialogHeader className="flex flex-row items-center justify-between px-5 py-4 border-b border-border gap-0">
           <div className="flex items-center gap-2">
             <FileText className="w-4 h-4" />
-            <DialogTitle>
-              {mode === "preview" ? "Kestra YAML" : "导入 YAML"}
-            </DialogTitle>
+            <DialogTitle>{mode === "preview" ? "Kestra YAML" : "导入 YAML"}</DialogTitle>
           </div>
           <div className="flex items-center gap-2">
             {/* Mode toggle */}
@@ -231,9 +240,7 @@ export function KestraYamlPanel({
               <button
                 onClick={() => handleSwitchMode("preview")}
                 className={`px-3 py-1.5 transition-colors ${
-                  mode === "preview"
-                    ? "bg-indigo-500 text-white"
-                    : "hover:bg-muted"
+                  mode === "preview" ? "bg-indigo-500 text-white" : "hover:bg-muted"
                 }`}
               >
                 预览
@@ -241,9 +248,7 @@ export function KestraYamlPanel({
               <button
                 onClick={() => handleSwitchMode("import")}
                 className={`px-3 py-1.5 transition-colors ${
-                  mode === "import"
-                    ? "bg-indigo-500 text-white"
-                    : "hover:bg-muted"
+                  mode === "import" ? "bg-indigo-500 text-white" : "hover:bg-muted"
                 }`}
               >
                 导入
@@ -318,7 +323,7 @@ export function KestraYamlPanel({
                   </div>
                   <div className="border border-border rounded-md divide-y divide-border">
                     {importDiff.newNodes.map((n, i) => {
-                      const isNew = !currentNodeNames.has(n.name)
+                      const isNew = !currentNodeNames.has(n.name);
                       return (
                         <div key={i} className="flex items-center gap-2 px-3 py-2 text-xs">
                           {isNew ? (
@@ -329,7 +334,7 @@ export function KestraYamlPanel({
                           <span className="font-medium">{n.name}</span>
                           <span className="text-muted-foreground ml-auto">{n.type}</span>
                         </div>
-                      )
+                      );
                     })}
                   </div>
                 </div>
@@ -389,5 +394,5 @@ export function KestraYamlPanel({
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

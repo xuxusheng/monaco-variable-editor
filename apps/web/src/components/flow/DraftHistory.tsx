@@ -3,46 +3,46 @@
  * 显示最近 20 条草稿，支持回滚
  */
 
-import { useCallback } from "react"
-import { Inbox, ScrollText } from "lucide-react"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { useCallback } from "react";
+import { Inbox, ScrollText } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface DraftEntry {
-  id: string
-  message: string | null
-  createdAt: string
+  id: string;
+  message: string | null;
+  createdAt: string;
 }
 
 interface DraftHistoryProps {
-  drafts: DraftEntry[]
-  onRollback: (draftId: string) => void
-  onClose: () => void
+  drafts: DraftEntry[];
+  onRollback: (draftId: string) => void;
+  onClose: () => void;
 }
 
 function formatTime(iso: string): string {
-  const d = new Date(iso)
-  const pad = (n: number) => n.toString().padStart(2, "0")
-  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+  const d = new Date(iso);
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 export function DraftHistory({ drafts, onRollback, onClose }: DraftHistoryProps) {
   const handleRollback = useCallback(
     (draft: DraftEntry) => {
-      const label = draft.message || formatTime(draft.createdAt)
+      const label = draft.message || formatTime(draft.createdAt);
       if (window.confirm(`回滚到「${label}」？当前未保存的修改将丢失。`)) {
-        onRollback(draft.id)
+        onRollback(draft.id);
       }
     },
     [onRollback],
-  )
+  );
 
   return (
-    <Dialog open={true} onOpenChange={(open) => { if (!open) onClose() }}>
+    <Dialog
+      open={true}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <DialogContent
         showCloseButton={false}
         className="fixed top-0 right-0 left-auto translate-x-0 translate-y-0 h-screen w-full md:w-[400px] max-w-none rounded-none ring-0 p-0 flex flex-col gap-0 animate-in slide-in-from-right duration-200 zoom-in-100 zoom-out-100 fade-in-0 fade-out-0"
@@ -84,11 +84,7 @@ export function DraftHistory({ drafts, onRollback, onClose }: DraftHistoryProps)
                     </span>
                     <span className="text-xs text-muted-foreground">
                       {formatTime(draft.createdAt)}
-                      {i === 0 && (
-                        <span className="ml-2 text-indigo-500 font-medium">
-                          最新
-                        </span>
-                      )}
+                      {i === 0 && <span className="ml-2 text-indigo-500 font-medium">最新</span>}
                     </span>
                   </div>
                   <button
@@ -104,5 +100,5 @@ export function DraftHistory({ drafts, onRollback, onClose }: DraftHistoryProps)
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

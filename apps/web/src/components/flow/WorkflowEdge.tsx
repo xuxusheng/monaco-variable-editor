@@ -1,16 +1,12 @@
-import { memo } from "react"
-import {
-  BaseEdge,
-  EdgeLabelRenderer,
-  getBezierPath,
-} from "@xyflow/react"
-import type { EdgeProps } from "@xyflow/react"
-import type { EdgeType } from "@/types/workflow"
-import { EDGE_STYLES } from "@/types/workflow"
+import { memo } from "react";
+import { BaseEdge, EdgeLabelRenderer, getBezierPath } from "@xyflow/react";
+import type { EdgeProps } from "@xyflow/react";
+import type { EdgeType } from "@/types/workflow";
+import { EDGE_STYLES } from "@/types/workflow";
 
 interface WorkflowEdgeData {
-  edgeType: EdgeType
-  label?: string
+  edgeType: EdgeType;
+  label?: string;
 }
 
 export const WorkflowEdge = memo(
@@ -25,10 +21,10 @@ export const WorkflowEdge = memo(
     data,
     markerEnd,
   }: EdgeProps) => {
-    const edgeData = data as WorkflowEdgeData | undefined
-    const edgeType = edgeData?.edgeType ?? "sequence"
-    const label = edgeData?.label
-    const style = EDGE_STYLES[edgeType]
+    const edgeData = data as WorkflowEdgeData | undefined;
+    const edgeType = edgeData?.edgeType ?? "sequence";
+    const label = edgeData?.label;
+    const style = EDGE_STYLES[edgeType];
 
     const [edgePath, labelX, labelY] = getBezierPath({
       sourceX,
@@ -37,7 +33,7 @@ export const WorkflowEdge = memo(
       targetX,
       targetY,
       targetPosition,
-    })
+    });
 
     return (
       <>
@@ -66,8 +62,8 @@ export const WorkflowEdge = memo(
           </EdgeLabelRenderer>
         )}
       </>
-    )
+    );
   },
-)
+);
 
-WorkflowEdge.displayName = "WorkflowEdge"
+WorkflowEdge.displayName = "WorkflowEdge";

@@ -1,8 +1,8 @@
-import { useState } from "react"
-import { Plus, Pencil, Trash2, Eye, EyeOff, Key, Inbox } from "lucide-react"
-import { toast } from "sonner"
-import { trpc } from "@/lib/trpc"
-import { Button } from "@/components/ui/button"
+import { useState } from "react";
+import { Plus, Pencil, Trash2, Eye, EyeOff, Key, Inbox } from "lucide-react";
+import { toast } from "sonner";
+import { trpc } from "@/lib/trpc";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableHeader,
@@ -10,7 +10,7 @@ import {
   TableRow,
   TableHead,
   TableCell,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,16 +20,16 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { SecretEditor } from "./SecretEditor"
+} from "@/components/ui/alert-dialog";
+import { SecretEditor } from "./SecretEditor";
 
 interface SecretTableProps {
-  namespaceId: string
+  namespaceId: string;
 }
 
 function RevealCell({ id }: { id: string }) {
-  const [revealed, setRevealed] = useState(false)
-  const { data } = trpc.workflow.secretReveal.useQuery({ id }, { enabled: revealed })
+  const [revealed, setRevealed] = useState(false);
+  const { data } = trpc.workflow.secretReveal.useQuery({ id }, { enabled: revealed });
 
   return (
     <button
@@ -48,41 +48,41 @@ function RevealCell({ id }: { id: string }) {
         </>
       )}
     </button>
-  )
+  );
 }
 
 export function SecretTable({ namespaceId }: SecretTableProps) {
   const [editorState, setEditorState] = useState<{
-    open: boolean
-    editing?: { id: string; key: string; description?: string }
-  }>({ open: false })
+    open: boolean;
+    editing?: { id: string; key: string; description?: string };
+  }>({ open: false });
 
   const [deleteTarget, setDeleteTarget] = useState<{
-    id: string
-    key: string
-  } | null>(null)
+    id: string;
+    key: string;
+  } | null>(null);
 
   const { data, refetch } = trpc.workflow.secretList.useQuery(
     { namespaceId },
     { enabled: !!namespaceId },
-  )
+  );
 
   const deleteMutation = trpc.workflow.secretDelete.useMutation({
     onSuccess: () => {
-      toast.success("密钥已删除")
-      refetch()
+      toast.success("密钥已删除");
+      void refetch();
     },
     onError: (err) => toast.error(err.message),
-  })
+  });
 
   function handleConfirmDelete() {
     if (deleteTarget) {
-      deleteMutation.mutate({ id: deleteTarget.id })
-      setDeleteTarget(null)
+      deleteMutation.mutate({ id: deleteTarget.id });
+      setDeleteTarget(null);
     }
   }
 
-  const items = data ?? []
+  const items = data ?? [];
 
   return (
     <div data-slot="secret-table">
@@ -92,10 +92,7 @@ export function SecretTable({ namespaceId }: SecretTableProps) {
           <Key className="w-4 h-4 text-muted-foreground" />
           <span>密钥 ({items.length})</span>
         </div>
-        <Button
-          size="sm"
-          onClick={() => setEditorState({ open: true })}
-        >
+        <Button size="sm" onClick={() => setEditorState({ open: true })}>
           <Plus className="w-3.5 h-3.5" />
           添加
         </Button>
@@ -136,7 +133,11 @@ export function SecretTable({ namespaceId }: SecretTableProps) {
                       onClick={() =>
                         setEditorState({
                           open: true,
-                          editing: { id: item.id, key: item.key, description: item.description ?? undefined },
+                          editing: {
+                            id: item.id,
+                            key: item.key,
+                            description: item.description ?? undefined,
+                          },
                         })
                       }
                     >
@@ -158,7 +159,12 @@ export function SecretTable({ namespaceId }: SecretTableProps) {
       )}
 
       {/* Delete confirmation */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>删除密钥</AlertDialogTitle>
@@ -182,11 +188,11 @@ export function SecretTable({ namespaceId }: SecretTableProps) {
           editing={editorState.editing}
           onClose={() => setEditorState({ open: false })}
           onSaved={() => {
-            setEditorState({ open: false })
-            refetch()
+            setEditorState({ open: false });
+            void refetch();
           }}
         />
       )}
     </div>
-  )
+  );
 }

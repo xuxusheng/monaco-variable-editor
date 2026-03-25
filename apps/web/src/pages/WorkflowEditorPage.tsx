@@ -1,6 +1,6 @@
-import { useCallback, useRef, useMemo, useEffect, memo, useState, lazy, Suspense } from "react"
-import { useParams, Link } from "@tanstack/react-router"
-import type { RunningSnapshot } from "@/stores/workflow"
+import { useCallback, useRef, useMemo, useEffect, memo, useState, lazy, Suspense } from "react";
+import { useParams, Link } from "@tanstack/react-router";
+import type { RunningSnapshot } from "@/stores/workflow";
 import {
   isTerminalState,
   toExecutionSummary,
@@ -8,9 +8,9 @@ import {
   fromApiNode,
   fromApiEdge,
   fromApiInput,
-} from "@/lib/apiTransforms"
-import { toCanvasNodes, toCanvasEdges, syncPositions } from "@/lib/canvasTransforms"
-import { parseYamlToNodeFields, yamlFromSpec } from "@/lib/yamlNodeUtils"
+} from "@/lib/apiTransforms";
+import { toCanvasNodes, toCanvasEdges, syncPositions } from "@/lib/canvasTransforms";
+import { parseYamlToNodeFields, yamlFromSpec } from "@/lib/yamlNodeUtils";
 import {
   ReactFlow,
   Controls,
@@ -21,120 +21,122 @@ import {
   BackgroundVariant,
   useReactFlow,
   useViewport,
-} from "@xyflow/react"
-import type { Connection, Node } from "@xyflow/react"
-import "@xyflow/react/dist/style.css"
+} from "@xyflow/react";
+import type { Connection, Node } from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 
-import { WorkflowNode as WorkflowNodeComponent } from "@/components/flow/WorkflowNode"
-import { WorkflowEdge as WorkflowEdgeComponent } from "@/components/flow/WorkflowEdge"
-import { NodeCreatePanel } from "@/components/flow/NodeCreatePanel"
-import { MobileNodePanel } from "@/components/flow/MobileNodePanel"
-import { TaskConfigPanel } from "@/components/flow/TaskConfigPanel"
-import { TriggerPanel } from "@/components/flow/TriggerPanel"
-import { TriggerCreateForm } from "@/components/flow/TriggerCreateForm"
-import { InputConfigPanel } from "@/components/flow/InputConfigPanel"
-const KestraYamlPanel = lazy(() => import("@/components/flow/KestraYamlPanel").then(mod => ({ default: mod.KestraYamlPanel })))
-import { DraftHistory } from "@/components/flow/DraftHistory"
-import { ReleaseHistory } from "@/components/flow/ReleaseHistory"
-import { PublishDialog } from "@/components/flow/PublishDialog"
-import { ExecutionDrawer } from "@/components/flow/ExecutionDrawer"
-import { fromKestraYaml, toKestraYaml } from "@/lib/yamlConverter"
-import { checkReferences } from "@/lib/referenceChecker"
-import { ExecutionHistory } from "@/components/flow/ExecutionHistory"
-import { ProductionExecHistory } from "@/components/flow/ProductionExecHistory"
-import { NamespaceSettings } from "@/components/flow/NamespaceSettings"
-import { InputValuesForm } from "@/components/flow/InputValuesForm"
-import { ContextMenu as NodeContextMenu } from "@/components/flow/ContextMenu"
-import { Breadcrumb } from "@/components/flow/Breadcrumb"
-import { TemplateDialog } from "@/components/flow/TemplateDialog"
-import { EditorTabBar, type TabKey } from "@/components/flow/EditorTabBar"
-import { CanvasToolbar } from "@/components/flow/CanvasToolbar"
-import { SearchOverlay } from "@/components/flow/SearchOverlay"
-import { ReferenceStatusBar } from "@/components/flow/ReferenceStatusBar"
-import type { WorkflowTemplate } from "@/lib/templates"
-import { saveUserTemplate } from "@/lib/templates"
-import { getLayoutedElements } from "@/lib/autoLayout"
-import { filterVisibleNodes, filterVisibleEdges, canExpandContainer } from "@/lib/containerUtils"
-import { isContainer } from "@/types/container"
-import { CONTAINER_MIN_WIDTH, CONTAINER_MIN_HEIGHT } from "@/lib/containerConstants"
+import { WorkflowNode as WorkflowNodeComponent } from "@/components/flow/WorkflowNode";
+import { WorkflowEdge as WorkflowEdgeComponent } from "@/components/flow/WorkflowEdge";
+import { NodeCreatePanel } from "@/components/flow/NodeCreatePanel";
+import { MobileNodePanel } from "@/components/flow/MobileNodePanel";
+import { TaskConfigPanel } from "@/components/flow/TaskConfigPanel";
+import { TriggerPanel } from "@/components/flow/TriggerPanel";
+import { TriggerCreateForm } from "@/components/flow/TriggerCreateForm";
+import { InputConfigPanel } from "@/components/flow/InputConfigPanel";
+const KestraYamlPanel = lazy(() =>
+  import("@/components/flow/KestraYamlPanel").then((mod) => ({ default: mod.KestraYamlPanel })),
+);
+import { DraftHistory } from "@/components/flow/DraftHistory";
+import { ReleaseHistory } from "@/components/flow/ReleaseHistory";
+import { PublishDialog } from "@/components/flow/PublishDialog";
+import { ExecutionDrawer } from "@/components/flow/ExecutionDrawer";
+import { fromKestraYaml, toKestraYaml } from "@/lib/yamlConverter";
+import { checkReferences } from "@/lib/referenceChecker";
+import { ExecutionHistory } from "@/components/flow/ExecutionHistory";
+import { ProductionExecHistory } from "@/components/flow/ProductionExecHistory";
+import { NamespaceSettings } from "@/components/flow/NamespaceSettings";
+import { InputValuesForm } from "@/components/flow/InputValuesForm";
+import { ContextMenu as NodeContextMenu } from "@/components/flow/ContextMenu";
+import { Breadcrumb } from "@/components/flow/Breadcrumb";
+import { TemplateDialog } from "@/components/flow/TemplateDialog";
+import { EditorTabBar, type TabKey } from "@/components/flow/EditorTabBar";
+import { CanvasToolbar } from "@/components/flow/CanvasToolbar";
+import { SearchOverlay } from "@/components/flow/SearchOverlay";
+import { ReferenceStatusBar } from "@/components/flow/ReferenceStatusBar";
+import type { WorkflowTemplate } from "@/lib/templates";
+import { saveUserTemplate } from "@/lib/templates";
+import { getLayoutedElements } from "@/lib/autoLayout";
+import { filterVisibleNodes, filterVisibleEdges, canExpandContainer } from "@/lib/containerUtils";
+import { isContainer } from "@/types/container";
+import { CONTAINER_MIN_WIDTH, CONTAINER_MIN_HEIGHT } from "@/lib/containerConstants";
 import {
-  Rocket, Play,
+  Rocket,
+  Play,
   ScrollText,
   Search,
   Plus,
   ArrowLeft,
-  MoreHorizontal, FileCode2, GitBranch, History, Settings2,
-} from "lucide-react"
-import { trpc } from "@/lib/trpc"
-import { Button } from "@/components/ui/button"
+  MoreHorizontal,
+  FileCode2,
+  GitBranch,
+  History,
+  Settings2,
+} from "lucide-react";
+import { trpc } from "@/lib/trpc";
+import { Button } from "@/components/ui/button";
 
-import { toast } from "sonner"
-import { useHotkeys } from "react-hotkeys-hook"
-import { useIsMobile } from "@/hooks/use-mobile"
+import { toast } from "sonner";
+import { useHotkeys } from "react-hotkeys-hook";
+import { useIsMobile } from "@/hooks/use-mobile";
 // hooks/useAutoSave + useExecutionPoll 待接入（需要调整 handleSaveDraft 回调顺序）
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
+import type { WorkflowNode, WorkflowEdge, WorkflowInput } from "@/types/workflow";
+import type { KestraInput } from "@/types/kestra";
 import type {
-  WorkflowNode,
-  WorkflowEdge,
-  WorkflowInput,
-} from "@/types/workflow"
-import type { KestraInput } from "@/types/kestra"
-import type { ApiWorkflowNode, ApiWorkflowEdge, ApiWorkflowInput, ApiWorkflowVariable } from "@/types/api"
-import { useShallow } from "zustand/react/shallow"
-import {
-  useWorkflowStore,
-  useUndo,
-  useRedo,
-  useCanUndo,
-  useCanRedo,
-} from "@/stores/workflow"
+  ApiWorkflowNode,
+  ApiWorkflowEdge,
+  ApiWorkflowInput,
+  ApiWorkflowVariable,
+} from "@/types/api";
+import { useShallow } from "zustand/react/shallow";
+import { useWorkflowStore, useUndo, useRedo, useCanUndo, useCanRedo } from "@/stores/workflow";
 
 // ---- React Flow 自定义类型注册（稳定引用，不随组件重渲染） ----
-const nodeTypes = { workflowNode: WorkflowNodeComponent }
-const edgeTypes = { workflowEdge: WorkflowEdgeComponent }
+const nodeTypes = { workflowNode: WorkflowNodeComponent };
+const edgeTypes = { workflowEdge: WorkflowEdgeComponent };
 
 // ---- ID 生成：使用 crypto.randomUUID，无冲突风险 ----
-const genNodeId = () => `node_${crypto.randomUUID().slice(0, 8)}`
-const genEdgeId = () => `edge_${crypto.randomUUID().slice(0, 8)}`
+const genNodeId = () => `node_${crypto.randomUUID().slice(0, 8)}`;
+const genEdgeId = () => `edge_${crypto.randomUUID().slice(0, 8)}`;
 
 // ========== FitView 工具（首次加载自适应） ==========
 
 const FitViewOnMount = memo(function FitViewOnMount() {
-  const { fitView } = useReactFlow()
+  const { fitView } = useReactFlow();
   useEffect(() => {
-    const timer = setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 200)
-    const handleResize = () => fitView({ padding: 0.2, maxZoom: 1, duration: 200 })
-    window.addEventListener("resize", handleResize)
+    const timer = setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 200);
+    const handleResize = () => fitView({ padding: 0.2, maxZoom: 1, duration: 200 });
+    window.addEventListener("resize", handleResize);
     return () => {
-      clearTimeout(timer)
-      window.removeEventListener("resize", handleResize)
-    }
-  }, [fitView])
-  return null
-})
+      clearTimeout(timer);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [fitView]);
+  return null;
+});
 
 /** 缩放百分比指示器 — 悬浮在画布右下角 */
 const ZoomIndicator = memo(function ZoomIndicator() {
-  const { zoom } = useViewport()
-  const pct = Math.round(zoom * 100)
+  const { zoom } = useViewport();
+  const pct = Math.round(zoom * 100);
   return (
     <div className="absolute bottom-3 right-3 z-10 select-none rounded-md border border-border bg-card/90 backdrop-blur-sm px-2 py-1 text-xs font-mono text-muted-foreground shadow-sm">
       {pct}%
     </div>
-  )
-})
+  );
+});
 
 // ========== 主组件 ==========
 
 export default function WorkflowEditorPage() {
-  const { workflowId } = useParams({ from: "/workflows/$workflowId/edit" })
-  const reactFlowWrapper = useRef<HTMLDivElement>(null)
-  const { fitView, screenToFlowPosition, getNodes } = useReactFlow()
+  const { workflowId } = useParams({ from: "/workflows/$workflowId/edit" });
+  const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  const { fitView, screenToFlowPosition, getNodes } = useReactFlow();
 
   // ---- Mobile ----
-  const isMobile = useIsMobile()
-  const longPressTimerRef = useRef<ReturnType<typeof setTimeout>>(null)
-  const longPressTriggeredRef = useRef(false)
+  const isMobile = useIsMobile();
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
+  const longPressTriggeredRef = useRef(false);
 
   // ---- Zustand store — 合并选择器减少 re-render ----
   const {
@@ -148,65 +150,70 @@ export default function WorkflowEditorPage() {
     savedWorkflowId,
     viewMode,
     runningSnapshot,
-  } = useWorkflowStore(useShallow((s) => ({
-    nodes: s.nodes,
-    edges: s.edges,
-    inputs: s.inputs,
-    rightPanel: s.rightPanel,
-    selectedNodeId: s.selectedNodeId,
-    panelOpen: s.panelOpen,
-    workflowMeta: s.workflowMeta,
-    savedWorkflowId: s.savedWorkflowId,
-    viewMode: s.viewMode,
-    runningSnapshot: s.runningSnapshot,
-  })))
+  } = useWorkflowStore(
+    useShallow((s) => ({
+      nodes: s.nodes,
+      edges: s.edges,
+      inputs: s.inputs,
+      rightPanel: s.rightPanel,
+      selectedNodeId: s.selectedNodeId,
+      panelOpen: s.panelOpen,
+      workflowMeta: s.workflowMeta,
+      savedWorkflowId: s.savedWorkflowId,
+      viewMode: s.viewMode,
+      runningSnapshot: s.runningSnapshot,
+    })),
+  );
 
   // Actions (stable references, safe as individual selectors)
-  const setWfNodes = useWorkflowStore((s) => s.setNodes)
-  const setWfEdges = useWorkflowStore((s) => s.setEdges)
-  const setInputs = useWorkflowStore((s) => s.setInputs)
-  const setRightPanel = useWorkflowStore((s) => s.setRightPanel)
-  const setSelectedNodeId = useWorkflowStore((s) => s.setSelectedNodeId)
-  const setPanelOpen = useWorkflowStore((s) => s.setPanelOpen)
-  const setWorkflowMeta = useWorkflowStore((s) => s.setWorkflowMeta)
-  const setSavedWorkflowId = useWorkflowStore((s) => s.setSavedWorkflowId)
-  const setTriggers = useWorkflowStore((s) => s.setTriggers)
-  const enterRunningMode = useWorkflowStore((s) => s.enterRunningMode)
-  const exitRunningMode = useWorkflowStore((s) => s.exitRunningMode)
+  const setWfNodes = useWorkflowStore((s) => s.setNodes);
+  const setWfEdges = useWorkflowStore((s) => s.setEdges);
+  const setInputs = useWorkflowStore((s) => s.setInputs);
+  const setRightPanel = useWorkflowStore((s) => s.setRightPanel);
+  const setSelectedNodeId = useWorkflowStore((s) => s.setSelectedNodeId);
+  const setPanelOpen = useWorkflowStore((s) => s.setPanelOpen);
+  const setWorkflowMeta = useWorkflowStore((s) => s.setWorkflowMeta);
+  const setSavedWorkflowId = useWorkflowStore((s) => s.setSavedWorkflowId);
+  const setTriggers = useWorkflowStore((s) => s.setTriggers);
+  const enterRunningMode = useWorkflowStore((s) => s.enterRunningMode);
+  const exitRunningMode = useWorkflowStore((s) => s.exitRunningMode);
 
   // ---- 模板功能 ----
-  const [templateDialogOpen, setTemplateDialogOpen] = useState(false)
-  const [nodeCreateDrawerOpen, setNodeCreateDrawerOpen] = useState(false)
-  const [moreMenuOpen, setMoreMenuOpen] = useState(false)
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [nodeCreateDrawerOpen, setNodeCreateDrawerOpen] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
   // ---- 工作流 Variables（从 API 加载，给 PublishDialog 用） ----
-  const [wfVariables, setWfVariables] = useState<ApiWorkflowVariable[]>([])
+  const [wfVariables, setWfVariables] = useState<ApiWorkflowVariable[]>([]);
 
   // ---- 引用检测 ----
-  const [dragOverContainerId, setDragOverContainerId] = useState<string | null>(null)
-  const [settingsTab, setSettingsTab] = useState<"variables" | "secrets">("variables")
+  const [dragOverContainerId, setDragOverContainerId] = useState<string | null>(null);
+  const [settingsTab, setSettingsTab] = useState<"variables" | "secrets">("variables");
 
   /** 跳转到 Namespace Settings 的指定 tab */
-  const navigateToSettings = useCallback((tab: "variables" | "secrets") => {
-    setSettingsTab(tab)
-    setRightPanel("settings")
-  }, [setRightPanel])
+  const navigateToSettings = useCallback(
+    (tab: "variables" | "secrets") => {
+      setSettingsTab(tab);
+      setRightPanel("settings");
+    },
+    [setRightPanel],
+  );
 
   const handleTemplateSelect = useCallback(
     (template: WorkflowTemplate) => {
-      setWfNodes(template.nodes)
-      setWfEdges(template.edges)
-      setInputs(template.inputs)
-      toast.success(`已加载模板「${template.name}」`)
+      setWfNodes(template.nodes);
+      setWfEdges(template.edges);
+      setInputs(template.inputs);
+      toast.success(`已加载模板「${template.name}」`);
     },
     [setWfNodes, setWfEdges, setInputs],
-  )
+  );
 
   const handleSaveAsTemplate = useCallback(() => {
-    const name = prompt("模板名称：")
-    if (!name) return
-    const description = prompt("模板描述：") ?? ""
-    const id = `user-${Date.now()}`
+    const name = prompt("模板名称：");
+    if (!name) return;
+    const description = prompt("模板描述：") ?? "";
+    const id = `user-${Date.now()}`;
     saveUserTemplate({
       id,
       name,
@@ -215,255 +222,282 @@ export default function WorkflowEditorPage() {
       nodes: wfNodes,
       edges: wfEdges,
       inputs,
-    })
-    toast.success(`已保存为模板「${name}」`)
-  }, [wfNodes, wfEdges, inputs])
+    });
+    toast.success(`已保存为模板「${name}」`);
+  }, [wfNodes, wfEdges, inputs]);
 
   // ---- 节点搜索定位 (Ctrl+F) ----
-  const [searchOpen, setSearchOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [_searchHighlightId, setSearchHighlightId] = useState<string | null>(null)
-  const searchInputRef = useRef<HTMLInputElement>(null)
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [_searchHighlightId, setSearchHighlightId] = useState<string | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const searchResults = useMemo(() => {
-    if (!searchQuery.trim()) return []
-    const q = searchQuery.toLowerCase()
-    return wfNodes.filter((n) => n.name.toLowerCase().includes(q))
-  }, [searchQuery, wfNodes])
+    if (!searchQuery.trim()) return [];
+    const q = searchQuery.toLowerCase();
+    return wfNodes.filter((n) => n.name.toLowerCase().includes(q));
+  }, [searchQuery, wfNodes]);
 
   const handleSearchSelect = useCallback(
     (nodeId: string) => {
-      const node = wfNodes.find((n) => n.id === nodeId)
-      if (!node) return
-      setSearchHighlightId(nodeId)
-      setSelectedNodeId(nodeId)
+      const node = wfNodes.find((n) => n.id === nodeId);
+      if (!node) return;
+      setSearchHighlightId(nodeId);
+      setSelectedNodeId(nodeId);
       // Pan to the node position
-      const pos = node.ui ?? { x: 150, y: 50 }
-      fitView({ nodes: [{ id: nodeId, position: pos, data: {} } as Node], padding: 1, maxZoom: 1.5, duration: 400 })
+      const pos = node.ui ?? { x: 150, y: 50 };
+      void fitView({
+        nodes: [{ id: nodeId, position: pos, data: {} } as Node],
+        padding: 1,
+        maxZoom: 1.5,
+        duration: 400,
+      });
       // The fitView with nodes option centers on the specific node
-      setSearchOpen(false)
-      setSearchQuery("")
-      setTimeout(() => setSearchHighlightId(null), 2000)
+      setSearchOpen(false);
+      setSearchQuery("");
+      setTimeout(() => setSearchHighlightId(null), 2000);
     },
     [wfNodes, fitView, setSelectedNodeId],
-  )
+  );
 
   // ---- 数据源：运行态用 snapshot，编辑态用 draft ----
   const displayNodes = useMemo(
     () => (viewMode === "running" && runningSnapshot ? runningSnapshot.nodes : wfNodes),
     [viewMode, runningSnapshot, wfNodes],
-  )
+  );
   const displayEdges = useMemo(
     () => (viewMode === "running" && runningSnapshot ? runningSnapshot.edges : wfEdges),
     [viewMode, runningSnapshot, wfEdges],
-  )
+  );
 
   // ---- 过滤折叠容器的子节点 ----
-  const visibleWfNodes = useMemo(() => filterVisibleNodes(displayNodes), [displayNodes])
-  const visibleNodeIds = useMemo(
-    () => new Set(visibleWfNodes.map((n) => n.id)),
-    [visibleWfNodes],
-  )
+  const visibleWfNodes = useMemo(() => filterVisibleNodes(displayNodes), [displayNodes]);
+  const visibleNodeIds = useMemo(() => new Set(visibleWfNodes.map((n) => n.id)), [visibleWfNodes]);
   const visibleWfEdges = useMemo(
     () => filterVisibleEdges(displayEdges, visibleNodeIds),
     [displayEdges, visibleNodeIds],
-  )
+  );
 
   // ---- 引用检测（每个节点的 spec 中是否有缺失引用） ----
-  const inputIds = useMemo(() => inputs.map((i) => i.id), [inputs])
+  const inputIds = useMemo(() => inputs.map((i) => i.id), [inputs]);
   const refCheckResult = useMemo(() => {
-    const yaml = toKestraYaml(wfNodes, wfEdges, inputs, [], workflowMeta.flowId, workflowMeta.namespace)
-    return checkReferences(yaml, { secrets: [], variables: [], inputs: inputIds })
-  }, [wfNodes, wfEdges, inputs, inputIds, workflowMeta.flowId, workflowMeta.namespace])
+    const yaml = toKestraYaml(
+      wfNodes,
+      wfEdges,
+      inputs,
+      [],
+      workflowMeta.flowId,
+      workflowMeta.namespace,
+    );
+    return checkReferences(yaml, { secrets: [], variables: [], inputs: inputIds });
+  }, [wfNodes, wfEdges, inputs, inputIds, workflowMeta.flowId, workflowMeta.namespace]);
 
   const nodesWithMissingRefs = useMemo(() => {
-    if (refCheckResult.missing.length === 0) return new Set<string>()
-    const missingNames = new Set(refCheckResult.missing.map((r) => r.name))
-    const escapedNames = [...missingNames].map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-    const namePattern = new RegExp(`"(${escapedNames.join("|")})"`, "g")
-    const set = new Set<string>()
+    if (refCheckResult.missing.length === 0) return new Set<string>();
+    const missingNames = new Set(refCheckResult.missing.map((r) => r.name));
+    const escapedNames = [...missingNames].map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    const namePattern = new RegExp(`"(${escapedNames.join("|")})"`, "g");
+    const set = new Set<string>();
     for (const node of wfNodes) {
-      const specStr = JSON.stringify(node.spec)
+      const specStr = JSON.stringify(node.spec);
       if (namePattern.test(specStr)) {
-        set.add(node.id)
+        set.add(node.id);
       }
     }
-    return set
-  }, [refCheckResult, wfNodes])
+    return set;
+  }, [refCheckResult, wfNodes]);
 
-  const missingRefs = refCheckResult.missing
+  const missingRefs = refCheckResult.missing;
 
   // ---- zundo temporal (undo/redo) ----
-  const undo = useUndo()
-  const redo = useRedo()
-  const canUndo = useCanUndo()
-  const canRedo = useCanRedo()
+  const undo = useUndo();
+  const redo = useRedo();
+  const canUndo = useCanUndo();
+  const canRedo = useCanRedo();
 
   // ---- 画布状态（从过滤后的业务状态派生） ----
   const [canvasNodes, setCanvasNodes, onCanvasNodesChange] = useNodesState(
     toCanvasNodes(visibleWfNodes, nodesWithMissingRefs),
-  )
+  );
   const [canvasEdges, setCanvasEdges, onCanvasEdgesChange] = useEdgesState(
     toCanvasEdges(visibleWfEdges),
-  )
+  );
 
   // ---- 过滤后的业务状态变更 → 同步画布 ----
   useEffect(() => {
-    setCanvasNodes(toCanvasNodes(visibleWfNodes, nodesWithMissingRefs, dragOverContainerId))
-  }, [visibleWfNodes, nodesWithMissingRefs, dragOverContainerId, setCanvasNodes])
+    setCanvasNodes(toCanvasNodes(visibleWfNodes, nodesWithMissingRefs, dragOverContainerId));
+  }, [visibleWfNodes, nodesWithMissingRefs, dragOverContainerId, setCanvasNodes]);
 
   useEffect(() => {
-    setCanvasEdges(toCanvasEdges(visibleWfEdges))
-  }, [visibleWfEdges, setCanvasEdges])
+    setCanvasEdges(toCanvasEdges(visibleWfEdges));
+  }, [visibleWfEdges, setCanvasEdges]);
 
   // ---- 排序 ----
   // ---- 连线（自动推断边类型） ----
   const onConnect = useCallback(
     (params: Connection) => {
-      if (!params.source || !params.target) return
-      const edgeType = inferEdgeType(params.sourceHandle)
+      if (!params.source || !params.target) return;
+      const edgeType = inferEdgeType(params.sourceHandle);
       const newEdge: WorkflowEdge = {
         id: genEdgeId(),
         source: params.source,
         target: params.target,
         type: edgeType,
-      }
-      setWfEdges((prev) => [...prev, newEdge])
+      };
+      setWfEdges((prev) => [...prev, newEdge]);
     },
     [setWfEdges],
-  )
+  );
 
   // ---- 节点选中 ----
-  const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
-    if (longPressTriggeredRef.current) {
-      longPressTriggeredRef.current = false
-      return
-    }
-    setSelectedNodeId(node.id)
-    setRightPanel("task")
-  }, [setSelectedNodeId, setRightPanel])
+  const onNodeClick = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      if (longPressTriggeredRef.current) {
+        longPressTriggeredRef.current = false;
+        return;
+      }
+      setSelectedNodeId(node.id);
+      setRightPanel("task");
+    },
+    [setSelectedNodeId, setRightPanel],
+  );
 
   // ---- 移动端长按触发右键菜单 ----
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length !== 1) return
-    const touch = e.touches[0]
-    longPressTriggeredRef.current = false
-    longPressTimerRef.current = setTimeout(() => {
-      longPressTriggeredRef.current = true
-      const pos = screenToFlowPosition({ x: touch.clientX, y: touch.clientY })
-      const nodes = getNodes()
-      let hitNodeId: string | null = null
-      for (let i = nodes.length - 1; i >= 0; i--) {
-        const n = nodes[i]
-        const nw = n.measured?.width ?? 200
-        const nh = n.measured?.height ?? 40
-        if (pos.x >= n.position.x && pos.x <= n.position.x + nw &&
-            pos.y >= n.position.y && pos.y <= n.position.y + nh) {
-          hitNodeId = n.id
-          break
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      longPressTriggeredRef.current = false;
+      longPressTimerRef.current = setTimeout(() => {
+        longPressTriggeredRef.current = true;
+        const pos = screenToFlowPosition({ x: touch.clientX, y: touch.clientY });
+        const nodes = getNodes();
+        let hitNodeId: string | null = null;
+        for (let i = nodes.length - 1; i >= 0; i--) {
+          const n = nodes[i];
+          const nw = n.measured?.width ?? 200;
+          const nh = n.measured?.height ?? 40;
+          if (
+            pos.x >= n.position.x &&
+            pos.x <= n.position.x + nw &&
+            pos.y >= n.position.y &&
+            pos.y <= n.position.y + nh
+          ) {
+            hitNodeId = n.id;
+            break;
+          }
         }
-      }
-      if (hitNodeId) {
-        setContextMenu({ nodeId: hitNodeId, position: { x: touch.clientX, y: touch.clientY } })
-      }
-    }, 500)
-  }, [screenToFlowPosition, getNodes])
+        if (hitNodeId) {
+          setContextMenu({ nodeId: hitNodeId, position: { x: touch.clientX, y: touch.clientY } });
+        }
+      }, 500);
+    },
+    [screenToFlowPosition, getNodes],
+  );
 
   const handleTouchEnd = useCallback(() => {
     if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current)
-      longPressTimerRef.current = null
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
     }
-  }, [])
+  }, []);
 
   const handleTouchMove = useCallback(() => {
     if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current)
-      longPressTimerRef.current = null
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
     }
-  }, [])
+  }, []);
 
   const onPaneClick = useCallback(() => {
-    setSelectedNodeId(null)
-    setRightPanel("none")
-    setContextMenu(null)
-  }, [setSelectedNodeId, setRightPanel])
+    setSelectedNodeId(null);
+    setRightPanel("none");
+    setContextMenu(null);
+  }, [setSelectedNodeId, setRightPanel]);
 
   // ---- 右键菜单 ----
   const [contextMenu, setContextMenu] = useState<{
-    nodeId: string
-    position: { x: number; y: number }
-  } | null>(null)
+    nodeId: string;
+    position: { x: number; y: number };
+  } | null>(null);
 
-  const onNodeContextMenu = useCallback(
-    (e: React.MouseEvent, node: Node) => {
-      e.preventDefault()
-      setContextMenu({ nodeId: node.id, position: { x: e.clientX, y: e.clientY } })
-    },
-    [],
-  )
+  const onNodeContextMenu = useCallback((e: React.MouseEvent, node: Node) => {
+    e.preventDefault();
+    setContextMenu({ nodeId: node.id, position: { x: e.clientX, y: e.clientY } });
+  }, []);
 
   // ---- 拖拽创建节点 ----
-  const onDragOver = useCallback((event: React.DragEvent) => {
-    event.preventDefault()
-    event.dataTransfer.dropEffect = "move"
+  const onDragOver = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
 
-    // 检测悬浮在哪个展开的容器上方
-    const position = screenToFlowPosition({ x: event.clientX, y: event.clientY })
-    let found: string | null = null
-    for (const n of getNodes()) {
-      if (!isContainer(String(n.data?.type ?? "")) || n.data?.collapsed) continue
-      const w = n.measured?.width ?? CONTAINER_MIN_WIDTH
-      const h = n.measured?.height ?? CONTAINER_MIN_HEIGHT
-      if (position.x >= n.position.x && position.x <= n.position.x + w &&
-          position.y >= n.position.y && position.y <= n.position.y + h) {
-        found = n.id
+      // 检测悬浮在哪个展开的容器上方
+      const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+      let found: string | null = null;
+      for (const n of getNodes()) {
+        const nodeType = typeof n.data?.type === "string" ? n.data.type : "";
+        if (!isContainer(nodeType) || n.data?.collapsed) continue;
+        const w = n.measured?.width ?? CONTAINER_MIN_WIDTH;
+        const h = n.measured?.height ?? CONTAINER_MIN_HEIGHT;
+        if (
+          position.x >= n.position.x &&
+          position.x <= n.position.x + w &&
+          position.y >= n.position.y &&
+          position.y <= n.position.y + h
+        ) {
+          found = n.id;
+        }
       }
-    }
-    setDragOverContainerId(found)
-  }, [screenToFlowPosition, getNodes])
+      setDragOverContainerId(found);
+    },
+    [screenToFlowPosition, getNodes],
+  );
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
-      event.preventDefault()
-      const rawData = event.dataTransfer.getData("application/reactflow")
-      if (!rawData) return
+      event.preventDefault();
+      const rawData = event.dataTransfer.getData("application/reactflow");
+      if (!rawData) return;
 
-      let type: string, name: string, defaultSpec: Record<string, unknown> | undefined
+      let type: string, name: string, defaultSpec: Record<string, unknown> | undefined;
       try {
-        const parsed = JSON.parse(rawData)
-        type = parsed.type
-        name = parsed.name
-        defaultSpec = parsed.defaultSpec
+        const parsed = JSON.parse(rawData);
+        type = parsed.type;
+        name = parsed.name;
+        defaultSpec = parsed.defaultSpec;
       } catch {
-        toast.error("拖拽数据异常，请重试")
-        return
+        toast.error("拖拽数据异常，请重试");
+        return;
       }
 
       const position = screenToFlowPosition({
         x: event.clientX,
         y: event.clientY,
-      })
+      });
 
       // 从 store 读实时状态，避免闭包过期
-      const currentNodes = useWorkflowStore.getState().nodes
+      const currentNodes = useWorkflowStore.getState().nodes;
 
       // 判断 drop 位置是否在某个展开的容器节点内
-      let targetContainerId: string | null = null
+      let targetContainerId: string | null = null;
       for (const n of getNodes()) {
-        if (!isContainer(String(n.data?.type ?? "")) || n.data?.collapsed) continue
-        const w = n.measured?.width ?? CONTAINER_MIN_WIDTH
-        const h = n.measured?.height ?? CONTAINER_MIN_HEIGHT
+        const nodeType = typeof n.data?.type === "string" ? n.data.type : "";
+        if (!isContainer(nodeType) || n.data?.collapsed) continue;
+        const w = n.measured?.width ?? CONTAINER_MIN_WIDTH;
+        const h = n.measured?.height ?? CONTAINER_MIN_HEIGHT;
         if (
-          position.x >= n.position.x && position.x <= n.position.x + w &&
-          position.y >= n.position.y && position.y <= n.position.y + h
+          position.x >= n.position.x &&
+          position.x <= n.position.x + w &&
+          position.y >= n.position.y &&
+          position.y <= n.position.y + h
         ) {
-          targetContainerId = n.id
+          targetContainerId = n.id;
         }
       }
 
-      const siblings = currentNodes.filter((n) => n.containerId === targetContainerId)
-      const maxSort = siblings.reduce((max, n) => Math.max(max, n.sortIndex), -1)
+      const siblings = currentNodes.filter((n) => n.containerId === targetContainerId);
+      const maxSort = siblings.reduce((max, n) => Math.max(max, n.sortIndex), -1);
 
       const newNode: WorkflowNode = {
         id: genNodeId(),
@@ -473,50 +507,46 @@ export default function WorkflowEditorPage() {
         sortIndex: maxSort + 1,
         spec: defaultSpec ?? {},
         ui: { x: position.x, y: position.y },
-      }
+      };
 
-      setWfNodes((prev) => [...prev, newNode])
-      setDragOverContainerId(null)
+      setWfNodes((prev) => [...prev, newNode]);
+      setDragOverContainerId(null);
     },
     [screenToFlowPosition, setWfNodes, getNodes],
-  )
+  );
 
   const onDragLeave = useCallback(() => {
-    setDragOverContainerId(null)
-  }, [])
+    setDragOverContainerId(null);
+  }, []);
 
   // ---- 任务配置更新：解析 YAML 回写 spec ----
   const handleTaskUpdate = useCallback(
     (nodeId: string, label: string, taskConfig: string) => {
-      const { spec } = parseYamlToNodeFields(taskConfig)
-      setWfNodes((prev) =>
-        prev.map((n) =>
-          n.id === nodeId ? { ...n, name: label, spec } : n,
-        ),
-      )
+      const { spec } = parseYamlToNodeFields(taskConfig);
+      setWfNodes((prev) => prev.map((n) => (n.id === nodeId ? { ...n, name: label, spec } : n)));
     },
     [setWfNodes],
-  )
+  );
 
   // ---- 删除选中节点 ----
   const handleDeleteSelected = useCallback(() => {
     // 从 store 读实时状态，避免闭包过期（特别是 context menu 中先 setSelectedNodeId 再调用时）
-    const state = useWorkflowStore.getState()
-    const currentSelectedId = state.selectedNodeId
-    if (!currentSelectedId) return
-    const currentNodes = state.nodes
+    const state = useWorkflowStore.getState();
+    const currentSelectedId = state.selectedNodeId;
+    if (!currentSelectedId) return;
+    const currentNodes = state.nodes;
 
-    const deletedNode = currentNodes.find((n) => n.id === currentSelectedId)
+    const deletedNode = currentNodes.find((n) => n.id === currentSelectedId);
 
     // Collect ALL descendant node IDs (BFS - handles nested containers)
-    const selectedIds = new Set([currentSelectedId])
-    let changed = true
+    const selectedIds = new Set([currentSelectedId]);
+    let changed = true;
     while (changed) {
-      changed = false
+      changed = false;
       for (const n of currentNodes) {
         if (n.containerId && selectedIds.has(n.containerId) && !selectedIds.has(n.id)) {
-          selectedIds.add(n.id)
-          changed = true
+          selectedIds.add(n.id);
+          changed = true;
         }
       }
     }
@@ -530,38 +560,36 @@ export default function WorkflowEditorPage() {
             n.containerId === deletedNode.containerId &&
             n.sortIndex > deletedNode.sortIndex
           ) {
-            return { ...n, sortIndex: n.sortIndex - 1 }
+            return { ...n, sortIndex: n.sortIndex - 1 };
           }
-          return n
+          return n;
         }),
-    )
+    );
     setWfEdges((prev) =>
-      prev.filter(
-        (e) => !selectedIds.has(e.source) && !selectedIds.has(e.target),
-      ),
-    )
+      prev.filter((e) => !selectedIds.has(e.source) && !selectedIds.has(e.target)),
+    );
     // 从 expandedContainers 中移除被删除的容器 ID
-    const staleIds = state.expandedContainers.filter((id) => selectedIds.has(id))
+    const staleIds = state.expandedContainers.filter((id) => selectedIds.has(id));
     if (staleIds.length > 0) {
       useWorkflowStore.setState({
         expandedContainers: state.expandedContainers.filter((id) => !selectedIds.has(id)),
-      })
+      });
     }
-    setSelectedNodeId(null)
-    setRightPanel("none")
-  }, [setWfNodes, setWfEdges, setSelectedNodeId, setRightPanel])
+    setSelectedNodeId(null);
+    setRightPanel("none");
+  }, [setWfNodes, setWfEdges, setSelectedNodeId, setRightPanel]);
 
   // ---- 复制节点 ----
   const handleDuplicate = useCallback(() => {
-    if (!selectedNodeId) return
-    const sourceNode = wfNodes.find((n) => n.id === selectedNodeId)
-    if (!sourceNode) return
+    if (!selectedNodeId) return;
+    const sourceNode = wfNodes.find((n) => n.id === selectedNodeId);
+    if (!sourceNode) return;
 
     const maxSort = wfNodes
       .filter((n) => n.containerId === sourceNode.containerId)
-      .reduce((max, n) => Math.max(max, n.sortIndex), -1)
+      .reduce((max, n) => Math.max(max, n.sortIndex), -1);
 
-    const newNodeId = genNodeId()
+    const newNodeId = genNodeId();
     const newNode: WorkflowNode = {
       ...structuredClone(sourceNode),
       id: newNodeId,
@@ -571,176 +599,197 @@ export default function WorkflowEditorPage() {
         x: (sourceNode.ui?.x ?? 0) + 50,
         y: (sourceNode.ui?.y ?? 0) + 100,
       },
-    }
+    };
 
     // Clone all descendants if the source is a container (recursive)
-    const idMap = new Map<string, string>() // oldId → newId
-    idMap.set(sourceNode.id, newNodeId)
+    const idMap = new Map<string, string>(); // oldId → newId
+    idMap.set(sourceNode.id, newNodeId);
 
-    const clonedDescendants: typeof wfNodes = []
-    const queue = [sourceNode.id]
+    const clonedDescendants: typeof wfNodes = [];
+    const queue = [sourceNode.id];
     while (queue.length > 0) {
-      const parentId = queue.shift()!
-      const newParentId = idMap.get(parentId)!
+      const parentId = queue.shift()!;
+      const newParentId = idMap.get(parentId)!;
       for (const child of wfNodes) {
         if (child.containerId === parentId) {
-          const newChildId = genNodeId()
-          idMap.set(child.id, newChildId)
+          const newChildId = genNodeId();
+          idMap.set(child.id, newChildId);
           clonedDescendants.push({
             ...structuredClone(child),
             id: newChildId,
             containerId: newParentId,
-          })
-          queue.push(child.id)
+          });
+          queue.push(child.id);
         }
       }
     }
 
-    setWfNodes((prev) => [...prev, newNode, ...clonedDescendants])
-  }, [selectedNodeId, wfNodes, setWfNodes])
+    setWfNodes((prev) => [...prev, newNode, ...clonedDescendants]);
+  }, [selectedNodeId, wfNodes, setWfNodes]);
 
   // ---- 自动布局 ----
   const handleAutoLayout = useCallback(() => {
-    const { nodes: layoutedNodes } = getLayoutedElements(
-      canvasNodes,
-      canvasEdges,
-      "TB",
-    )
-    setWfNodes((prev) => syncPositions(prev, layoutedNodes))
-    setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 50)
-  }, [canvasNodes, canvasEdges, setWfNodes, fitView])
+    const { nodes: layoutedNodes } = getLayoutedElements(canvasNodes, canvasEdges, "TB");
+    setWfNodes((prev) => syncPositions(prev, layoutedNodes));
+    setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 50);
+  }, [canvasNodes, canvasEdges, setWfNodes, fitView]);
 
   // ---- 键盘快捷键 ----
   // 编辑器面板打开时禁用会与 Monaco 冲突的快捷键
-  const isEditorPanelOpen = rightPanel === "task" || rightPanel === "inputs" || rightPanel === "yaml"
-  useHotkeys("mod+z", () => undo(), { enabled: canUndo && !isEditorPanelOpen })
-  useHotkeys("mod+shift+z", () => redo(), { enabled: canRedo && !isEditorPanelOpen })
+  const isEditorPanelOpen =
+    rightPanel === "task" || rightPanel === "inputs" || rightPanel === "yaml";
+  useHotkeys("mod+z", () => undo(), { enabled: canUndo && !isEditorPanelOpen });
+  useHotkeys("mod+shift+z", () => redo(), { enabled: canRedo && !isEditorPanelOpen });
   useHotkeys("delete, backspace", () => handleDeleteSelected(), {
     enabled: !!selectedNodeId && !isEditorPanelOpen,
-  })
-  useHotkeys("mod+s", (e) => {
-    e.preventDefault()
-    handleSaveDraft()
-  }, { enabled: !isEditorPanelOpen })
-  useHotkeys("mod+a", (e) => {
-    e.preventDefault()
-    // Select all visible nodes — mark all as selected in React Flow
-    if (visibleWfNodes.length > 0) {
-      setWfNodes((prev) =>
-        prev.map((n) => ({
-          ...n,
-          selected: visibleWfNodes.some((v) => v.id === n.id),
-        }))
-      )
-    }
-  }, { enabled: !isEditorPanelOpen })
-  useHotkeys("mod+d", (e) => {
-    e.preventDefault()
-    if (selectedNodeId) handleDuplicate()
-  }, { enabled: !isEditorPanelOpen })
+  });
+  useHotkeys(
+    "mod+s",
+    (e) => {
+      e.preventDefault();
+      handleSaveDraft();
+    },
+    { enabled: !isEditorPanelOpen },
+  );
+  useHotkeys(
+    "mod+a",
+    (e) => {
+      e.preventDefault();
+      // Select all visible nodes — mark all as selected in React Flow
+      if (visibleWfNodes.length > 0) {
+        setWfNodes((prev) =>
+          prev.map((n) => ({
+            ...n,
+            selected: visibleWfNodes.some((v) => v.id === n.id),
+          })),
+        );
+      }
+    },
+    { enabled: !isEditorPanelOpen },
+  );
+  useHotkeys(
+    "mod+d",
+    (e) => {
+      e.preventDefault();
+      if (selectedNodeId) handleDuplicate();
+    },
+    { enabled: !isEditorPanelOpen },
+  );
   useHotkeys("escape", () => {
-    setWfNodes((prev) => prev.map((n) => ({ ...n, selected: false })))
-    setSelectedNodeId(null)
-    setRightPanel("none")
-    setContextMenu(null)
-    setSearchOpen(false)
-    setSearchQuery("")
-  })
+    setWfNodes((prev) => prev.map((n) => ({ ...n, selected: false })));
+    setSelectedNodeId(null);
+    setRightPanel("none");
+    setContextMenu(null);
+    setSearchOpen(false);
+    setSearchQuery("");
+  });
   useHotkeys("mod+f", (e) => {
-    e.preventDefault()
-    setSearchOpen(true)
-    setSearchQuery("")
-    setTimeout(() => searchInputRef.current?.focus(), 50)
-  })
-  useHotkeys("shift+a", (e) => {
-    e.preventDefault()
-    handleAutoLayout()
-  }, { enabled: !isEditorPanelOpen && viewMode !== "running" })
+    e.preventDefault();
+    setSearchOpen(true);
+    setSearchQuery("");
+    setTimeout(() => searchInputRef.current?.focus(), 50);
+  });
+  useHotkeys(
+    "shift+a",
+    (e) => {
+      e.preventDefault();
+      handleAutoLayout();
+    },
+    { enabled: !isEditorPanelOpen && viewMode !== "running" },
+  );
   useHotkeys("shift+f", (e) => {
-    e.preventDefault()
-    fitView({ padding: 0.2, maxZoom: 1 })
-  })
+    e.preventDefault();
+    void fitView({ padding: 0.2, maxZoom: 1 });
+  });
 
   // ---- 保存/加载（tRPC useUtils） ----
-  const utils = trpc.useUtils()
+  const utils = trpc.useUtils();
 
   const handleLoadFromApi = useCallback(async () => {
-    const workflows = await utils.workflow.list.fetch()
+    const workflows = await utils.workflow.list.fetch();
     if (!workflows || workflows.length === 0) {
-      toast.warning("API 上暂无已保存的工作流")
-      return
+      toast.warning("API 上暂无已保存的工作流");
+      return;
     }
-    const latest = workflows[0]
-    const full = await utils.workflow.get.fetch({ id: latest.id })
-    if (!full) return
+    const latest = workflows[0];
+    const full = await utils.workflow.get.fetch({ id: latest.id });
+    if (!full) return;
 
-    isLoadingRef.current = true
-    setSavedWorkflowId(full.id)
+    isLoadingRef.current = true;
+    setSavedWorkflowId(full.id);
     setWorkflowMeta({
       flowId: full.flowId,
       name: full.name,
       namespace: workflowMeta.namespace,
       description: full.description ?? "",
-    })
+    });
 
-    if (full.nodes) setWfNodes((full.nodes as unknown as ApiWorkflowNode[]).map(fromApiNode))
-    if (full.edges) setWfEdges((full.edges as unknown as ApiWorkflowEdge[]).map(fromApiEdge))
-    if (full.inputs) setInputs((full.inputs as unknown as ApiWorkflowInput[]).map(fromApiInput))
-    isLoadingRef.current = false
+    if (full.nodes) setWfNodes((full.nodes as unknown as ApiWorkflowNode[]).map(fromApiNode));
+    if (full.edges) setWfEdges((full.edges as unknown as ApiWorkflowEdge[]).map(fromApiEdge));
+    if (full.inputs) setInputs((full.inputs as unknown as ApiWorkflowInput[]).map(fromApiInput));
+    isLoadingRef.current = false;
 
-    useWorkflowStore.getState().clearExpandedContainers()
-    setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 100)
-  }, [workflowMeta.namespace, fitView, utils, setSavedWorkflowId, setWorkflowMeta, setWfNodes, setWfEdges, setInputs])
+    useWorkflowStore.getState().clearExpandedContainers();
+    setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 100);
+  }, [
+    workflowMeta.namespace,
+    fitView,
+    utils,
+    setSavedWorkflowId,
+    setWorkflowMeta,
+    setWfNodes,
+    setWfEdges,
+    setInputs,
+  ]);
 
   // ---- 加载状态：API 数据加载完成前显示 loading，避免 fixture 闪现 ----
-  const [isLoaded, setIsLoaded] = useState(false)
+  const [isLoaded, setIsLoaded] = useState(false);
 
   // ---- Auto-load workflow from URL param on mount ----
-  const [hasAutoLoaded, setHasAutoLoaded] = useState(false)
+  const [hasAutoLoaded, setHasAutoLoaded] = useState(false);
   useEffect(() => {
-    if (!workflowId || hasAutoLoaded) return
-    setHasAutoLoaded(true)
+    if (!workflowId || hasAutoLoaded) return;
+    setHasAutoLoaded(true);
     const loadWorkflow = async () => {
-      setIsLoaded(false)
-      const full = await utils.workflow.get.fetch({ id: workflowId })
-      if (!full) { setIsLoaded(true); return }
-      isLoadingRef.current = true
-      setSavedWorkflowId(full.id)
+      setIsLoaded(false);
+      const full = await utils.workflow.get.fetch({ id: workflowId });
+      if (!full) {
+        setIsLoaded(true);
+        return;
+      }
+      isLoadingRef.current = true;
+      setSavedWorkflowId(full.id);
       setWorkflowMeta({
         flowId: full.flowId,
         name: full.name,
         namespace: workflowMeta.namespace,
         description: full.description ?? "",
-      })
-      if (full.nodes) setWfNodes((full.nodes as unknown as ApiWorkflowNode[]).map(fromApiNode))
-      if (full.edges) setWfEdges((full.edges as unknown as ApiWorkflowEdge[]).map(fromApiEdge))
-      if (full.inputs) setInputs((full.inputs as unknown as ApiWorkflowInput[]).map(fromApiInput))
-      if (full.variables) setWfVariables(full.variables as unknown as ApiWorkflowVariable[])
-      isLoadingRef.current = false
-      setIsLoaded(true)
-      useWorkflowStore.getState().clearExpandedContainers()
-      setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 100)
-    }
-    loadWorkflow()
+      });
+      if (full.nodes) setWfNodes((full.nodes as unknown as ApiWorkflowNode[]).map(fromApiNode));
+      if (full.edges) setWfEdges((full.edges as unknown as ApiWorkflowEdge[]).map(fromApiEdge));
+      if (full.inputs) setInputs((full.inputs as unknown as ApiWorkflowInput[]).map(fromApiInput));
+      if (full.variables) setWfVariables(full.variables as unknown as ApiWorkflowVariable[]);
+      isLoadingRef.current = false;
+      setIsLoaded(true);
+      useWorkflowStore.getState().clearExpandedContainers();
+      setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 100);
+    };
+    void loadWorkflow();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workflowId])
+  }, [workflowId]);
 
   // ---- 选中节点数据 ----
-  const selectedNode = wfNodes.find((n) => n.id === selectedNodeId)
+  const selectedNode = wfNodes.find((n) => n.id === selectedNodeId);
 
   // ---- TaskConfigPanel 兼容数据 ----
   const selectedNodeForPanel = useMemo(() => {
-    if (!selectedNode) return null
+    if (!selectedNode) return null;
     return {
       id: selectedNode.id,
       label: selectedNode.name,
-      taskConfig: yamlFromSpec(
-        selectedNode.type,
-        selectedNode.name,
-        selectedNode.spec,
-      ),
-    }
-  }, [selectedNode])
+      taskConfig: yamlFromSpec(selectedNode.type, selectedNode.name, selectedNode.spec),
+    };
+  }, [selectedNode]);
 
   // Input 兼容转换（给旧面板用，M3 重写面板后删除）
   const kestraInputs: KestraInput[] = useMemo(
@@ -748,91 +797,98 @@ export default function WorkflowEditorPage() {
       inputs.map((i) => ({
         id: i.id,
         type: i.type,
-        defaults: String(i.defaults ?? ""),
+        defaults:
+          typeof i.defaults === "string"
+            ? i.defaults
+            : i.defaults != null
+              ? JSON.stringify(i.defaults)
+              : "",
         description: i.description,
         required: i.required,
       })),
     [inputs],
-  )
+  );
 
   // ---- Draft / Release (tRPC) ----
-  const [showPublishDialog, setShowPublishDialog] = useState(false)
+  const [showPublishDialog, setShowPublishDialog] = useState(false);
 
   const draftSave = trpc.workflow.draftSave.useMutation({
     onSuccess: (_data, variables) => {
-      markSaved()
+      markSaved();
       if (variables.message !== "自动暂存") {
-        toast.success("草稿已保存")
+        toast.success("草稿已保存");
       }
       // Refresh draft list
       if (savedWorkflowId) {
-        utils.workflow.draftList.invalidate({ workflowId: savedWorkflowId })
+        void utils.workflow.draftList.invalidate({ workflowId: savedWorkflowId });
       }
     },
     onError: (err, variables) => {
       if (variables.message !== "自动暂存") {
-        toast.error(`保存草稿失败: ${err.message}`)
+        toast.error(`保存草稿失败: ${err.message}`);
       } else {
-        toast.error("自动暂存失败")
+        toast.error("自动暂存失败");
       }
     },
-  })
+  });
 
   const draftRollback = trpc.workflow.draftRollback.useMutation({
     onError: (err) => {
-      toast.error(`回滚失败: ${err.message}`)
+      toast.error(`回滚失败: ${err.message}`);
     },
-  })
+  });
 
   const releasePublish = trpc.workflow.releasePublish.useMutation({
     onSuccess: (result) => {
-      setPublishedVersion(result.version)
-      toast.success(`版本 v${result.version} 已发布`)
+      setPublishedVersion(result.version);
+      toast.success(`版本 v${result.version} 已发布`);
       if (result.kestraStatus === "failed") {
-        toast.warning("Kestra 同步失败，请稍后重试")
+        toast.warning("Kestra 同步失败，请稍后重试");
       }
-      setShowPublishDialog(false)
+      setShowPublishDialog(false);
       if (savedWorkflowId) {
-        utils.workflow.releaseList.invalidate({ workflowId: savedWorkflowId })
+        void utils.workflow.releaseList.invalidate({ workflowId: savedWorkflowId });
       }
     },
     onError: (err) => {
-      toast.error(`发布失败: ${err.message}`)
+      toast.error(`发布失败: ${err.message}`);
     },
-  })
+  });
 
   const releaseRollback = trpc.workflow.releaseRollback.useMutation({
     onError: (err) => {
-      toast.error(`版本回滚失败: ${err.message}`)
+      toast.error(`版本回滚失败: ${err.message}`);
     },
-  })
+  });
 
   // Draft/Release list queries (enabled when savedWorkflowId exists)
   const draftsQuery = trpc.workflow.draftList.useQuery(
     { workflowId: savedWorkflowId! },
     { enabled: !!savedWorkflowId },
-  )
+  );
   const releasesQuery = trpc.workflow.releaseList.useQuery(
     { workflowId: savedWorkflowId! },
     { enabled: !!savedWorkflowId },
-  )
+  );
   const { data: triggersData } = trpc.workflow.triggerList.useQuery(
     { workflowId: savedWorkflowId! },
     { enabled: !!savedWorkflowId },
-  )
+  );
   useEffect(() => {
     if (triggersData) {
-      setTriggers(triggersData.map((t) => ({
-        id: t.id,
-        name: t.name,
-        type: t.type as "schedule" | "webhook",
-        config: t.config as Record<string, unknown>,
-        kestraFlowId: t.kestraFlowId,
-        disabled: t.disabled,
-        createdAt: t.createdAt instanceof Date ? t.createdAt.toISOString() : String(t.createdAt),
-      })))
+      setTriggers(
+        triggersData.map((t) => ({
+          id: t.id,
+          name: t.name,
+          type: t.type as "schedule" | "webhook",
+          config: t.config as Record<string, unknown>,
+          kestraFlowId: t.kestraFlowId,
+          disabled: t.disabled,
+          createdAt: t.createdAt instanceof Date ? t.createdAt.toISOString() : String(t.createdAt),
+        })),
+      );
     }
-  }, [triggersData, setTriggers])
+  }, [triggersData, setTriggers]);
 
   // Sync query data (drafts/releases fetched via tRPC, displayed directly)
 
@@ -840,11 +896,11 @@ export default function WorkflowEditorPage() {
   const handleSaveDraft = useCallback(
     (message?: string) => {
       if (!savedWorkflowId) {
-        toast.warning("请先保存工作流到 API")
-        return
+        toast.warning("请先保存工作流到 API");
+        return;
       }
       if (missingRefs.length > 0) {
-        toast.warning(`有 ${missingRefs.length} 个缺失引用，已保存但请注意修复`)
+        toast.warning(`有 ${missingRefs.length} 个缺失引用，已保存但请注意修复`);
       }
       draftSave.mutate({
         workflowId: savedWorkflowId,
@@ -853,278 +909,281 @@ export default function WorkflowEditorPage() {
         edges: wfEdges,
         inputs,
         variables: wfVariables,
-      })
+      });
     },
     [savedWorkflowId, draftSave, missingRefs, wfNodes, wfEdges, inputs, wfVariables],
-  )
+  );
 
   // Publish action — 缺失引用时阻止发布
   const handlePublish = useCallback(
     (name: string, yaml: string) => {
       if (!savedWorkflowId) {
-        toast.warning("请先保存工作流到 API")
-        return
+        toast.warning("请先保存工作流到 API");
+        return;
       }
       if (missingRefs.length > 0) {
-        toast.error(`有 ${missingRefs.length} 个缺失引用，请先修复后再发布`)
-        return
+        toast.error(`有 ${missingRefs.length} 个缺失引用，请先修复后再发布`);
+        return;
       }
-      releasePublish.mutate({ workflowId: savedWorkflowId, name, yaml })
+      releasePublish.mutate({ workflowId: savedWorkflowId, name, yaml });
     },
     [savedWorkflowId, releasePublish, missingRefs],
-  )
+  );
 
   // Draft rollback action
   const handleDraftRollback = useCallback(
     async (draftId: string) => {
-      await draftRollback.mutateAsync({ draftId })
-      toast.success("已恢复到所选草稿")
-      await handleLoadFromApi()
+      await draftRollback.mutateAsync({ draftId });
+      toast.success("已恢复到所选草稿");
+      await handleLoadFromApi();
     },
     [draftRollback, handleLoadFromApi],
-  )
+  );
 
   // Release rollback action
   const handleReleaseRollback = useCallback(
     async (releaseId: string) => {
-      await releaseRollback.mutateAsync({ releaseId })
-      toast.success("已恢复到所选版本")
-      await handleLoadFromApi()
+      await releaseRollback.mutateAsync({ releaseId });
+      toast.success("已恢复到所选版本");
+      await handleLoadFromApi();
     },
     [releaseRollback, handleLoadFromApi],
-  )
+  );
 
   // Auto-save (30s) — 只在用户实际修改后触发
-  const {
-    hasUnsavedChanges,
-    releases,
-    publishedVersion,
-  } = useWorkflowStore(useShallow((s) => ({
-    hasUnsavedChanges: s.hasUnsavedChanges,
-    releases: s.releases,
-    publishedVersion: s.publishedVersion,
-  })))
-  const markDirty = useWorkflowStore((s) => s.markDirty)
-  const markSaved = useWorkflowStore((s) => s.markSaved)
-  const setPublishedVersion = useWorkflowStore((s) => s.setPublishedVersion)
+  const { hasUnsavedChanges, releases, publishedVersion } = useWorkflowStore(
+    useShallow((s) => ({
+      hasUnsavedChanges: s.hasUnsavedChanges,
+      releases: s.releases,
+      publishedVersion: s.publishedVersion,
+    })),
+  );
+  const markDirty = useWorkflowStore((s) => s.markDirty);
+  const markSaved = useWorkflowStore((s) => s.markSaved);
+  const setPublishedVersion = useWorkflowStore((s) => s.setPublishedVersion);
 
   // 最新发布版本的 nodes（用于发布前 diff）
   const prevReleaseNodes = useMemo(() => {
-    const latest = releasesQuery.data?.[0]
-    if (!latest?.yaml) return undefined
+    const latest = releasesQuery.data?.[0];
+    if (!latest?.yaml) return undefined;
     try {
-      return fromKestraYaml(latest.yaml).nodes
+      return fromKestraYaml(latest.yaml).nodes;
     } catch {
-      return undefined
+      return undefined;
     }
-  }, [releasesQuery.data])
+  }, [releasesQuery.data]);
 
   // 首次加载标记：首次渲染不触发 markDirty；已脏时跳过冗余调用
-  const isInitialMount = useRef(true)
+  const isInitialMount = useRef(true);
   // API 数据加载期间跳过 markDirty，避免加载数据误触发脏标记
-  const isLoadingRef = useRef(false)
+  const isLoadingRef = useRef(false);
 
   useEffect(() => {
     if (isInitialMount.current) {
-      isInitialMount.current = false
-      return
+      isInitialMount.current = false;
+      return;
     }
-    if (isLoadingRef.current) return
+    if (isLoadingRef.current) return;
     // 避免在已经 dirty 时重复触发 set
     if (!hasUnsavedChanges) {
-      markDirty()
+      markDirty();
     }
-  }, [wfNodes, wfEdges, inputs, markDirty, hasUnsavedChanges])
+  }, [wfNodes, wfEdges, inputs, markDirty, hasUnsavedChanges]);
 
   // Auto-save timer (30s) — recursive setTimeout with ref to avoid stale closure
-  const hasUnsavedChangesRef = useRef(hasUnsavedChanges)
-  hasUnsavedChangesRef.current = hasUnsavedChanges
-  const handleSaveDraftRef = useRef(handleSaveDraft)
-  handleSaveDraftRef.current = handleSaveDraft
-  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const hasUnsavedChangesRef = useRef(hasUnsavedChanges);
+  hasUnsavedChangesRef.current = hasUnsavedChanges;
+  const handleSaveDraftRef = useRef(handleSaveDraft);
+  handleSaveDraftRef.current = handleSaveDraft;
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => {
-    if (!savedWorkflowId) return
+    if (!savedWorkflowId) return;
     function tick() {
       if (hasUnsavedChangesRef.current && handleSaveDraftRef.current) {
-        handleSaveDraftRef.current("自动暂存")
+        handleSaveDraftRef.current("自动暂存");
       }
-      autoSaveTimerRef.current = setTimeout(tick, 30_000)
+      autoSaveTimerRef.current = setTimeout(tick, 30_000);
     }
-    autoSaveTimerRef.current = setTimeout(tick, 30_000)
-    return () => clearTimeout(autoSaveTimerRef.current)
-  }, [savedWorkflowId])
+    autoSaveTimerRef.current = setTimeout(tick, 30_000);
+    return () => clearTimeout(autoSaveTimerRef.current);
+  }, [savedWorkflowId]);
 
   // ─── M4: Execution ───
-  const {
-    isExecuting,
-    currentExecution,
-    kestraHealthy,
-    kestraError,
-  } = useWorkflowStore(useShallow((s) => ({
-    isExecuting: s.isExecuting,
-    currentExecution: s.currentExecution,
-    kestraHealthy: s.kestraHealthy,
-    kestraError: s.kestraError,
-  })))
-  const setIsExecuting = useWorkflowStore((s) => s.setIsExecuting)
-  const setCurrentExecution = useWorkflowStore((s) => s.setCurrentExecution)
-  const setKestraHealthy = useWorkflowStore((s) => s.setKestraHealthy)
-  const [showInputForm, setShowInputForm] = useState(false)
-  const [showTriggerForm, setShowTriggerForm] = useState(false)
+  const { isExecuting, currentExecution, kestraHealthy, kestraError } = useWorkflowStore(
+    useShallow((s) => ({
+      isExecuting: s.isExecuting,
+      currentExecution: s.currentExecution,
+      kestraHealthy: s.kestraHealthy,
+      kestraError: s.kestraError,
+    })),
+  );
+  const setIsExecuting = useWorkflowStore((s) => s.setIsExecuting);
+  const setCurrentExecution = useWorkflowStore((s) => s.setCurrentExecution);
+  const setKestraHealthy = useWorkflowStore((s) => s.setKestraHealthy);
+  const [showInputForm, setShowInputForm] = useState(false);
+  const [showTriggerForm, setShowTriggerForm] = useState(false);
 
   // Kestra health check (on mount + every 5 min) — with abort on unmount
-  const healthTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const healthTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => {
-    let isMounted = true
-    const utilsRef = utils
+    let isMounted = true;
+    const utilsRef = utils;
     const check = () => {
-      utilsRef.workflow.kestraHealth.fetch().then((res) => {
-        if (isMounted) setKestraHealthy(res.healthy, res.error)
-      }).catch((err) => {
-        if (isMounted) setKestraHealthy(false, err instanceof Error ? err.message : "健康检查失败")
-      }).finally(() => {
-        if (isMounted) healthTimerRef.current = setTimeout(check, 5 * 60_000)
-      })
-    }
-    check()
+      utilsRef.workflow.kestraHealth
+        .fetch()
+        .then((res) => {
+          if (isMounted) setKestraHealthy(res.healthy, res.error);
+        })
+        .catch((err) => {
+          if (isMounted)
+            setKestraHealthy(false, err instanceof Error ? err.message : "健康检查失败");
+        })
+        .finally(() => {
+          if (isMounted) healthTimerRef.current = setTimeout(check, 5 * 60_000);
+        });
+    };
+    check();
     return () => {
-      isMounted = false
-      clearTimeout(healthTimerRef.current)
-    }
-  }, [utils, setKestraHealthy])
+      isMounted = false;
+      clearTimeout(healthTimerRef.current);
+    };
+  }, [utils, setKestraHealthy]);
 
   // Execution polling — recursive setTimeout with refs to avoid stale closure & request pileup
-  const currentExecutionRef = useRef(currentExecution)
-  currentExecutionRef.current = currentExecution
-  const utilsRef = useRef(utils)
-  utilsRef.current = utils
-  const setCurrentExecutionRef = useRef(setCurrentExecution)
-  setCurrentExecutionRef.current = setCurrentExecution
-  const setIsExecutingRef = useRef(setIsExecuting)
-  setIsExecutingRef.current = setIsExecuting
-  const exitRunningModeRef = useRef(exitRunningMode)
-  exitRunningModeRef.current = exitRunningMode
-  const pollTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const currentExecutionRef = useRef(currentExecution);
+  currentExecutionRef.current = currentExecution;
+  const utilsRef = useRef(utils);
+  utilsRef.current = utils;
+  const setCurrentExecutionRef = useRef(setCurrentExecution);
+  setCurrentExecutionRef.current = setCurrentExecution;
+  const setIsExecutingRef = useRef(setIsExecuting);
+  setIsExecutingRef.current = setIsExecuting;
+  const exitRunningModeRef = useRef(exitRunningMode);
+  exitRunningModeRef.current = exitRunningMode;
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => {
-    const exec = currentExecutionRef.current
+    const exec = currentExecutionRef.current;
     if (!exec || isTerminalState(exec.state)) {
-      if (isExecuting) setIsExecuting(false)
-      return
+      if (isExecuting) setIsExecuting(false);
+      return;
     }
 
-    let isMounted = true
+    let isMounted = true;
     function tick() {
-      const exec = currentExecutionRef.current
-      if (!exec || !isMounted) return
-      utilsRef.current.workflow.executionGet.fetch({
-        executionId: exec.id,
-      }).then((result) => {
-        if (!isMounted || !result) return
-        setCurrentExecutionRef.current(toExecutionSummary(result))
-        if (isTerminalState(result.state)) {
-          setIsExecutingRef.current(false)
-          exitRunningModeRef.current()
-          if (result.state === "SUCCESS") {
-            toast.success("执行完成")
-          } else if (result.state === "FAILED") {
-            toast.error("执行失败")
-          } else if (result.state === "WARNING") {
-            toast.warning("执行完成（有警告）")
-          } else if (result.state === "KILLED") {
-            toast.warning("执行已终止")
-          } else if (result.state === "CANCELLED") {
-            toast.info("执行已取消")
+      const exec = currentExecutionRef.current;
+      if (!exec || !isMounted) return;
+      utilsRef.current.workflow.executionGet
+        .fetch({
+          executionId: exec.id,
+        })
+        .then((result) => {
+          if (!isMounted || !result) return;
+          setCurrentExecutionRef.current(toExecutionSummary(result));
+          if (isTerminalState(result.state)) {
+            setIsExecutingRef.current(false);
+            exitRunningModeRef.current();
+            if (result.state === "SUCCESS") {
+              toast.success("执行完成");
+            } else if (result.state === "FAILED") {
+              toast.error("执行失败");
+            } else if (result.state === "WARNING") {
+              toast.warning("执行完成（有警告）");
+            } else if (result.state === "KILLED") {
+              toast.warning("执行已终止");
+            } else if (result.state === "CANCELLED") {
+              toast.info("执行已取消");
+            }
+            return; // stop polling
           }
-          return // stop polling
-        }
-        pollTimerRef.current = setTimeout(tick, 3000)
-      }).catch(() => {
-        if (isMounted) pollTimerRef.current = setTimeout(tick, 3000)
-      })
+          pollTimerRef.current = setTimeout(tick, 3000);
+        })
+        .catch(() => {
+          if (isMounted) pollTimerRef.current = setTimeout(tick, 3000);
+        });
     }
-    pollTimerRef.current = setTimeout(tick, 3000)
+    pollTimerRef.current = setTimeout(tick, 3000);
 
     return () => {
-      isMounted = false
-      clearTimeout(pollTimerRef.current)
-    }
-  }, [currentExecution?.id, currentExecution?.state, isExecuting])
+      isMounted = false;
+      clearTimeout(pollTimerRef.current);
+    };
+  }, [currentExecution?.id, currentExecution?.state, isExecuting]);
 
   const executeTest = trpc.workflow.executeTest.useMutation({
     onSuccess: (result) => {
-      setIsExecuting(true)
-      setCurrentExecution(toExecutionSummary(result))
+      setIsExecuting(true);
+      setCurrentExecution(toExecutionSummary(result));
       // 进入运行态视图 — 使用执行时的节点快照
       const snapshot: RunningSnapshot = {
         nodes: (result.nodes ?? []) as unknown as RunningSnapshot["nodes"],
         edges: (result.edges ?? []) as unknown as RunningSnapshot["edges"],
         inputs: (result.inputs ?? []) as unknown as RunningSnapshot["inputs"],
-      }
-      enterRunningMode(snapshot, "draft")
-      toast.success("测试执行已触发")
-      setShowInputForm(false)
+      };
+      enterRunningMode(snapshot, "draft");
+      toast.success("测试执行已触发");
+      setShowInputForm(false);
     },
     onError: (err) => toast.error(`执行失败: ${err.message}`),
-  })
+  });
 
   const executionReplay = trpc.workflow.executionReplay.useMutation({
     onSuccess: (result) => {
-      setIsExecuting(true)
-      setCurrentExecution(toExecutionSummary(result))
+      setIsExecuting(true);
+      setCurrentExecution(toExecutionSummary(result));
       // Replay 也进入运行态
       const snapshot: RunningSnapshot = {
         nodes: (result.nodes ?? []) as unknown as RunningSnapshot["nodes"],
         edges: (result.edges ?? []) as unknown as RunningSnapshot["edges"],
         inputs: (result.inputs ?? []) as unknown as RunningSnapshot["inputs"],
-      }
-      enterRunningMode(snapshot, "draft")
-      toast.success("Replay 已触发")
+      };
+      enterRunningMode(snapshot, "draft");
+      toast.success("Replay 已触发");
     },
     onError: (err) => toast.error(`Replay 失败: ${err.message}`),
-  })
+  });
 
   const handleExecuteTest = useCallback(() => {
     if (!savedWorkflowId) {
-      toast.warning("请先保存工作流")
-      return
+      toast.warning("请先保存工作流");
+      return;
     }
     if (!kestraHealthy) {
-      toast.warning(kestraError ? `Kestra 未连接：${kestraError}` : "Kestra 未连接，请稍后再试")
-      return
+      toast.warning(kestraError ? `Kestra 未连接：${kestraError}` : "Kestra 未连接，请稍后再试");
+      return;
     }
     if (inputs.length > 0) {
-      setShowInputForm(true)
+      setShowInputForm(true);
     } else {
-      executeTest.mutate({ workflowId: savedWorkflowId })
+      executeTest.mutate({ workflowId: savedWorkflowId });
     }
-  }, [savedWorkflowId, kestraHealthy, kestraError, inputs, executeTest])
+  }, [savedWorkflowId, kestraHealthy, kestraError, inputs, executeTest]);
 
   const handleExecuteWithInputs = useCallback(
     (inputValues: Record<string, string>) => {
-      if (!savedWorkflowId) return
-      executeTest.mutate({ workflowId: savedWorkflowId, inputValues })
+      if (!savedWorkflowId) return;
+      executeTest.mutate({ workflowId: savedWorkflowId, inputValues });
     },
     [savedWorkflowId, executeTest],
-  )
+  );
 
   const handleReplay = useCallback(
     (executionId: string, taskRunId: string) => {
-      executionReplay.mutate({ executionId, taskRunId })
+      executionReplay.mutate({ executionId, taskRunId });
     },
     [executionReplay],
-  )
+  );
 
   // YAML import handler
   const handleYamlImport = useCallback(
     (data: { nodes: WorkflowNode[]; edges: WorkflowEdge[]; inputs: WorkflowInput[] }) => {
-      setWfNodes(data.nodes)
-      setWfEdges(data.edges)
-      setInputs(data.inputs)
-      useWorkflowStore.getState().clearExpandedContainers()
-      setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 100)
+      setWfNodes(data.nodes);
+      setWfEdges(data.edges);
+      setInputs(data.inputs);
+      useWorkflowStore.getState().clearExpandedContainers();
+      setTimeout(() => void fitView({ padding: 0.2, maxZoom: 1 }), 100);
     },
     [setWfNodes, setWfEdges, setInputs, fitView],
-  )
+  );
 
   if (!isLoaded) {
     return (
@@ -1134,7 +1193,7 @@ export default function WorkflowEditorPage() {
           <span className="text-sm text-muted-foreground">加载工作流...</span>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -1142,7 +1201,10 @@ export default function WorkflowEditorPage() {
       {/* 第一层：导航 + 核心操作 */}
       <div className="h-11 md:h-12 border-b border-border bg-card flex items-center justify-between px-2 md:px-4 shrink-0">
         <div className="flex items-center gap-1 md:gap-2">
-          <Link to="/workflows" className="flex items-center text-muted-foreground hover:text-foreground transition-colors">
+          <Link
+            to="/workflows"
+            className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
+          >
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <span className="text-xs text-muted-foreground hidden sm:inline">工作流</span>
@@ -1151,8 +1213,8 @@ export default function WorkflowEditorPage() {
             {workflowMeta.name || workflowMeta.flowId}
           </span>
           {/* 状态标签 — 桌面端完整显示 */}
-          {!isMobile && (
-            viewMode === "running" ? (
+          {!isMobile &&
+            (viewMode === "running" ? (
               <span className="inline-flex items-center gap-1.5">
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/10 text-blue-700 border border-blue-500/20">
                   <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
@@ -1182,8 +1244,7 @@ export default function WorkflowEditorPage() {
                 <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
                 草稿
               </span>
-            )
-          )}
+            ))}
         </div>
         <div className="flex items-center gap-1 md:gap-2">
           {/* Kestra health indicator — 桌面端 */}
@@ -1193,10 +1254,17 @@ export default function WorkflowEditorPage() {
                 ? "text-muted-foreground"
                 : "bg-red-50 text-red-600 border border-red-200 cursor-help dark:bg-red-950 dark:text-red-400 dark:border-red-800"
             }`}
-            title={kestraHealthy ? "Kestra 已连接" : (kestraError || "Kestra 未连接")}
+            title={kestraHealthy ? "Kestra 已连接" : kestraError || "Kestra 未连接"}
           >
-            <div className={`w-2 h-2 rounded-full ${kestraHealthy ? "bg-green-500" : "bg-red-400 animate-pulse"}`} />
-            <span>Kestra{!kestraHealthy && kestraError ? ` · ${kestraError.slice(0, 40)}${kestraError.length > 40 ? "…" : ""}` : ""}</span>
+            <div
+              className={`w-2 h-2 rounded-full ${kestraHealthy ? "bg-green-500" : "bg-red-400 animate-pulse"}`}
+            />
+            <span>
+              Kestra
+              {!kestraHealthy && kestraError
+                ? ` · ${kestraError.slice(0, 40)}${kestraError.length > 40 ? "…" : ""}`
+                : ""}
+            </span>
           </div>
 
           {/* === 移动端紧凑按钮 === */}
@@ -1247,7 +1315,10 @@ export default function WorkflowEditorPage() {
                     <div className="absolute right-0 top-full mt-1 z-50 w-52 bg-card border border-border rounded-lg shadow-lg py-1">
                       <button
                         className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center gap-2"
-                        onClick={() => { handleSaveDraft(); setMoreMenuOpen(false) }}
+                        onClick={() => {
+                          handleSaveDraft();
+                          setMoreMenuOpen(false);
+                        }}
                         disabled={!savedWorkflowId || draftSave.isPending}
                       >
                         <ScrollText className="w-4 h-4" />
@@ -1255,21 +1326,33 @@ export default function WorkflowEditorPage() {
                       </button>
                       <button
                         className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center gap-2"
-                        onClick={() => { setRightPanel("yaml"); setSelectedNodeId(null); setMoreMenuOpen(false) }}
+                        onClick={() => {
+                          setRightPanel("yaml");
+                          setSelectedNodeId(null);
+                          setMoreMenuOpen(false);
+                        }}
                       >
                         <FileCode2 className="w-4 h-4" />
                         YAML
                       </button>
                       <button
                         className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center gap-2"
-                        onClick={() => { setRightPanel("releases"); setSelectedNodeId(null); setMoreMenuOpen(false) }}
+                        onClick={() => {
+                          setRightPanel("releases");
+                          setSelectedNodeId(null);
+                          setMoreMenuOpen(false);
+                        }}
                       >
                         <GitBranch className="w-4 h-4" />
                         版本
                       </button>
                       <button
                         className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center gap-2"
-                        onClick={() => { setRightPanel("executions"); setSelectedNodeId(null); setMoreMenuOpen(false) }}
+                        onClick={() => {
+                          setRightPanel("executions");
+                          setSelectedNodeId(null);
+                          setMoreMenuOpen(false);
+                        }}
                       >
                         <History className="w-4 h-4" />
                         执行历史
@@ -1277,7 +1360,10 @@ export default function WorkflowEditorPage() {
                       <div className="h-px bg-border my-1" />
                       <button
                         className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center gap-2"
-                        onClick={() => { setShowPublishDialog(true); setMoreMenuOpen(false) }}
+                        onClick={() => {
+                          setShowPublishDialog(true);
+                          setMoreMenuOpen(false);
+                        }}
                         disabled={!savedWorkflowId || releasePublish.isPending}
                       >
                         <Rocket className="w-4 h-4" />
@@ -1285,7 +1371,11 @@ export default function WorkflowEditorPage() {
                       </button>
                       <button
                         className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center gap-2"
-                        onClick={() => { setRightPanel("settings"); setSelectedNodeId(null); setMoreMenuOpen(false) }}
+                        onClick={() => {
+                          setRightPanel("settings");
+                          setSelectedNodeId(null);
+                          setMoreMenuOpen(false);
+                        }}
                       >
                         <Settings2 className="w-4 h-4" />
                         设置
@@ -1348,46 +1438,51 @@ export default function WorkflowEditorPage() {
       {/* 第二层：Tab 栏 — 移动端隐藏 */}
       {!isMobile && (
         <EditorTabBar
-        activeTab={
-          rightPanel === "task" || rightPanel === "drafts" || rightPanel === "production-executions"
-            ? "canvas"
-            : rightPanel === "none"
+          activeTab={
+            rightPanel === "task" ||
+            rightPanel === "drafts" ||
+            rightPanel === "production-executions"
               ? "canvas"
-              : rightPanel as TabKey
-        }
-        onTabChange={(tab) => {
-          const panelMap: Record<string, typeof rightPanel> = {
-            canvas: "none",
-            yaml: "yaml",
-            inputs: "inputs",
-            executions: "executions",
-            versions: "releases",
-            triggers: "triggers",
-            settings: "settings",
+              : rightPanel === "none"
+                ? "canvas"
+                : (rightPanel as TabKey)
           }
-          setRightPanel(panelMap[tab] ?? "none")
-          setSelectedNodeId(null)
-        }}
-        onOpenInNewPage={(tab) => {
-          const routeMap: Record<string, string> = {
-            executions: `/workflows/${workflowId}/executions`,
-            versions: `/workflows/${workflowId}/versions`,
-            triggers: `/workflows/${workflowId}/triggers`,
-          }
-          const url = routeMap[tab]
-          if (url) {
-            window.open(url, "_blank")
-          }
-        }}
-      />
+          onTabChange={(tab) => {
+            const panelMap: Record<string, typeof rightPanel> = {
+              canvas: "none",
+              yaml: "yaml",
+              inputs: "inputs",
+              executions: "executions",
+              versions: "releases",
+              triggers: "triggers",
+              settings: "settings",
+            };
+            setRightPanel(panelMap[tab] ?? "none");
+            setSelectedNodeId(null);
+          }}
+          onOpenInNewPage={(tab) => {
+            const routeMap: Record<string, string> = {
+              executions: `/workflows/${workflowId}/executions`,
+              versions: `/workflows/${workflowId}/versions`,
+              triggers: `/workflows/${workflowId}/triggers`,
+            };
+            const url = routeMap[tab];
+            if (url) {
+              window.open(url, "_blank");
+            }
+          }}
+        />
       )}
 
       {/* Canvas */}
       <div className="flex-1 relative">
-        <div ref={reactFlowWrapper} className="w-full h-full"
+        <div
+          ref={reactFlowWrapper}
+          className="w-full h-full"
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
-          onTouchMove={handleTouchMove}>
+          onTouchMove={handleTouchMove}
+        >
           <ReactFlow
             nodes={canvasNodes}
             edges={canvasEdges}
@@ -1408,9 +1503,9 @@ export default function WorkflowEditorPage() {
             // 左键操控节点/框选，右键拖拽平移画布
             panOnDrag={viewMode !== "running" ? [1] : true}
             selectionOnDrag={viewMode !== "running"}
-            onContextMenu={viewMode !== "running"
-              ? (e: React.MouseEvent) => e.preventDefault()
-              : undefined}
+            onContextMenu={
+              viewMode !== "running" ? (e: React.MouseEvent) => e.preventDefault() : undefined
+            }
             fitView
             fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
             minZoom={0.2}
@@ -1465,17 +1560,17 @@ export default function WorkflowEditorPage() {
             onQueryChange={setSearchQuery}
             results={searchResults}
             onSelect={handleSearchSelect}
-            onClose={() => { setSearchOpen(false); setSearchQuery("") }}
+            onClose={() => {
+              setSearchOpen(false);
+              setSearchQuery("");
+            }}
             inputRef={searchInputRef}
           />
         )}
 
         {/* 左侧插件面板 — 桌面端 */}
         {!isMobile && (
-          <NodeCreatePanel
-            isOpen={panelOpen}
-            onToggle={() => setPanelOpen(!panelOpen)}
-          />
+          <NodeCreatePanel isOpen={panelOpen} onToggle={() => setPanelOpen(!panelOpen)} />
         )}
       </div>
 
@@ -1490,7 +1585,11 @@ export default function WorkflowEditorPage() {
               <MobileNodePanel />
             </div>
             <div className="px-4 pb-4 pt-2 border-t border-border">
-              <Button variant="outline" className="w-full" onClick={() => setNodeCreateDrawerOpen(false)}>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => setNodeCreateDrawerOpen(false)}
+              >
                 关闭
               </Button>
             </div>
@@ -1499,42 +1598,43 @@ export default function WorkflowEditorPage() {
       )}
 
       {/* 右键菜单 */}
-      {contextMenu && (() => {
-        const ctxNode = wfNodes.find((n) => n.id === contextMenu.nodeId)
-        if (!ctxNode) return null
-        return (
-          <NodeContextMenu
-            position={contextMenu.position}
-            onClose={() => setContextMenu(null)}
-            onDelete={() => {
-              setSelectedNodeId(contextMenu.nodeId)
-              handleDeleteSelected()
-              setContextMenu(null)
-            }}
-            onDuplicate={() => {
-              setSelectedNodeId(contextMenu.nodeId)
-              handleDuplicate()
-              setContextMenu(null)
-            }}
-            isContainer={isContainer(ctxNode.type)}
-            isCollapsed={ctxNode.ui?.collapsed ?? false}
-            onToggleCollapse={() => {
-              const state = useWorkflowStore.getState()
-              const node = state.nodes.find((n) => n.id === contextMenu.nodeId)
-              // 展开时检查嵌套深度
-              if (node?.ui?.collapsed) {
-                if (!canExpandContainer(contextMenu.nodeId, state.nodes)) {
-                  toast.warning("已达到最大嵌套层级")
-                  setContextMenu(null)
-                  return
+      {contextMenu &&
+        (() => {
+          const ctxNode = wfNodes.find((n) => n.id === contextMenu.nodeId);
+          if (!ctxNode) return null;
+          return (
+            <NodeContextMenu
+              position={contextMenu.position}
+              onClose={() => setContextMenu(null)}
+              onDelete={() => {
+                setSelectedNodeId(contextMenu.nodeId);
+                handleDeleteSelected();
+                setContextMenu(null);
+              }}
+              onDuplicate={() => {
+                setSelectedNodeId(contextMenu.nodeId);
+                handleDuplicate();
+                setContextMenu(null);
+              }}
+              isContainer={isContainer(ctxNode.type)}
+              isCollapsed={ctxNode.ui?.collapsed ?? false}
+              onToggleCollapse={() => {
+                const state = useWorkflowStore.getState();
+                const node = state.nodes.find((n) => n.id === contextMenu.nodeId);
+                // 展开时检查嵌套深度
+                if (node?.ui?.collapsed) {
+                  if (!canExpandContainer(contextMenu.nodeId, state.nodes)) {
+                    toast.warning("已达到最大嵌套层级");
+                    setContextMenu(null);
+                    return;
+                  }
                 }
-              }
-              state.toggleCollapse(contextMenu.nodeId)
-              setContextMenu(null)
-            }}
-          />
-        )
-      })()}
+                state.toggleCollapse(contextMenu.nodeId);
+                setContextMenu(null);
+              }}
+            />
+          );
+        })()}
 
       {/* 右侧面板 */}
       {rightPanel === "task" && selectedNodeForPanel && (
@@ -1565,11 +1665,13 @@ export default function WorkflowEditorPage() {
         />
       )}
       {rightPanel === "yaml" && (
-        <Suspense fallback={
-          <div className="fixed top-0 right-0 h-screen w-full md:w-[560px] bg-background border-l border-border flex items-center justify-center">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-          </div>
-        }>
+        <Suspense
+          fallback={
+            <div className="fixed top-0 right-0 h-screen w-full md:w-[560px] bg-background border-l border-border flex items-center justify-center">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+            </div>
+          }
+        >
           <KestraYamlPanel
             nodes={wfNodes}
             edges={wfEdges}
@@ -1588,9 +1690,7 @@ export default function WorkflowEditorPage() {
             id: d.id,
             message: d.message,
             createdAt:
-              d.createdAt instanceof Date
-                ? d.createdAt.toISOString()
-                : String(d.createdAt),
+              d.createdAt instanceof Date ? d.createdAt.toISOString() : String(d.createdAt),
           }))}
           onRollback={handleDraftRollback}
           onClose={() => setRightPanel("none")}
@@ -1604,19 +1704,14 @@ export default function WorkflowEditorPage() {
             name: r.name,
             yaml: r.yaml,
             publishedAt:
-              r.publishedAt instanceof Date
-                ? r.publishedAt.toISOString()
-                : String(r.publishedAt),
+              r.publishedAt instanceof Date ? r.publishedAt.toISOString() : String(r.publishedAt),
           }))}
           onRollback={handleReleaseRollback}
           onClose={() => setRightPanel("none")}
         />
       )}
       {rightPanel === "triggers" && savedWorkflowId && (
-        <TriggerPanel
-          workflowId={savedWorkflowId}
-          onCreate={() => setShowTriggerForm(true)}
-        />
+        <TriggerPanel workflowId={savedWorkflowId} onCreate={() => setShowTriggerForm(true)} />
       )}
       {showPublishDialog && (
         <PublishDialog
@@ -1640,18 +1735,15 @@ export default function WorkflowEditorPage() {
           releases={releases.map((r) => ({ id: r.id, version: r.version, name: r.name }))}
           onClose={() => setShowTriggerForm(false)}
           onCreated={() => {
-            setShowTriggerForm(false)
-            utils.workflow.triggerList.invalidate({ workflowId: savedWorkflowId })
+            setShowTriggerForm(false);
+            void utils.workflow.triggerList.invalidate({ workflowId: savedWorkflowId });
           }}
         />
       )}
 
       {/* M4: Execution */}
       {currentExecution && (
-        <ExecutionDrawer
-          onClose={() => setCurrentExecution(null)}
-          onReplay={handleReplay}
-        />
+        <ExecutionDrawer onClose={() => setCurrentExecution(null)} onReplay={handleReplay} />
       )}
 
       {showInputForm && (
@@ -1666,18 +1758,15 @@ export default function WorkflowEditorPage() {
         <ExecutionHistory
           workflowId={savedWorkflowId}
           onSelect={(exec) => {
-            setCurrentExecution(exec)
-            setRightPanel("none")
+            setCurrentExecution(exec);
+            setRightPanel("none");
           }}
           onClose={() => setRightPanel("none")}
         />
       )}
 
       {rightPanel === "production-executions" && savedWorkflowId && (
-        <ProductionExecHistory
-          workflowId={savedWorkflowId}
-          onClose={() => setRightPanel("none")}
-        />
+        <ProductionExecHistory workflowId={savedWorkflowId} onClose={() => setRightPanel("none")} />
       )}
 
       {rightPanel === "settings" && (
@@ -1696,11 +1785,7 @@ export default function WorkflowEditorPage() {
       />
 
       {/* 底部状态条：缺失引用 */}
-      <ReferenceStatusBar
-        missingRefs={missingRefs}
-        onNavigateToSettings={navigateToSettings}
-      />
-
+      <ReferenceStatusBar missingRefs={missingRefs} onNavigateToSettings={navigateToSettings} />
     </div>
-  )
+  );
 }

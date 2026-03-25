@@ -1,10 +1,10 @@
-import { useState, useMemo, useEffect } from "react"
-import { useNavigate } from "@tanstack/react-router"
-import { trpc } from "@/lib/trpc"
-import { useWorkflowStore } from "@/stores/workflow"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
+import { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { trpc } from "@/lib/trpc";
+import { useWorkflowStore } from "@/stores/workflow";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   Card,
   CardHeader,
@@ -13,7 +13,7 @@ import {
   CardAction,
   CardContent,
   CardFooter,
-} from "@/components/ui/card"
+} from "@/components/ui/card";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -23,14 +23,14 @@ import {
   AlertDialogFooter,
   AlertDialogAction,
   AlertDialogCancel,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 import {
   Plus,
   Trash2,
@@ -47,149 +47,148 @@ import {
   FilePlus,
   LayoutTemplate,
   FileDown,
-} from "lucide-react"
-import { toast } from "sonner"
-import { Skeleton } from "@/components/ui/skeleton"
+} from "lucide-react";
+import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
 
 function formatDate(date: Date | string) {
-  const d = new Date(date)
+  const d = new Date(date);
   return d.toLocaleString("zh-CN", {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-  })
+  });
 }
 
 function formatRelativeTime(iso: string): string {
-  const date = new Date(iso)
-  const now = Date.now()
-  const diffMs = now - date.getTime()
-  const absDiff = Math.abs(diffMs)
+  const date = new Date(iso);
+  const now = Date.now();
+  const diffMs = now - date.getTime();
+  const absDiff = Math.abs(diffMs);
 
-  if (absDiff < 60_000) return "刚刚"
+  if (absDiff < 60_000) return "刚刚";
 
-  const minutes = Math.floor(absDiff / 60_000)
-  if (minutes < 60) return `${minutes} 分钟前`
+  const minutes = Math.floor(absDiff / 60_000);
+  if (minutes < 60) return `${minutes} 分钟前`;
 
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours} 小时前`
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} 小时前`;
 
-  const days = Math.floor(hours / 24)
-  if (days < 30) return `${days} 天前`
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} 天前`;
 
-  return date.toLocaleDateString("zh-CN")
+  return date.toLocaleDateString("zh-CN");
 }
 
 function StateIcon({ state }: { state: string }) {
-  if (state === "SUCCESS") return <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+  if (state === "SUCCESS") return <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />;
   if (state === "FAILED" || state === "KILLED" || state === "CANCELLED")
-    return <XCircle className="h-3.5 w-3.5 text-red-500" />
+    return <XCircle className="h-3.5 w-3.5 text-red-500" />;
   if (state === "RUNNING" || state === "CREATED" || state === "RESTARTED")
-    return <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-500" />
-  return <Zap className="h-3.5 w-3.5 text-muted-foreground" />
+    return <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-500" />;
+  return <Zap className="h-3.5 w-3.5 text-muted-foreground" />;
 }
 
 function stateLabel(state: string): string {
   switch (state) {
     case "SUCCESS":
-      return "成功"
+      return "成功";
     case "FAILED":
-      return "失败"
+      return "失败";
     case "KILLED":
-      return "已终止"
+      return "已终止";
     case "CANCELLED":
-      return "已取消"
+      return "已取消";
     case "RUNNING":
-      return "运行中"
+      return "运行中";
     case "CREATED":
-      return "已创建"
+      return "已创建";
     case "RESTARTED":
-      return "已重启"
+      return "已重启";
     default:
-      return state
+      return state;
   }
 }
 
-type StatusFilter = "all" | "draft"
+type StatusFilter = "all" | "draft";
 
 export default function WorkflowListPage() {
-  const navigate = useNavigate()
-  const utils = trpc.useUtils()
-  const hasNamespaces = useWorkflowStore((s) => s.hasNamespaces)
-  const currentNamespace = useWorkflowStore((s) => s.currentNamespace)
-  const { data: workflows, isLoading } = trpc.workflow.listEnriched.useQuery(
-    undefined,
-    { enabled: !!currentNamespace },
-  )
+  const navigate = useNavigate();
+  const utils = trpc.useUtils();
+  const hasNamespaces = useWorkflowStore((s) => s.hasNamespaces);
+  const currentNamespace = useWorkflowStore((s) => s.currentNamespace);
+  const { data: workflows, isLoading } = trpc.workflow.listEnriched.useQuery(undefined, {
+    enabled: !!currentNamespace,
+  });
 
   // 没有 namespace 时引导到 setup 页
   useEffect(() => {
     if (!hasNamespaces) {
-      navigate({ to: "/setup" })
+      void navigate({ to: "/setup" });
     }
-  }, [hasNamespaces, navigate])
+  }, [hasNamespaces, navigate]);
   const createWorkflow = trpc.workflow.create.useMutation({
     onSuccess: (result) => {
-      utils.workflow.listEnriched.invalidate()
-      navigate({ to: "/workflows/$workflowId/edit", params: { workflowId: result.id } })
+      void utils.workflow.listEnriched.invalidate();
+      void navigate({ to: "/workflows/$workflowId/edit", params: { workflowId: result.id } });
     },
     onError: () => toast.error("创建工作流失败"),
-  })
+  });
   const deleteWorkflow = trpc.workflow.delete.useMutation({
     onSuccess: () => {
-      toast.success("工作流已删除")
-      utils.workflow.listEnriched.invalidate()
+      toast.success("工作流已删除");
+      void utils.workflow.listEnriched.invalidate();
     },
     onError: () => toast.error("删除失败"),
-  })
+  });
 
-  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
-  const [search, setSearch] = useState("")
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
-  const [showCreateDialog, setShowCreateDialog] = useState(false)
-  const [newWorkflowName, setNewWorkflowName] = useState("")
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [newWorkflowName, setNewWorkflowName] = useState("");
 
   const filteredWorkflows = useMemo(() => {
-    if (!workflows) return []
+    if (!workflows) return [];
     return workflows.filter((wf) => {
       // Status filter
-      if (statusFilter === "draft" && wf.publishedVersion > 0) return false
+      if (statusFilter === "draft" && wf.publishedVersion > 0) return false;
 
       // Search filter
       if (search) {
-        const q = search.toLowerCase()
+        const q = search.toLowerCase();
         if (!wf.name.toLowerCase().includes(q) && !wf.flowId.toLowerCase().includes(q)) {
-          return false
+          return false;
         }
       }
 
-      return true
-    })
-  }, [workflows, search, statusFilter])
+      return true;
+    });
+  }, [workflows, search, statusFilter]);
 
   const handleCreate = () => {
-    setNewWorkflowName("")
-    setShowCreateDialog(true)
-  }
+    setNewWorkflowName("");
+    setShowCreateDialog(true);
+  };
 
   const handleConfirmCreate = () => {
-    const name = newWorkflowName.trim()
-    if (!name) return
-    setShowCreateDialog(false)
+    const name = newWorkflowName.trim();
+    if (!name) return;
+    setShowCreateDialog(false);
     createWorkflow.mutate({
       name,
       flowId: `new-flow-${Date.now()}`,
       namespaceId: currentNamespace!,
-    })
-  }
+    });
+  };
 
   const handleDelete = () => {
     if (deleteTarget) {
-      deleteWorkflow.mutate({ id: deleteTarget })
-      setDeleteTarget(null)
+      deleteWorkflow.mutate({ id: deleteTarget });
+      setDeleteTarget(null);
     }
-  }
+  };
 
   return (
     <div className="flex-1 overflow-auto p-6">
@@ -292,16 +291,19 @@ export default function WorkflowListPage() {
               <Card
                 key={wf.id}
                 className="group relative cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:ring-foreground/20"
-                onClick={() => navigate({ to: "/workflows/$workflowId/edit", params: { workflowId: wf.id } })}
+                onClick={() =>
+                  navigate({ to: "/workflows/$workflowId/edit", params: { workflowId: wf.id } })
+                }
               >
                 <CardHeader>
                   <div className="flex items-start justify-between">
-                    <CardTitle className="truncate pr-2 text-base">
-                      {wf.name}
-                    </CardTitle>
+                    <CardTitle className="truncate pr-2 text-base">{wf.name}</CardTitle>
                     <CardAction>
                       {wf.publishedVersion > 0 ? (
-                        <Badge variant="default" className="gap-0.5 bg-green-500/15 text-green-700 dark:text-green-400">
+                        <Badge
+                          variant="default"
+                          className="gap-0.5 bg-green-500/15 text-green-700 dark:text-green-400"
+                        >
                           v{wf.publishedVersion}
                         </Badge>
                       ) : (
@@ -342,7 +344,8 @@ export default function WorkflowListPage() {
                       <div className="flex items-center gap-1.5 text-xs">
                         <StateIcon state={wf.lastExecution.state} />
                         <span className="text-muted-foreground">
-                          {stateLabel(wf.lastExecution.state)} · {formatRelativeTime(wf.lastExecution.createdAt)}
+                          {stateLabel(wf.lastExecution.state)} ·{" "}
+                          {formatRelativeTime(wf.lastExecution.createdAt)}
                         </span>
                       </div>
                     )}
@@ -361,8 +364,8 @@ export default function WorkflowListPage() {
                       size="icon"
                       className="h-7 w-7 text-muted-foreground opacity-0 transition-all hover:text-destructive group-hover:opacity-100"
                       onClick={(e) => {
-                        e.stopPropagation()
-                        setDeleteTarget(wf.id)
+                        e.stopPropagation();
+                        setDeleteTarget(wf.id);
                       }}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -376,7 +379,12 @@ export default function WorkflowListPage() {
       </div>
 
       {/* Create workflow dialog */}
-      <Dialog open={showCreateDialog} onOpenChange={(open) => { if (!open) setShowCreateDialog(false) }}>
+      <Dialog
+        open={showCreateDialog}
+        onOpenChange={(open) => {
+          if (!open) setShowCreateDialog(false);
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>新建工作流</DialogTitle>
@@ -386,13 +394,20 @@ export default function WorkflowListPage() {
               placeholder="请输入工作流名称"
               value={newWorkflowName}
               onChange={(e) => setNewWorkflowName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") handleConfirmCreate() }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleConfirmCreate();
+              }}
               autoFocus
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>取消</Button>
-            <Button onClick={handleConfirmCreate} disabled={!newWorkflowName.trim() || createWorkflow.isPending}>
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+              取消
+            </Button>
+            <Button
+              onClick={handleConfirmCreate}
+              disabled={!newWorkflowName.trim() || createWorkflow.isPending}
+            >
               {createWorkflow.isPending ? "创建中..." : "创建"}
             </Button>
           </DialogFooter>
@@ -415,5 +430,5 @@ export default function WorkflowListPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  )
+  );
 }

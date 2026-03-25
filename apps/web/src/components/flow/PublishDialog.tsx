@@ -3,35 +3,35 @@
  * 用户填写版本名称 → 生成 YAML → 发布
  */
 
-import { useState, useCallback, useMemo } from "react"
-import Editor from "@monaco-editor/react"
-import type { WorkflowNode, WorkflowEdge, WorkflowInput } from "@/types/workflow"
-import type { ApiWorkflowVariable } from "@/types/api"
-import { toKestraYaml } from "@/lib/yamlConverter"
-import { diffNodes } from "@/lib/diff"
-import { DiffSummary } from "@/components/flow/DiffSummary"
-import { Rocket } from "lucide-react"
+import { useState, useCallback, useMemo } from "react";
+import Editor from "@monaco-editor/react";
+import type { WorkflowNode, WorkflowEdge, WorkflowInput } from "@/types/workflow";
+import type { ApiWorkflowVariable } from "@/types/api";
+import { toKestraYaml } from "@/lib/yamlConverter";
+import { diffNodes } from "@/lib/diff";
+import { DiffSummary } from "@/components/flow/DiffSummary";
+import { Rocket } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 interface PublishDialogProps {
-  nodes: WorkflowNode[]
-  edges: WorkflowEdge[]
-  inputs: WorkflowInput[]
-  variables: ApiWorkflowVariable[]
-  flowId: string
-  namespace: string
-  nextVersion: number
-  isPublishing: boolean
-  prevReleaseNodes?: WorkflowNode[]
-  onPublish: (name: string, yaml: string) => void
-  onClose: () => void
+  nodes: WorkflowNode[];
+  edges: WorkflowEdge[];
+  inputs: WorkflowInput[];
+  variables: ApiWorkflowVariable[];
+  flowId: string;
+  namespace: string;
+  nextVersion: number;
+  isPublishing: boolean;
+  prevReleaseNodes?: WorkflowNode[];
+  onPublish: (name: string, yaml: string) => void;
+  onClose: () => void;
 }
 
 export function PublishDialog({
@@ -47,26 +47,34 @@ export function PublishDialog({
   onPublish,
   onClose,
 }: PublishDialogProps) {
-  const [name, setName] = useState(`v${nextVersion} 正式版`)
-  const [showYaml, setShowYaml] = useState(false)
+  const [name, setName] = useState(`v${nextVersion} 正式版`);
+  const [showYaml, setShowYaml] = useState(false);
 
   const yaml = useMemo(
     () => toKestraYaml(nodes, edges, inputs, variables, flowId, namespace),
     [nodes, edges, inputs, variables, flowId, namespace],
-  )
+  );
 
   const diffResult = useMemo(
-    () => prevReleaseNodes ? diffNodes(prevReleaseNodes, nodes) : { added: nodes, removed: [], modified: [] },
+    () =>
+      prevReleaseNodes
+        ? diffNodes(prevReleaseNodes, nodes)
+        : { added: nodes, removed: [], modified: [] },
     [prevReleaseNodes, nodes],
-  )
+  );
 
   const handlePublish = useCallback(() => {
-    if (!name.trim()) return
-    onPublish(name.trim(), yaml)
-  }, [name, yaml, onPublish])
+    if (!name.trim()) return;
+    onPublish(name.trim(), yaml);
+  }, [name, yaml, onPublish]);
 
   return (
-    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -130,15 +138,14 @@ export function PublishDialog({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>取消</Button>
-          <Button
-            onClick={handlePublish}
-            disabled={!name.trim() || isPublishing}
-          >
+          <Button variant="outline" onClick={onClose}>
+            取消
+          </Button>
+          <Button onClick={handlePublish} disabled={!name.trim() || isPublishing}>
             {isPublishing ? "发布中..." : `发布 v${nextVersion}`}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

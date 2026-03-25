@@ -1,13 +1,13 @@
-import { memo } from "react"
-import { Search, X } from "lucide-react"
+import { memo } from "react";
+import { Search, X } from "lucide-react";
 
 interface SearchOverlayProps {
-  searchQuery: string
-  onQueryChange: (q: string) => void
-  results: { id: string; name: string }[]
-  onSelect: (id: string) => void
-  onClose: () => void
-  inputRef: React.RefObject<HTMLInputElement | null>
+  searchQuery: string;
+  onQueryChange: (q: string) => void;
+  results: { id: string; name: string }[];
+  onSelect: (id: string) => void;
+  onClose: () => void;
+  inputRef: React.RefObject<HTMLInputElement | null>;
 }
 
 export const SearchOverlay = memo(function SearchOverlay({
@@ -28,7 +28,7 @@ export const SearchOverlay = memo(function SearchOverlay({
           value={searchQuery}
           onChange={(e) => onQueryChange(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Escape") onClose()
+            if (e.key === "Escape") onClose();
           }}
           placeholder="搜索节点名称..."
           className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground"
@@ -41,9 +41,7 @@ export const SearchOverlay = memo(function SearchOverlay({
       {searchQuery.trim() && (
         <div className="max-h-60 overflow-y-auto py-1">
           {results.length === 0 ? (
-            <div className="px-3 py-4 text-xs text-muted-foreground text-center">
-              无匹配结果
-            </div>
+            <div className="px-3 py-4 text-xs text-muted-foreground text-center">无匹配结果</div>
           ) : (
             results.map((node) => (
               <button
@@ -58,5 +56,5 @@ export const SearchOverlay = memo(function SearchOverlay({
         </div>
       )}
     </div>
-  )
-})
+  );
+});

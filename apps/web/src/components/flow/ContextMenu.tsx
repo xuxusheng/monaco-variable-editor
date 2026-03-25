@@ -1,16 +1,16 @@
-import { useEffect, useRef } from "react"
-import { Copy, FolderOpen, AlertTriangle, Flag, Trash2 } from "lucide-react"
+import { useEffect, useRef } from "react";
+import { Copy, FolderOpen, AlertTriangle, Flag, Trash2 } from "lucide-react";
 
 interface ContextMenuProps {
-  position: { x: number; y: number }
-  onClose: () => void
-  onDelete: () => void
-  onDuplicate: () => void
-  onAddErrors?: () => void
-  onAddFinally?: () => void
-  isContainer?: boolean
-  isCollapsed?: boolean
-  onToggleCollapse?: () => void
+  position: { x: number; y: number };
+  onClose: () => void;
+  onDelete: () => void;
+  onDuplicate: () => void;
+  onAddErrors?: () => void;
+  onAddFinally?: () => void;
+  isContainer?: boolean;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 export function ContextMenu({
@@ -24,27 +24,27 @@ export function ContextMenu({
   isCollapsed,
   onToggleCollapse,
 }: ContextMenuProps) {
-  const ref = useRef<HTMLDivElement>(null)
+  const ref = useRef<HTMLDivElement>(null);
 
   // 外部点击关闭
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
-        onClose()
+        onClose();
       }
-    }
-    document.addEventListener("mousedown", handler)
-    return () => document.removeEventListener("mousedown", handler)
-  }, [onClose])
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [onClose]);
 
   // ESC 关闭
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose()
-    }
-    document.addEventListener("keydown", handler)
-    return () => document.removeEventListener("keydown", handler)
-  }, [onClose])
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
 
   return (
     <div
@@ -105,5 +105,5 @@ export function ContextMenu({
         <Trash2 className="w-3.5 h-3.5" /> 删除
       </button>
     </div>
-  )
+  );
 }

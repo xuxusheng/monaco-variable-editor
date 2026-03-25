@@ -1,17 +1,12 @@
-import { memo } from "react"
-import {
-  LayoutDashboard,
-  Maximize2,
-  BookTemplate,
-  BookmarkPlus,
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { memo } from "react";
+import { LayoutDashboard, Maximize2, BookTemplate, BookmarkPlus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface CanvasToolbarProps {
-  onAutoLayout: () => void
-  onFitView: () => void
-  onFromTemplate: () => void
-  onSaveAsTemplate: () => void
+  onAutoLayout: () => void;
+  onFitView: () => void;
+  onFromTemplate: () => void;
+  onSaveAsTemplate: () => void;
 }
 
 export const CanvasToolbar = memo(function CanvasToolbar({
@@ -60,5 +55,5 @@ export const CanvasToolbar = memo(function CanvasToolbar({
         <BookmarkPlus className="w-4 h-4" />
       </Button>
     </div>
-  )
-})
+  );
+});

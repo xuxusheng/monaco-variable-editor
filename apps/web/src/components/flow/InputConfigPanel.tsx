@@ -1,54 +1,65 @@
-import { useState, useEffect } from "react"
-import type { KestraInput } from "@/types/kestra"
-import { Download } from "lucide-react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
-import { Button } from "@/components/ui/button"
+import { useState, useEffect } from "react";
+import type { KestraInput } from "@/types/kestra";
+import { Download } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 
 interface InputConfigPanelProps {
-  inputs: KestraInput[]
-  onUpdate: (inputs: KestraInput[]) => void
-  onClose: () => void
+  inputs: KestraInput[];
+  onUpdate: (inputs: KestraInput[]) => void;
+  onClose: () => void;
 }
 
-const INPUT_TYPES = ["STRING", "INT", "FLOAT", "BOOL", "JSON", "URI", "DATE"]
+const INPUT_TYPES = ["STRING", "INT", "FLOAT", "BOOL", "JSON", "URI", "DATE"];
 
 export function InputConfigPanel({ inputs, onUpdate, onClose }: InputConfigPanelProps) {
-  const [editingInputs, setEditingInputs] = useState<KestraInput[]>(inputs)
+  const [editingInputs, setEditingInputs] = useState<KestraInput[]>(inputs);
 
   useEffect(() => {
-    setEditingInputs(inputs)
-  }, [inputs])
+    setEditingInputs(inputs);
+  }, [inputs]);
 
   const handleUpdate = (index: number, field: keyof KestraInput, value: string | boolean) => {
-    const updated = [...editingInputs]
-    updated[index] = { ...updated[index], [field]: value }
-    setEditingInputs(updated)
-    onUpdate(updated)
-  }
+    const updated = [...editingInputs];
+    updated[index] = { ...updated[index], [field]: value };
+    setEditingInputs(updated);
+    onUpdate(updated);
+  };
 
   const handleAdd = () => {
     const newInput: KestraInput = {
       id: `input_${editingInputs.length + 1}`,
       type: "STRING",
       description: "",
-    }
-    const updated = [...editingInputs, newInput]
-    setEditingInputs(updated)
-    onUpdate(updated)
-  }
+    };
+    const updated = [...editingInputs, newInput];
+    setEditingInputs(updated);
+    onUpdate(updated);
+  };
 
   const handleRemove = (index: number) => {
-    const updated = editingInputs.filter((_, i) => i !== index)
-    setEditingInputs(updated)
-    onUpdate(updated)
-  }
+    const updated = editingInputs.filter((_, i) => i !== index);
+    setEditingInputs(updated);
+    onUpdate(updated);
+  };
 
   return (
-    <Dialog open={true} onOpenChange={(open) => { if (!open) onClose() }}>
+    <Dialog
+      open={true}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -90,7 +101,9 @@ export function InputConfigPanel({ inputs, onUpdate, onClose }: InputConfigPanel
                     </SelectTrigger>
                     <SelectContent>
                       {INPUT_TYPES.map((t) => (
-                        <SelectItem key={t} value={t}>{t}</SelectItem>
+                        <SelectItem key={t} value={t}>
+                          {t}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -140,5 +153,5 @@ export function InputConfigPanel({ inputs, onUpdate, onClose }: InputConfigPanel
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
