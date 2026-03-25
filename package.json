@@ -1,9 +1,9 @@
 {
   "name": "weave",
   "private": true,
-  "workspaces": ["apps/*"],
+  "workspaces": ["apps/*", "packages/*"],
   "scripts": {
-    "dev": "bun run --filter '*' dev",
+    "dev": "bun run --parallel --filter '*' dev",
     "dev:web": "bun run --filter @weave/web dev",
     "dev:api": "bun run --filter @weave/api dev",
     "build": "bun run --filter '*' build",

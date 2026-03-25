@@ -12,7 +12,10 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.5.0",
     "@prisma/client": "^7.5.0",
+    "@sindresorhus/slugify": "^3.0.0",
     "@trpc/server": "^11.15.0",
+    "@weave/shared": "workspace:*",
+    "cron-parser": "^5.5.0",
     "dotenv": "^17.3.1",
     "hono": "^4.12.9",
     "pg": "^8.20.0",

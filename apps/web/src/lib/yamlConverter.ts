@@ -8,7 +8,7 @@
 import YAML from "yaml"
 import type { WorkflowNode, WorkflowEdge, WorkflowInput } from "@/types/workflow"
 import type { ApiWorkflowVariable } from "@/types/api"
-import { uniqueSlug } from "./slug"
+import { uniqueSlug } from "@weave/shared/slug"
 import { getChildren } from "./containerUtils"
 
 // ========== 提取 spec ==========

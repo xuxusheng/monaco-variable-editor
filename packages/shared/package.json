@@ -1,0 +1,35 @@
+{
+  "name": "@weave/shared",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "bun": "./src/index.ts",
+      "import": "./dist/index.js"
+    },
+    "./slug": {
+      "types": "./dist/slug.d.ts",
+      "bun": "./src/slug.ts",
+      "import": "./dist/slug.js"
+    },
+    "./workflow": {
+      "types": "./dist/workflow.d.ts",
+      "bun": "./src/workflow.ts",
+      "import": "./dist/workflow.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "check": "tsc --noEmit",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@sindresorhus/slugify": "^3.0.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.7.0"
+  },
+  "files": ["dist"]
+}

@@ -6,7 +6,6 @@
     "outDir": "dist",
     "rootDir": "src",
     "strict": true,
-    "useUnknownInCatchVariables": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "declaration": true,

@@ -7,16 +7,9 @@ import { prisma } from "../db.js"
 import { createWorkflowSchema, updateWorkflowSchema } from "../types.js"
 import { buildTriggerFlowYaml } from "../lib/trigger-yaml.js"
 import { encrypt, decrypt } from "../lib/crypto.js"
+import { nameToSlug } from "@weave/shared/slug"
 
 const idSchema = z.object({ id: z.string() })
-
-function nameToSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9\u4e00-\u9fff]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 50) || "unnamed"
-}
 
 export const workflowRouter = t.router({
   list: t.procedure
