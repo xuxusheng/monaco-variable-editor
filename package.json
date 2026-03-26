@@ -19,6 +19,6 @@
     "vite-plus": "0.1.14"
   },
   "dependencies": {
-    "lucide-react": "^1.6.0"
+    "lucide-react": "^1.7.0"
   }
 }

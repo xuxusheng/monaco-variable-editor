@@ -64,7 +64,7 @@ webhookRoute.post("/:workflowId/:triggerName", async (c) => {
   })
 
   if (latestRelease) {
-    prisma.workflowExecution.create({
+    void prisma.workflowExecution.create({
       data: {
         workflowId,
         releaseId: latestRelease.id,

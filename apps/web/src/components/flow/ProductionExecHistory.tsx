@@ -22,8 +22,10 @@ import {
   Inbox,
   ChevronDown,
   ChevronUp,
+  Play,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const STATE_ICONS: Record<string, React.ReactNode> = {
   CREATED: <Clock className="w-3.5 h-3.5 text-muted-foreground" />,
@@ -42,6 +44,7 @@ const STATE_ICONS: Record<string, React.ReactNode> = {
 interface ProductionExecHistoryProps {
   workflowId: string;
   onClose: () => void;
+  onReplay?: (executionId: string, taskRunId: string) => void;
 }
 
 interface ProdExecItem {
@@ -64,7 +67,11 @@ interface ProdExecItem {
   createdAt: Date | string;
 }
 
-export function ProductionExecHistory({ workflowId, onClose }: ProductionExecHistoryProps) {
+export function ProductionExecHistory({
+  workflowId,
+  onClose,
+  onReplay,
+}: ProductionExecHistoryProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [cursor, setCursor] = useState<string | undefined>();
 
@@ -136,6 +143,7 @@ export function ProductionExecHistory({ workflowId, onClose }: ProductionExecHis
                 }
                 detailLoading={expandedId === item.id && detailQuery.isLoading}
                 onToggle={() => setExpandedId(expandedId === item.id ? null : item.id)}
+                onReplay={onReplay}
               />
             ))}
 
@@ -163,12 +171,14 @@ function ExecRow({
   detail,
   detailLoading,
   onToggle,
+  onReplay,
 }: {
   item: ProdExecItem;
   expanded: boolean;
   detail?: ProdExecItem;
   detailLoading?: boolean;
   onToggle: () => void;
+  onReplay?: (executionId: string, taskRunId: string) => void;
 }) {
   const currentState = item.state ?? "UNKNOWN";
   const time = formatTime(item.createdAt);
@@ -203,7 +213,7 @@ function ExecRow({
           {detailLoading ? (
             <div className="text-xs text-muted-foreground py-2">加载详情...</div>
           ) : detail ? (
-            <ExecDetail item={detail} />
+            <ExecDetail item={detail} onReplay={onReplay} />
           ) : null}
         </div>
       )}
@@ -211,7 +221,20 @@ function ExecRow({
   );
 }
 
-function ExecDetail({ item }: { item: ProdExecItem }) {
+function ExecDetail({
+  item,
+  onReplay,
+}: {
+  item: ProdExecItem;
+  onReplay?: (executionId: string, taskRunId: string) => void;
+}) {
+  const replayMutation = trpc.workflowExecution.productionReplay.useMutation({
+    onSuccess: () => {
+      toast.success("Replay 已触发");
+    },
+    onError: (err) => toast.error(`Replay 失败: ${err.message}`),
+  });
+
   const taskRuns = (item.taskRuns ?? []) as Array<{
     id: string;
     state: string;
@@ -219,6 +242,14 @@ function ExecDetail({ item }: { item: ProdExecItem }) {
     endDate?: string;
     duration?: number;
   }>;
+
+  const handleReplay = (taskRunId: string) => {
+    if (onReplay) {
+      onReplay(item.id, taskRunId);
+    } else {
+      replayMutation.mutate({ executionId: item.id, taskRunId });
+    }
+  };
 
   return (
     <div className="space-y-2 border-l-2 border-border ml-1 pl-3">
@@ -239,6 +270,14 @@ function ExecDetail({ item }: { item: ProdExecItem }) {
               {tr.duration != null && (
                 <span className="text-muted-foreground">{(tr.duration / 1000).toFixed(1)}s</span>
               )}
+              <button
+                onClick={() => handleReplay(tr.id)}
+                disabled={replayMutation.isPending}
+                className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                title="Replay 此任务"
+              >
+                <Play className="w-3 h-3" />
+              </button>
             </div>
           ))}
         </div>

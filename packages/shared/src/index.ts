@@ -10,6 +10,8 @@ export type {
   WorkflowVariable,
   PluginEntry,
   PluginCategory,
+  CreateWorkflowInput,
+  UpdateWorkflowInput,
 } from "./workflow.js"
 
 export {
@@ -17,5 +19,15 @@ export {
   CATEGORY_COLORS,
   getNodeColor,
   EDGE_STYLES,
+  TERMINAL_STATES,
+  isTerminalState,
+  edgeTypeSchema,
+  workflowNodeSchema,
+  workflowEdgeSchema,
+  workflowInputTypeSchema,
+  workflowInputSchema,
+  variableTypeSchema,
+  workflowVariableSchema,
+  createWorkflowSchema,
+  updateWorkflowSchema,
 } from "./workflow.js"
-export { TERMINAL_STATES, isTerminalState } from "./workflow.js"

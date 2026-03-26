@@ -1,7 +1,7 @@
 import { TRPCError } from "@trpc/server"
 import { z } from "zod"
 import { parse as parseYaml } from "yaml"
-import { Prisma } from "../generated/prisma/client.js"
+import type { Prisma } from "../generated/prisma/client.js"
 import { t } from "../trpc.js"
 import { prisma } from "../db.js"
 import { logger } from "../lib/logger.js"
@@ -90,12 +90,28 @@ export const workflowReleaseRouter = t.router({
     }),
 
   list: t.procedure
-    .input(z.object({ workflowId: z.string() }))
-    .query(({ input }) => {
-      return prisma.workflowRelease.findMany({
+    .input(
+      z.object({
+        workflowId: z.string(),
+        limit: z.number().min(1).max(100).default(50),
+        cursor: z.string().optional(),
+      }),
+    )
+    .query(async ({ input }) => {
+      const items = await prisma.workflowRelease.findMany({
         where: { workflowId: input.workflowId },
         orderBy: { version: "desc" },
+        take: input.limit + 1,
+        ...(input.cursor
+          ? { cursor: { id: input.cursor }, skip: 1 }
+          : {}),
       })
+      const hasMore = items.length > input.limit
+      if (hasMore) items.pop()
+      return {
+        items,
+        nextCursor: hasMore ? items[items.length - 1]!.id : null,
+      }
     }),
 
   rollback: t.procedure

@@ -4,12 +4,12 @@
  */
 
 import { useCallback, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { Zap, RefreshCw } from "lucide-react";
+import { Zap, RefreshCw, Plus, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +36,12 @@ const triggerFormSchema = z.object({
   timezone: z.string().optional(),
   webhookSecret: z.string().optional(),
   selectedReleaseId: z.string().min(1, "请选择一个版本"),
+  triggerInputs: z.array(
+    z.object({
+      key: z.string().min(1),
+      value: z.string(),
+    }),
+  ),
 });
 
 type TriggerFormData = z.infer<typeof triggerFormSchema>;
@@ -58,6 +64,7 @@ export function TriggerCreateForm({
     handleSubmit,
     watch,
     setValue,
+    control,
     formState: { errors },
   } = useForm<TriggerFormData>({
     resolver: zodResolver(triggerFormSchema),
@@ -68,7 +75,13 @@ export function TriggerCreateForm({
       timezone: "Asia/Shanghai",
       webhookSecret: crypto.randomUUID(),
       selectedReleaseId: releases[0]?.id ?? "",
+      triggerInputs: [],
     },
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "triggerInputs",
   });
 
   const type = watch("type");
@@ -105,6 +118,10 @@ export function TriggerCreateForm({
         type: data.type,
         config,
         releaseId: data.selectedReleaseId,
+        inputs:
+          data.triggerInputs.length > 0
+            ? Object.fromEntries(data.triggerInputs.map((i) => [i.key, i.value]))
+            : undefined,
       });
     },
     [workflowId, createTrigger],
@@ -209,6 +226,45 @@ export function TriggerCreateForm({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-3 border-t border-border pt-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-muted-foreground">触发器输入参数</p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => append({ key: "", value: "" })}
+                className="h-6 text-xs"
+              >
+                <Plus className="w-3 h-3 mr-1" />
+                添加
+              </Button>
+            </div>
+            {fields.map((field, index) => (
+              <div key={field.id} className="flex gap-2">
+                <Input
+                  {...register(`triggerInputs.${index}.key`)}
+                  placeholder="参数名"
+                  className="flex-1"
+                />
+                <Input
+                  {...register(`triggerInputs.${index}.value`)}
+                  placeholder="参数值"
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => remove(index)}
+                  className="shrink-0 h-9 w-9 text-muted-foreground hover:text-destructive"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            ))}
           </div>
 
           <DialogFooter>

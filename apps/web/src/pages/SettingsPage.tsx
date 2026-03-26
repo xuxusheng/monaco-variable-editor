@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Settings, Save } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { Settings, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { useWorkflowStore } from "@/stores/workflow";
@@ -10,6 +11,16 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 import { SecretTable } from "@/components/flow/SecretTable";
 import { VariableTable } from "@/components/flow/VariableTable";
 
@@ -61,12 +72,14 @@ export function SettingsPage() {
 // ---- General Tab ----
 
 function GeneralTab({ namespaceId }: { namespaceId: string }) {
+  const navigate = useNavigate();
   const { data: namespace, isLoading } = trpc.namespace.get.useQuery({ id: namespaceId });
 
   const [name, setName] = useState("");
   const [kestraNamespace, setKestraNamespace] = useState("");
   const [description, setDescription] = useState("");
   const [dirty, setDirty] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Sync form state from server data
   useEffect(() => {
@@ -84,6 +97,15 @@ function GeneralTab({ namespaceId }: { namespaceId: string }) {
       toast.success("设置已保存");
       setDirty(false);
       void utils.namespace.get.invalidate({ id: namespaceId });
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const deleteMutation = trpc.namespace.delete.useMutation({
+    onSuccess: () => {
+      toast.success("项目空间已删除");
+      void utils.namespace.list.invalidate();
+      void navigate({ to: "/workflows" });
     },
     onError: (err) => toast.error(err.message),
   });
@@ -159,6 +181,39 @@ function GeneralTab({ namespaceId }: { namespaceId: string }) {
       </Button>
 
       <Separator />
+
+      <div className="space-y-3">
+        <div>
+          <h3 className="text-sm font-medium text-destructive">危险操作</h3>
+          <p className="text-xs text-muted-foreground mt-1">
+            删除项目空间将同时删除其下的所有工作流、草稿、版本和触发器。此操作不可撤销。
+          </p>
+        </div>
+        <Button variant="destructive" size="sm" onClick={() => setShowDeleteDialog(true)}>
+          <Trash2 className="w-3.5 h-3.5 mr-1" />
+          删除项目空间
+        </Button>
+      </div>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认删除项目空间</AlertDialogTitle>
+            <AlertDialogDescription>
+              此操作不可撤销。项目空间及其下的所有工作流、草稿、版本和触发器将被永久删除。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteMutation.mutate({ id: namespaceId })}
+              className="bg-destructive text-white hover:bg-destructive/90"
+            >
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -3,12 +3,28 @@
  * 直接使用 TriggerPanel 组件，带 Sidebar 布局
  */
 
+import { useState } from "react";
 import { useParams, Link } from "@tanstack/react-router";
 import { Zap, ChevronRight } from "lucide-react";
 import { TriggerPanel } from "@/components/flow/TriggerPanel";
+import { TriggerCreateForm } from "@/components/flow/TriggerCreateForm";
+import { trpc } from "@/lib/trpc";
 
 export function TriggersPage() {
   const { workflowId } = useParams({ from: "/sidebar-layout/workflows/$workflowId/triggers" });
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const utils = trpc.useUtils();
+
+  const { data: releasesData } = trpc.workflowRelease.list.useQuery(
+    { workflowId },
+    { enabled: !!workflowId },
+  );
+
+  const releases = (releasesData?.items ?? []).map((r) => ({
+    id: r.id,
+    version: r.version,
+    name: r.name,
+  }));
 
   return (
     <div className="flex flex-col h-full">
@@ -33,8 +49,20 @@ export function TriggersPage() {
 
       {/* 内容 */}
       <div className="flex-1 overflow-hidden">
-        <TriggerPanel workflowId={workflowId} onCreate={() => {}} />
+        <TriggerPanel workflowId={workflowId} onCreate={() => setShowCreateForm(true)} />
       </div>
+
+      {showCreateForm && (
+        <TriggerCreateForm
+          workflowId={workflowId}
+          releases={releases}
+          onClose={() => setShowCreateForm(false)}
+          onCreated={() => {
+            setShowCreateForm(false);
+            void utils.workflowTrigger.list.invalidate({ workflowId });
+          }}
+        />
+      )}
     </div>
   );
 }

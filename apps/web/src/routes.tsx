@@ -19,7 +19,6 @@ import WorkflowEditorPage from "@/pages/WorkflowEditorPage";
 import SetupPage from "@/pages/SetupPage";
 
 import { SettingsPage } from "@/pages/SettingsPage";
-import { TemplatesPage } from "@/pages/TemplatesPage";
 import { ExecutionPage } from "@/pages/ExecutionPage";
 import { VersionsPage } from "@/pages/VersionsPage";
 import { TriggersPage } from "@/pages/TriggersPage";
@@ -46,12 +45,13 @@ function NamespaceGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (isLoading || !namespaces) return;
-    setHasNamespaces(namespaces.length > 0);
-    if (namespaces.length > 0) {
+    const nsList = namespaces.items;
+    setHasNamespaces(nsList.length > 0);
+    if (nsList.length > 0) {
       // 自动选择第一个 namespace
       const current = useWorkflowStore.getState().currentNamespace;
       if (!current) {
-        setCurrentNamespace(namespaces[0].id);
+        setCurrentNamespace(nsList[0]!.id);
       }
     } else {
       // 没有 Namespace，跳转到引导页
@@ -141,12 +141,6 @@ const settingsRoute = createRoute({
   component: () => <SettingsPage />,
 });
 
-const templatesRoute = createRoute({
-  getParentRoute: () => sidebarLayoutRoute,
-  path: "/templates",
-  component: () => <TemplatesPage />,
-});
-
 const workflowExecutionsRoute = createRoute({
   getParentRoute: () => sidebarLayoutRoute,
   path: "/workflows/$workflowId/executions",
@@ -173,7 +167,6 @@ const routeTree = rootRoute.addChildren([
     workflowsRoute,
     workflowNewRoute,
     settingsRoute,
-    templatesRoute,
     workflowExecutionsRoute,
     workflowVersionsRoute,
     workflowTriggersRoute,

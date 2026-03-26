@@ -15,7 +15,7 @@ export {
   type WorkflowInput,
   type VariableType,
   type WorkflowVariable,
-} from "./workflow.js"
+} from "@weave/shared"
 
 export { createNamespaceSchema } from "./namespace.js"
 

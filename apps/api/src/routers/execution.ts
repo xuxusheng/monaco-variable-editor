@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server"
 import { z } from "zod"
-import { Prisma } from "../generated/prisma/client.js"
+import type { Prisma } from "../generated/prisma/client.js"
 import { t } from "../trpc.js"
 import { prisma } from "../db.js"
 
@@ -303,6 +303,60 @@ export const workflowExecutionRouter = t.router({
             edges: exec.edges as Prisma.InputJsonValue,
             inputs: exec.inputs as Prisma.InputJsonValue,
             variables: exec.variables as Prisma.InputJsonValue,
+            inputValues: exec.inputValues as Prisma.InputJsonValue,
+            state: newExec.state.current,
+            taskRuns:
+              (newExec.taskRunList ?? []) as unknown as Prisma.InputJsonValue,
+            triggeredBy: `replay:${input.executionId}:${input.taskRunId}`,
+            startedAt: newExec.state.startDate
+              ? new Date(newExec.state.startDate)
+              : undefined,
+          },
+        })
+      } catch (e) {
+        if (e instanceof KestraError) {
+          throw new TRPCError({
+            code: "BAD_GATEWAY",
+            message: `Replay 失败: ${e.statusCode} ${e.responseBody}`,
+          })
+        }
+        throw e
+      }
+    }),
+
+  productionReplay: t.procedure
+    .input(
+      z.object({
+        executionId: z.string(),
+        taskRunId: z.string(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const { getKestraClient, KestraError } = await import(
+        "../lib/kestra-client.js"
+      )
+
+      const exec = await prisma.workflowExecution.findUnique({
+        where: { id: input.executionId },
+        include: { release: true },
+      })
+      if (!exec) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Execution not found" })
+      }
+
+      try {
+        const client = getKestraClient()
+        const newExec = await client.replayExecution(
+          exec.kestraExecId,
+          input.taskRunId,
+          true,
+        )
+
+        return prisma.workflowExecution.create({
+          data: {
+            workflowId: exec.workflowId,
+            releaseId: exec.releaseId,
+            kestraExecId: newExec.id,
             inputValues: exec.inputValues as Prisma.InputJsonValue,
             state: newExec.state.current,
             taskRuns:

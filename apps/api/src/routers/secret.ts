@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server"
 import { z } from "zod"
+import { Prisma } from "../generated/prisma/client.js"
 import { t } from "../trpc.js"
 import { prisma } from "../db.js"
 import { encrypt, decrypt } from "../lib/crypto.js"
@@ -41,14 +42,22 @@ export const workflowSecretRouter = t.router({
 
       const encrypted = encrypt(input.value, `${input.namespaceId}::${input.key}`)
 
-      const secret = await prisma.secret.create({
-        data: {
-          namespaceId: input.namespaceId,
-          key: input.key,
-          value: encrypted,
-          description: input.description,
-        },
-      })
+      let secret
+      try {
+        secret = await prisma.secret.create({
+          data: {
+            namespaceId: input.namespaceId,
+            key: input.key,
+            value: encrypted,
+            description: input.description,
+          },
+        })
+      } catch (e) {
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+          throw new TRPCError({ code: "CONFLICT", message: "Secret with this key already exists" })
+        }
+        throw e
+      }
 
       return { id: secret.id, key: secret.key, description: secret.description }
     }),
@@ -79,6 +88,9 @@ export const workflowSecretRouter = t.router({
   delete: t.procedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input }) => {
+      const secret = await prisma.secret.findUnique({ where: { id: input.id } })
+      if (!secret) throw new TRPCError({ code: "NOT_FOUND", message: "Secret not found" })
+
       await prisma.secret.delete({ where: { id: input.id } })
       return { success: true }
     }),

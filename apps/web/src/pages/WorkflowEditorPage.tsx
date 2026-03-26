@@ -29,10 +29,8 @@ import "@xyflow/react/dist/style.css";
 import { WorkflowNode as WorkflowNodeComponent } from "@/components/flow/WorkflowNode";
 import { WorkflowEdge as WorkflowEdgeComponent } from "@/components/flow/WorkflowEdge";
 import { NodeCreatePanel } from "@/components/flow/NodeCreatePanel";
-import { MobileNodePanel } from "@/components/flow/MobileNodePanel";
 import { TaskConfigPanel } from "@/components/flow/TaskConfigPanel";
 import { TriggerPanel } from "@/components/flow/TriggerPanel";
-import { TriggerCreateForm } from "@/components/flow/TriggerCreateForm";
 import { InputConfigPanel } from "@/components/flow/InputConfigPanel";
 const KestraYamlPanel = lazy(() =>
   import("@/components/flow/KestraYamlPanel").then((mod) => ({ default: mod.KestraYamlPanel })),
@@ -40,15 +38,14 @@ const KestraYamlPanel = lazy(() =>
 import { DraftHistory } from "@/components/flow/DraftHistory";
 import { cn } from "@/lib/utils";
 import { ReleaseHistory } from "@/components/flow/ReleaseHistory";
-import { PublishDialog } from "@/components/flow/PublishDialog";
-import { ExecutionDrawer } from "@/components/flow/ExecutionDrawer";
-import { fromKestraYaml, toKestraYaml } from "@/lib/yamlConverter";
+
+import { toKestraYaml } from "@/lib/yamlConverter";
 import { checkReferences } from "@/lib/referenceChecker";
 import { ExecutionHistory } from "@/components/flow/ExecutionHistory";
 import { ProductionExecHistory } from "@/components/flow/ProductionExecHistory";
 import { NamespaceSettings } from "@/components/flow/NamespaceSettings";
 import { InputValuesForm } from "@/components/flow/InputValuesForm";
-import { ContextMenu as NodeContextMenu } from "@/components/flow/ContextMenu";
+
 import { Breadcrumb } from "@/components/flow/Breadcrumb";
 import { TemplateDialog } from "@/components/flow/TemplateDialog";
 import { EditorTabBar, type TabKey } from "@/components/flow/EditorTabBar";
@@ -58,7 +55,7 @@ import { ReferenceStatusBar } from "@/components/flow/ReferenceStatusBar";
 import type { WorkflowTemplate } from "@/lib/templates";
 import { saveUserTemplate } from "@/lib/templates";
 import { getLayoutedElements } from "@/lib/autoLayout";
-import { filterVisibleNodes, filterVisibleEdges, canExpandContainer } from "@/lib/containerUtils";
+import { filterVisibleNodes, filterVisibleEdges } from "@/lib/containerUtils";
 import { isContainer } from "@/types/container";
 import {
   Rocket,
@@ -72,6 +69,8 @@ import {
   GitBranch,
   History,
   Settings2,
+  Pencil,
+  Power,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -79,9 +78,17 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useIsMobile } from "@/hooks/use-mobile";
-// hooks/useAutoSave + useExecutionPoll 待接入（需要调整 handleSaveDraft 回调顺序）
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
-import type { WorkflowNode, WorkflowEdge, WorkflowInput, PluginEntry } from "@/types/workflow";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import type { WorkflowNode, WorkflowEdge, WorkflowInput } from "@/types/workflow";
 import type { KestraInput } from "@/types/kestra";
 import type {
   ApiWorkflowNode,
@@ -144,6 +151,7 @@ export default function WorkflowEditorPage() {
     nodes: wfNodes,
     edges: wfEdges,
     inputs,
+    wfVariables,
     rightPanel,
     selectedNodeId,
     panelOpen,
@@ -156,6 +164,7 @@ export default function WorkflowEditorPage() {
       nodes: s.nodes,
       edges: s.edges,
       inputs: s.inputs,
+      wfVariables: s.variables,
       rightPanel: s.rightPanel,
       selectedNodeId: s.selectedNodeId,
       panelOpen: s.panelOpen,
@@ -170,6 +179,7 @@ export default function WorkflowEditorPage() {
   const setWfNodes = useWorkflowStore((s) => s.setNodes);
   const setWfEdges = useWorkflowStore((s) => s.setEdges);
   const setInputs = useWorkflowStore((s) => s.setInputs);
+  const setWfVariables = useWorkflowStore((s) => s.setVariables);
   const setRightPanel = useWorkflowStore((s) => s.setRightPanel);
   const setSelectedNodeId = useWorkflowStore((s) => s.setSelectedNodeId);
   const setPanelOpen = useWorkflowStore((s) => s.setPanelOpen);
@@ -181,11 +191,33 @@ export default function WorkflowEditorPage() {
 
   // ---- 模板功能 ----
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
-  const [nodeCreateDrawerOpen, setNodeCreateDrawerOpen] = useState(false);
+  const [_nodeCreateDrawerOpen, setNodeCreateDrawerOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
-  // ---- 工作流 Variables（从 API 加载，给 PublishDialog 用） ----
-  const [wfVariables, setWfVariables] = useState<ApiWorkflowVariable[]>([]);
+  // ---- 编辑名称/描述 ----
+  const [editMetaOpen, setEditMetaOpen] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+
+  // ---- 禁用/启用切换 ----
+  const workflowUpdate = trpc.workflow.update.useMutation({
+    onSuccess: () => toast.success("已更新"),
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleToggleDisabled = useCallback(() => {
+    if (!savedWorkflowId) return;
+    const newDisabled = !workflowMeta.disabled;
+    workflowUpdate.mutate({ id: savedWorkflowId, disabled: newDisabled });
+    setWorkflowMeta({ ...workflowMeta, disabled: newDisabled });
+  }, [savedWorkflowId, workflowMeta, workflowUpdate, setWorkflowMeta]);
+
+  const handleSaveMeta = useCallback(() => {
+    if (!savedWorkflowId) return;
+    workflowUpdate.mutate({ id: savedWorkflowId, name: editName, description: editDescription });
+    setWorkflowMeta({ ...workflowMeta, name: editName, description: editDescription });
+    setEditMetaOpen(false);
+  }, [savedWorkflowId, editName, editDescription, workflowMeta, workflowUpdate, setWorkflowMeta]);
 
   // ---- 引用检测 ----
   const [dragOverContainerId, setDragOverContainerId] = useState<string | null>(null);
@@ -307,7 +339,7 @@ export default function WorkflowEditorPage() {
 
   const missingRefs = refCheckResult.missing;
 
-  // ---- zundo temporal (undo/redo) ----
+  // ---- zustand-travel (undo/redo) ----
   const undo = useUndo();
   const redo = useRedo();
   const canUndo = useCanUndo();
@@ -438,7 +470,7 @@ export default function WorkflowEditorPage() {
   );
 
   // ---- 右键菜单 ----
-  const [contextMenu, setContextMenu] = useState<{
+  const [_contextMenu, setContextMenu] = useState<{
     nodeId: string;
     position: { x: number; y: number };
   } | null>(null);
@@ -531,29 +563,6 @@ export default function WorkflowEditorPage() {
   const onDragLeave = useCallback(() => {
     setDragOverContainerId(null);
   }, []);
-
-  const handleMobilePluginClick = useCallback(
-    (plugin: PluginEntry) => {
-      const currentNodes = useWorkflowStore.getState().nodes;
-      const maxSort = currentNodes.reduce((max, n) => Math.max(max, n.sortIndex), -1);
-
-      const newNode: WorkflowNode = {
-        id: genNodeId(),
-        type: plugin.type,
-        name: plugin.name,
-        containerId: null,
-        sortIndex: maxSort + 1,
-        spec: plugin.defaultSpec ?? {},
-        ui: { x: 150, y: 50 },
-      };
-
-      setWfNodes((prev) => [...prev, newNode]);
-      setNodeCreateDrawerOpen(false);
-      setSelectedNodeId(newNode.id);
-      setRightPanel("task");
-    },
-    [setWfNodes, setSelectedNodeId, setRightPanel],
-  );
 
   // ---- 任务配置更新：解析 YAML 回写 spec ----
   const handleTaskUpdate = useCallback(
@@ -764,6 +773,7 @@ export default function WorkflowEditorPage() {
       name: full.name,
       namespace: workflowMeta.namespace,
       description: full.description ?? "",
+      disabled: full.disabled ?? false,
     });
 
     if (full.nodes) setWfNodes((full.nodes as unknown as ApiWorkflowNode[]).map(fromApiNode));
@@ -806,6 +816,7 @@ export default function WorkflowEditorPage() {
         name: full.name,
         namespace: workflowMeta.namespace,
         description: full.description ?? "",
+        disabled: full.disabled ?? false,
       });
       if (full.nodes) setWfNodes((full.nodes as unknown as ApiWorkflowNode[]).map(fromApiNode));
       if (full.edges) setWfEdges((full.edges as unknown as ApiWorkflowEdge[]).map(fromApiEdge));
@@ -852,7 +863,7 @@ export default function WorkflowEditorPage() {
   );
 
   // ---- Draft / Release (tRPC) ----
-  const [showPublishDialog, setShowPublishDialog] = useState(false);
+  const [_showPublishDialog, setShowPublishDialog] = useState(false);
 
   const draftSave = trpc.workflowDraft.save.useMutation({
     onSuccess: (_data, variables) => {
@@ -919,7 +930,7 @@ export default function WorkflowEditorPage() {
   useEffect(() => {
     if (triggersData) {
       setTriggers(
-        triggersData.map((t) => ({
+        triggersData.items.map((t) => ({
           id: t.id,
           name: t.name,
           type: t.type as "schedule" | "webhook",
@@ -956,22 +967,6 @@ export default function WorkflowEditorPage() {
     [savedWorkflowId, draftSave, missingRefs, wfNodes, wfEdges, inputs, wfVariables],
   );
 
-  // Publish action — 缺失引用时阻止发布
-  const handlePublish = useCallback(
-    (name: string, yaml: string) => {
-      if (!savedWorkflowId) {
-        toast.warning("请先保存工作流到 API");
-        return;
-      }
-      if (missingRefs.length > 0) {
-        toast.error(`有 ${missingRefs.length} 个缺失引用，请先修复后再发布`);
-        return;
-      }
-      releasePublish.mutate({ workflowId: savedWorkflowId, name, yaml });
-    },
-    [savedWorkflowId, releasePublish, missingRefs],
-  );
-
   // Draft rollback action
   const handleDraftRollback = useCallback(
     async (draftId: string) => {
@@ -993,27 +988,15 @@ export default function WorkflowEditorPage() {
   );
 
   // Auto-save (30s) — 只在用户实际修改后触发
-  const { hasUnsavedChanges, releases, publishedVersion } = useWorkflowStore(
+  const { hasUnsavedChanges, publishedVersion } = useWorkflowStore(
     useShallow((s) => ({
       hasUnsavedChanges: s.hasUnsavedChanges,
-      releases: s.releases,
       publishedVersion: s.publishedVersion,
     })),
   );
   const markDirty = useWorkflowStore((s) => s.markDirty);
   const markSaved = useWorkflowStore((s) => s.markSaved);
   const setPublishedVersion = useWorkflowStore((s) => s.setPublishedVersion);
-
-  // 最新发布版本的 nodes（用于发布前 diff）
-  const prevReleaseNodes = useMemo(() => {
-    const latest = releasesQuery.data?.[0];
-    if (!latest?.yaml) return undefined;
-    try {
-      return fromKestraYaml(latest.yaml).nodes;
-    } catch {
-      return undefined;
-    }
-  }, [releasesQuery.data]);
 
   // 首次加载标记：首次渲染不触发 markDirty；已脏时跳过冗余调用
   const isInitialMount = useRef(true);
@@ -1063,7 +1046,7 @@ export default function WorkflowEditorPage() {
   const setCurrentExecution = useWorkflowStore((s) => s.setCurrentExecution);
   const setKestraHealthy = useWorkflowStore((s) => s.setKestraHealthy);
   const [showInputForm, setShowInputForm] = useState(false);
-  const [showTriggerForm, setShowTriggerForm] = useState(false);
+  const [_showTriggerForm, setShowTriggerForm] = useState(false);
 
   // Kestra health check (on mount + every 5 min) — with abort on unmount
   const healthTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -1169,22 +1152,6 @@ export default function WorkflowEditorPage() {
     onError: (err) => toast.error(`执行失败: ${err.message}`),
   });
 
-  const executionReplay = trpc.workflowExecution.replay.useMutation({
-    onSuccess: (result) => {
-      setIsExecuting(true);
-      setCurrentExecution(toExecutionSummary(result));
-      // Replay 也进入运行态
-      const snapshot: RunningSnapshot = {
-        nodes: (result.nodes ?? []) as unknown as RunningSnapshot["nodes"],
-        edges: (result.edges ?? []) as unknown as RunningSnapshot["edges"],
-        inputs: (result.inputs ?? []) as unknown as RunningSnapshot["inputs"],
-      };
-      enterRunningMode(snapshot, "draft");
-      toast.success("Replay 已触发");
-    },
-    onError: (err) => toast.error(`Replay 失败: ${err.message}`),
-  });
-
   const handleExecuteTest = useCallback(() => {
     if (!savedWorkflowId) {
       toast.warning("请先保存工作流");
@@ -1209,11 +1176,18 @@ export default function WorkflowEditorPage() {
     [savedWorkflowId, executeTest],
   );
 
-  const handleReplay = useCallback(
-    (executionId: string, taskRunId: string) => {
-      executionReplay.mutate({ executionId, taskRunId });
+  const productionReplay = trpc.workflowExecution.productionReplay.useMutation({
+    onSuccess: () => {
+      toast.success("Production Replay 已触发");
     },
-    [executionReplay],
+    onError: (err) => toast.error(`Replay 失败: ${err.message}`),
+  });
+
+  const handleProductionReplay = useCallback(
+    (executionId: string, taskRunId: string) => {
+      productionReplay.mutate({ executionId, taskRunId });
+    },
+    [productionReplay],
   );
 
   // YAML import handler
@@ -1255,6 +1229,42 @@ export default function WorkflowEditorPage() {
           <span className="text-sm font-semibold truncate max-w-[120px] md:max-w-[200px]">
             {workflowMeta.name || workflowMeta.flowId}
           </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="w-6 h-6 text-muted-foreground"
+            title="编辑名称和描述"
+            onClick={() => {
+              setEditName(workflowMeta.name);
+              setEditDescription(workflowMeta.description);
+              setEditMetaOpen(true);
+            }}
+          >
+            <Pencil className="w-3 h-3" />
+          </Button>
+          {workflowMeta.disabled && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs text-muted-foreground"
+              title="工作流已禁用，点击启用"
+              onClick={handleToggleDisabled}
+            >
+              <Power className="w-3 h-3 mr-1" />
+              已禁用
+            </Button>
+          )}
+          {!workflowMeta.disabled && savedWorkflowId && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="w-6 h-6 text-muted-foreground"
+              title="禁用工作流"
+              onClick={handleToggleDisabled}
+            >
+              <Power className="w-3 h-3" />
+            </Button>
+          )}
           {/* 状态标签 — 桌面端完整显示 */}
           {!isMobile &&
             (viewMode === "running" ? (
@@ -1692,7 +1702,7 @@ export default function WorkflowEditorPage() {
                 )}
                 {rightPanel === "releases" && (
                   <ReleaseHistory
-                    releases={(releasesQuery.data ?? []).map((r) => ({
+                    releases={(releasesQuery.data?.items ?? []).map((r) => ({
                       id: r.id,
                       version: r.version,
                       name: r.name,
@@ -1726,14 +1736,7 @@ export default function WorkflowEditorPage() {
                   <ProductionExecHistory
                     workflowId={savedWorkflowId}
                     onClose={() => setRightPanel("none")}
-                  />
-                )}
-                {rightPanel === "settings" && (
-                  <NamespaceSettings
-                    namespaceId={workflowMeta.namespace}
-                    namespaceName={workflowMeta.namespace}
-                    onClose={() => setRightPanel("none")}
-                    defaultTab={settingsTab}
+                    onReplay={handleProductionReplay}
                   />
                 )}
               </div>
@@ -1741,101 +1744,6 @@ export default function WorkflowEditorPage() {
           </>
         )}
       </Group>
-
-      {/* 移动端节点创建 Drawer */}
-      {isMobile && (
-        <Drawer open={nodeCreateDrawerOpen} onOpenChange={setNodeCreateDrawerOpen}>
-          <DrawerContent className="max-h-[80vh]">
-            <DrawerHeader>
-              <DrawerTitle>添加节点</DrawerTitle>
-            </DrawerHeader>
-            <div className="flex-1 overflow-y-auto px-4 pb-4">
-              <MobileNodePanel onPluginClick={handleMobilePluginClick} />
-            </div>
-            <div className="px-4 pb-4 pt-2 border-t border-border">
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => setNodeCreateDrawerOpen(false)}
-              >
-                关闭
-              </Button>
-            </div>
-          </DrawerContent>
-        </Drawer>
-      )}
-
-      {/* 右键菜单 */}
-      {contextMenu &&
-        (() => {
-          const ctxNode = wfNodes.find((n) => n.id === contextMenu.nodeId);
-          if (!ctxNode) return null;
-          return (
-            <NodeContextMenu
-              position={contextMenu.position}
-              onClose={() => setContextMenu(null)}
-              onDelete={() => {
-                setSelectedNodeId(contextMenu.nodeId);
-                handleDeleteSelected();
-                setContextMenu(null);
-              }}
-              onDuplicate={() => {
-                setSelectedNodeId(contextMenu.nodeId);
-                handleDuplicate();
-                setContextMenu(null);
-              }}
-              isContainer={isContainer(ctxNode.type)}
-              isCollapsed={ctxNode.ui?.collapsed ?? false}
-              onToggleCollapse={() => {
-                const state = useWorkflowStore.getState();
-                const node = state.nodes.find((n) => n.id === contextMenu.nodeId);
-                // 展开时检查嵌套深度
-                if (node?.ui?.collapsed) {
-                  if (!canExpandContainer(contextMenu.nodeId, state.nodes)) {
-                    toast.warning("已达到最大嵌套层级");
-                    setContextMenu(null);
-                    return;
-                  }
-                }
-                state.toggleCollapse(contextMenu.nodeId);
-                setContextMenu(null);
-              }}
-            />
-          );
-        })()}
-
-      {showPublishDialog && (
-        <PublishDialog
-          nodes={wfNodes}
-          edges={wfEdges}
-          inputs={inputs}
-          variables={wfVariables}
-          flowId={workflowMeta.flowId}
-          namespace={workflowMeta.namespace}
-          nextVersion={publishedVersion + 1}
-          isPublishing={releasePublish.isPending}
-          prevReleaseNodes={prevReleaseNodes}
-          onPublish={handlePublish}
-          onClose={() => setShowPublishDialog(false)}
-        />
-      )}
-
-      {showTriggerForm && savedWorkflowId && (
-        <TriggerCreateForm
-          workflowId={savedWorkflowId}
-          releases={releases.map((r) => ({ id: r.id, version: r.version, name: r.name }))}
-          onClose={() => setShowTriggerForm(false)}
-          onCreated={() => {
-            setShowTriggerForm(false);
-            void utils.workflowTrigger.list.invalidate({ workflowId: savedWorkflowId });
-          }}
-        />
-      )}
-
-      {/* M4: Execution */}
-      {currentExecution && (
-        <ExecutionDrawer onClose={() => setCurrentExecution(null)} onReplay={handleReplay} />
-      )}
 
       {showInputForm && (
         <InputValuesForm
@@ -1859,6 +1767,45 @@ export default function WorkflowEditorPage() {
         onOpenChange={setTemplateDialogOpen}
         onSelect={handleTemplateSelect}
       />
+
+      {/* 编辑名称/描述 */}
+      <Dialog open={editMetaOpen} onOpenChange={setEditMetaOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>编辑工作流信息</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">名称</Label>
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="工作流名称"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">描述</Label>
+              <Textarea
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                placeholder="可选描述"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditMetaOpen(false)}>
+              取消
+            </Button>
+            <Button
+              onClick={handleSaveMeta}
+              disabled={!editName.trim() || workflowUpdate.isPending}
+            >
+              保存
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* 底部状态条：缺失引用 */}
       <ReferenceStatusBar missingRefs={missingRefs} onNavigateToSettings={navigateToSettings} />

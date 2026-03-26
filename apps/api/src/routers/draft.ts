@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server"
 import { z } from "zod"
-import { Prisma } from "../generated/prisma/client.js"
+import type { Prisma } from "../generated/prisma/client.js"
 import { t } from "../trpc.js"
 import { prisma } from "../db.js"
 import {
@@ -33,43 +33,51 @@ export const workflowDraftRouter = t.router({
         })
       }
 
-      // 前端传入当前状态时，先更新 workflow 记录（确保刷新后数据不丢）
-      if (input.nodes || input.edges || input.inputs || input.variables) {
-        await prisma.workflow.update({
-          where: { id: input.workflowId },
-          data: {
-            ...(input.nodes !== undefined && { nodes: input.nodes as Prisma.InputJsonValue }),
-            ...(input.edges !== undefined && { edges: input.edges as Prisma.InputJsonValue }),
-            ...(input.inputs !== undefined && { inputs: input.inputs as Prisma.InputJsonValue }),
-            ...(input.variables !== undefined && { variables: input.variables as Prisma.InputJsonValue }),
-          },
-        })
-      }
-
-      // 重新读取 workflow（可能刚被更新过）
-      const updatedWf = await prisma.workflow.findUnique({
-        where: { id: input.workflowId },
-      })
+      const wfResult = input.nodes || input.edges || input.inputs || input.variables
+        ? await prisma.workflow.update({
+            where: { id: input.workflowId },
+            data: {
+              ...(input.nodes !== undefined && { nodes: input.nodes as Prisma.InputJsonValue }),
+              ...(input.edges !== undefined && { edges: input.edges as Prisma.InputJsonValue }),
+              ...(input.inputs !== undefined && { inputs: input.inputs as Prisma.InputJsonValue }),
+              ...(input.variables !== undefined && { variables: input.variables as Prisma.InputJsonValue }),
+            },
+          })
+        : wf
 
       const draft = await prisma.workflowDraft.create({
         data: {
           workflowId: input.workflowId,
-          nodes: (updatedWf?.nodes ?? wf.nodes) as Prisma.InputJsonValue,
-          edges: (updatedWf?.edges ?? wf.edges) as Prisma.InputJsonValue,
-          inputs: (updatedWf?.inputs ?? wf.inputs) as Prisma.InputJsonValue,
-          variables: (updatedWf?.variables ?? wf.variables) as Prisma.InputJsonValue,
+          nodes: wfResult.nodes as Prisma.InputJsonValue,
+          edges: wfResult.edges as Prisma.InputJsonValue,
+          inputs: wfResult.inputs as Prisma.InputJsonValue,
+          variables: wfResult.variables as Prisma.InputJsonValue,
           message: input.message,
         },
       })
 
       // 异步推 Kestra（失败不阻塞 Draft 保存）
-      // TODO: draftSave 需要前端传入 yaml，或后端调用 toKestraYaml 生成
-      // 当前 releasePublish 已实现 Kestra push，draftSave 联调时补充
-      // try {
-      //   const { getKestraClient } = await import("../lib/kestra-client.js")
-      //   const client = getKestraClient()
-      //   await client.upsertFlow(wf.namespace.kestraNamespace, `${wf.flowId}_test`, yaml)
-      // } catch { /* Kestra 不可达，Draft 仍保存成功 */ }
+      try {
+        const { getKestraClient } = await import("../lib/kestra-client.js")
+        const client = getKestraClient()
+        if (client.isHealthy()) {
+          const namespace = await prisma.namespace.findUnique({
+            where: { id: wf.namespaceId },
+          })
+          if (namespace) {
+            const { toKestraYaml } = await import("../lib/yaml-generator.js")
+            const yaml = toKestraYaml(
+              wfResult.nodes as Prisma.InputJsonValue,
+              wfResult.edges as Prisma.InputJsonValue,
+              wfResult.inputs as Prisma.InputJsonValue,
+              wfResult.variables as Prisma.InputJsonValue,
+              wf.flowId,
+              namespace.kestraNamespace,
+            )
+            await client.upsertFlow(namespace.kestraNamespace, `${wf.flowId}_test`, yaml)
+          }
+        }
+      } catch { /* Kestra 不可达，Draft 仍保存成功 */ }
 
       return draft
     }),

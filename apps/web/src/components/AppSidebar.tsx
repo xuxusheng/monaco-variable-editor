@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useMatchRoute } from "@tanstack/react-router";
-import { Workflow, Settings, BookTemplate, ChevronsLeft, Plus } from "lucide-react";
+import { Workflow, Settings, ChevronsLeft, Plus } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -25,10 +25,7 @@ import { useWorkflowStore } from "@/stores/workflow";
 import { trpc } from "@/lib/trpc";
 import { NamespaceCreateDialog } from "@/components/flow/NamespaceCreateDialog";
 
-const workflowItems = [
-  { label: "工作流编辑器", to: "/workflows", icon: Workflow },
-  { label: "模板库", to: "/templates", icon: BookTemplate },
-] as const;
+const workflowItems = [{ label: "工作流编辑器", to: "/workflows", icon: Workflow }] as const;
 
 const settingItems = [{ label: "项目空间设置", to: "/settings", icon: Settings }] as const;
 
@@ -103,7 +100,7 @@ export function AppSidebar() {
                   <SelectValue placeholder="选择项目空间" />
                 </SelectTrigger>
                 <SelectContent className="w-[--radix-select-trigger-width]">
-                  {namespaces?.map((ns) => (
+                  {namespaces?.items?.map((ns) => (
                     <SelectItem key={ns.id} value={ns.id}>
                       {ns.name}
                     </SelectItem>

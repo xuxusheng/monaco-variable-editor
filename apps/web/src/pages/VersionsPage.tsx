@@ -89,7 +89,7 @@ export function VersionsPage() {
     createdAt: d.createdAt instanceof Date ? d.createdAt.toISOString() : String(d.createdAt),
   }));
 
-  const releases: ReleaseEntry[] = (releasesQuery.data ?? []).map((r) => ({
+  const releases: ReleaseEntry[] = (releasesQuery.data?.items ?? []).map((r) => ({
     id: r.id,
     version: r.version,
     name: r.name,

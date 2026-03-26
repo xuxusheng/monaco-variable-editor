@@ -72,13 +72,11 @@ export const workflowRouter = t.router({
       })
 
       const latestExecByWorkflow = new Map<string, typeof latestProdExecs[number]>()
-      for (const exec of latestDraftExecs) {
-        if (!latestExecByWorkflow.has(exec.workflowId)) {
+      for (const exec of [...latestDraftExecs, ...latestProdExecs]) {
+        const existing = latestExecByWorkflow.get(exec.workflowId)
+        if (!existing || exec.createdAt > existing.createdAt) {
           latestExecByWorkflow.set(exec.workflowId, exec)
         }
-      }
-      for (const exec of latestProdExecs) {
-        latestExecByWorkflow.set(exec.workflowId, exec)
       }
 
       const triggersByWorkflow = new Map<string, typeof triggers>()

@@ -99,10 +99,15 @@ function shutdown(signal: string) {
   logger.info({ signal }, "Shutting down")
   stopSyncExecutionsTimer()
   shutdownRateLimiter()
-  prisma.$disconnect().then(() => {
-    logger.info("Server closed")
-    process.exit(0)
-  })
+  prisma.$disconnect()
+    .then(() => {
+      logger.info("Server closed")
+      process.exit(0)
+    })
+    .catch((err) => {
+      logger.error({ err }, "Failed to disconnect prisma")
+      process.exit(1)
+    })
 }
 
 process.on("SIGTERM", () => shutdown("SIGTERM"))

@@ -46,8 +46,6 @@ import {
   Loader2,
   Zap,
   FilePlus,
-  LayoutTemplate,
-  FileDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -174,6 +172,11 @@ function WorkflowCard({
         <CardDescription className="flex items-center gap-1 text-xs">
           <GitBranch className="h-3 w-3" />
           {wf.flowId}
+          {wf.disabled && (
+            <Badge variant="secondary" className="ml-1 text-xs text-muted-foreground">
+              已禁用
+            </Badge>
+          )}
         </CardDescription>
       </CardHeader>
 
@@ -234,9 +237,10 @@ export default function WorkflowListPage() {
   const utils = trpc.useUtils();
   const hasNamespaces = useWorkflowStore((s) => s.hasNamespaces);
   const currentNamespace = useWorkflowStore((s) => s.currentNamespace);
-  const { data: workflows, isLoading } = trpc.workflow.listEnriched.useQuery(undefined, {
-    enabled: !!currentNamespace,
-  });
+  const { data: workflows, isLoading } = trpc.workflow.listEnriched.useQuery(
+    { namespaceId: currentNamespace ?? "" },
+    { enabled: !!currentNamespace },
+  );
 
   // 没有 namespace 时引导到 setup 页
   useEffect(() => {
@@ -386,7 +390,7 @@ export default function WorkflowListPage() {
               <CardDescription>您的工作空间已准备就绪。选择一种方式开始：</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-1">
                 <Button
                   variant="outline"
                   className="flex h-auto flex-col items-center gap-2 py-4"
@@ -396,25 +400,6 @@ export default function WorkflowListPage() {
                   <FilePlus className="h-6 w-6" />
                   <span className="font-medium">新建工作流</span>
                   <span className="text-xs text-muted-foreground">从零开始</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="flex h-auto flex-col items-center gap-2 py-4"
-                  onClick={() => navigate({ to: "/templates" })}
-                >
-                  <LayoutTemplate className="h-6 w-6" />
-                  <span className="font-medium">从模板创建</span>
-                  <span className="text-xs text-muted-foreground">快速开始</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="flex h-auto flex-col items-center gap-2 py-4"
-                  disabled
-                  title="即将推出"
-                >
-                  <FileDown className="h-6 w-6" />
-                  <span className="font-medium">导入 YAML</span>
-                  <span className="text-xs text-muted-foreground">粘贴代码</span>
                 </Button>
               </div>
             </CardContent>

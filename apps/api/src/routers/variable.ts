@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server"
 import { z } from "zod"
+import { Prisma } from "../generated/prisma/client.js"
 import { t } from "../trpc.js"
 import { prisma } from "../db.js"
 import { logger } from "../lib/logger.js"
@@ -30,14 +31,22 @@ export const workflowVariableRouter = t.router({
         throw new TRPCError({ code: "CONFLICT", message: "Variable with this key already exists" })
       }
 
-      const variable = await prisma.variable.create({
-        data: {
-          namespaceId: input.namespaceId,
-          key: input.key,
-          value: input.value,
-          description: input.description,
-        },
-      })
+      let variable
+      try {
+        variable = await prisma.variable.create({
+          data: {
+            namespaceId: input.namespaceId,
+            key: input.key,
+            value: input.value,
+            description: input.description,
+          },
+        })
+      } catch (e) {
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+          throw new TRPCError({ code: "CONFLICT", message: "Variable with this key already exists" })
+        }
+        throw e
+      }
 
       // Best-effort sync to Kestra namespace variables
       try {

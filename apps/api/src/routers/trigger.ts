@@ -57,7 +57,6 @@ export const workflowTriggerRouter = t.router({
         throw new TRPCError({ code: "CONFLICT", message: "同名触发器已存在" })
       }
 
-      const { buildTriggerFlowYaml } = await import("../lib/trigger-yaml.js")
       const yaml = buildTriggerFlowYaml({
         namespace: wf.namespace.kestraNamespace,
         flowId: kestraFlowId,
@@ -77,25 +76,48 @@ export const workflowTriggerRouter = t.router({
         })
       }
 
-      return prisma.workflowTrigger.create({
-        data: {
-          workflowId: input.workflowId,
-          name: input.name,
-          type: input.type,
-          config: input.config as Prisma.InputJsonValue,
-          inputs: (input.inputs ?? {}) as Prisma.InputJsonValue,
-          kestraFlowId,
-        },
-      })
+      try {
+        return await prisma.workflowTrigger.create({
+          data: {
+            workflowId: input.workflowId,
+            name: input.name,
+            type: input.type,
+            config: input.config as Prisma.InputJsonValue,
+            inputs: (input.inputs ?? {}) as Prisma.InputJsonValue,
+            kestraFlowId,
+          },
+        })
+      } catch (e) {
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+          throw new TRPCError({ code: "CONFLICT", message: "同名触发器已存在" })
+        }
+        throw e
+      }
     }),
 
   list: t.procedure
-    .input(z.object({ workflowId: z.string() }))
-    .query(({ input }) => {
-      return prisma.workflowTrigger.findMany({
+    .input(
+      z.object({
+        workflowId: z.string(),
+        limit: z.number().min(1).max(100).default(50),
+        cursor: z.string().optional(),
+      }),
+    )
+    .query(async ({ input }) => {
+      const items = await prisma.workflowTrigger.findMany({
         where: { workflowId: input.workflowId },
         orderBy: { createdAt: "desc" },
+        take: input.limit + 1,
+        ...(input.cursor
+          ? { cursor: { id: input.cursor }, skip: 1 }
+          : {}),
       })
+      const hasMore = items.length > input.limit
+      if (hasMore) items.pop()
+      return {
+        items,
+        nextCursor: hasMore ? items[items.length - 1]!.id : null,
+      }
     }),
 
   status: t.procedure
@@ -274,7 +296,6 @@ export const workflowTriggerRouter = t.router({
           })
         }
         const release = trigger.workflow.releases[0]!
-        const { buildTriggerFlowYaml } = await import("../lib/trigger-yaml.js")
         const yaml = buildTriggerFlowYaml({
           namespace: ns,
           flowId: trigger.kestraFlowId,
