@@ -2,7 +2,7 @@ import { TRPCError } from "@trpc/server"
 import { z } from "zod"
 import { t } from "../trpc.js"
 import { prisma } from "../db.js"
-import { createNamespaceSchema } from "../types.js"
+import { createNamespaceSchema } from "../schemas/index.js"
 
 const updateNamespaceSchema = z.object({
   id: z.string(),

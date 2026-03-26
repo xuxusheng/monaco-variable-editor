@@ -1,6 +1,5 @@
 import { z } from "zod"
 
-// ========== 边类型枚举 ==========
 export const edgeTypeSchema = z.enum([
   "sequence",
   "containment",
@@ -12,7 +11,6 @@ export const edgeTypeSchema = z.enum([
 ])
 export type EdgeType = z.infer<typeof edgeTypeSchema>
 
-// ========== 节点 Schema ==========
 export const workflowNodeSchema = z.object({
   id: z.string(),
   type: z.string(),
@@ -31,7 +29,6 @@ export const workflowNodeSchema = z.object({
 })
 export type WorkflowNode = z.infer<typeof workflowNodeSchema>
 
-// ========== 边 Schema ==========
 export const workflowEdgeSchema = z.object({
   id: z.string(),
   source: z.string(),
@@ -41,7 +38,6 @@ export const workflowEdgeSchema = z.object({
 })
 export type WorkflowEdge = z.infer<typeof workflowEdgeSchema>
 
-// ========== Input 类型枚举 ==========
 export const workflowInputTypeSchema = z.enum([
   "STRING",
   "INT",
@@ -62,7 +58,6 @@ export const workflowInputTypeSchema = z.enum([
 ])
 export type WorkflowInputType = z.infer<typeof workflowInputTypeSchema>
 
-// ========== Input Schema ==========
 export const workflowInputSchema = z.object({
   id: z.string(),
   type: workflowInputTypeSchema,
@@ -83,7 +78,6 @@ export const workflowInputSchema = z.object({
 })
 export type WorkflowInput = z.infer<typeof workflowInputSchema>
 
-// ========== Variable 类型枚举 ==========
 export const variableTypeSchema = z.enum([
   "STRING",
   "NUMBER",
@@ -92,7 +86,6 @@ export const variableTypeSchema = z.enum([
 ])
 export type VariableType = z.infer<typeof variableTypeSchema>
 
-// ========== Variable Schema ==========
 export const workflowVariableSchema = z.object({
   key: z.string(),
   value: z.string(),
@@ -100,8 +93,6 @@ export const workflowVariableSchema = z.object({
   description: z.string().optional(),
 })
 export type WorkflowVariable = z.infer<typeof workflowVariableSchema>
-
-// ========== CRUD Schema ==========
 
 export const createWorkflowSchema = z.object({
   name: z.string().min(1),
@@ -127,25 +118,3 @@ export const updateWorkflowSchema = z.object({
   disabled: z.boolean().optional(),
   publishedVersion: z.number().int().optional(),
 })
-
-export const createNamespaceSchema = z.object({
-  name: z.string().min(1, "空间名称不能为空").max(64, "空间名称不超过 64 个字符"),
-  kestraNamespace: z.string().min(1).max(64),
-  description: z.string().optional(),
-})
-
-export const scheduleTriggerConfigSchema = z.object({
-  cron: z.string().min(1, "cron 表达式不能为空"),
-  timezone: z.string().optional(),
-})
-
-export const webhookTriggerConfigSchema = z.object({
-  secret: z.string().min(1, "Webhook secret 不能为空"),
-})
-
-export const triggerConfigSchema = z.union([
-  scheduleTriggerConfigSchema,
-  webhookTriggerConfigSchema,
-])
-
-export type TriggerConfig = z.infer<typeof triggerConfigSchema>
