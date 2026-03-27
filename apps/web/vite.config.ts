@@ -46,4 +46,7 @@ export default defineConfig({
   lint: {
     ignorePatterns: ["**/dist/**"],
   },
+  fmt: {
+    ignorePatterns: ["**/dist/**"],
+  },
 });
