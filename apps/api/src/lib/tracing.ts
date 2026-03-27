@@ -11,6 +11,7 @@ export function initTracing(): void {
   if (initialized) return
 
   const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? "http://localhost:4318"
+  const otlpHeaders = process.env.OTEL_EXPORTER_OTLP_HEADERS
 
   const resource = resourceFromAttributes({
     [ATTR_SERVICE_NAME]: "weave-api",
@@ -18,8 +19,20 @@ export function initTracing(): void {
     "deployment.environment": process.env.NODE_ENV ?? "development",
   })
 
+  const headers: Record<string, string> = {}
+  if (otlpHeaders) {
+    // 支持标准 OTEL 格式: key1=value1,key2=value2
+    for (const pair of otlpHeaders.split(",")) {
+      const [key, value] = pair.split("=", 2)
+      if (key && value) {
+        headers[key.trim()] = value.trim()
+      }
+    }
+  }
+
   const traceExporter = new OTLPTraceExporter({
     url: `${otlpEndpoint}/v1/traces`,
+    headers,
   })
 
   const sdk = new NodeSDK({

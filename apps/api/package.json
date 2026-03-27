@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "bun run --hot src/index.ts",
-    "build": "bun build src/index.ts --outdir dist --target bun",
+    "build": "bun run build.ts",
     "check": "tsc",
     "start": "bun run dist/index.js"
   },
@@ -20,7 +20,7 @@
     "@prisma/adapter-pg": "^7.5.0",
     "@prisma/client": "^7.5.0",
     "@sindresorhus/slugify": "^3.0.0",
-    "@trpc/server": "^11.15.0",
+    "@trpc/server": "^11.15.1",
     "@weave/shared": "workspace:*",
     "cron-parser": "^5.5.0",
     "dotenv": "^17.3.1",
@@ -40,6 +40,7 @@
     "@types/node": "^25.5.0",
     "@types/pg": "^8.20.0",
     "@types/request-ip": "^0.0.41",
+    "bun-plugin-pino": "^1.5.0",
     "prisma": "^7.5.0",
     "prisma-zod-generator": "^2.1.4",
     "typescript": "~6.0.2"
