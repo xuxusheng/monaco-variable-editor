@@ -17,8 +17,8 @@ RUN bun run --parallel --filter '*' build
 FROM oven/bun:1-slim
 WORKDIR /app
 
-# Copy bundled backend (includes pino worker files)
-COPY --from=builder /app/apps/api/dist/*.js ./
+# Copy bundled backend (includes pino worker files and subdirectories)
+COPY --from=builder /app/apps/api/dist/ ./
 
 # Copy prisma files for migrations
 COPY --from=builder /app/apps/api/prisma ./prisma
