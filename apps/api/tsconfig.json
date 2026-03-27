@@ -20,7 +20,8 @@
     // Workaround: @kestra-io/kestra-sdk exports 字段缺少 types 条件
     // 已向官方提 PR，合入后可移除
     "paths": {
-      "@kestra-io/kestra-sdk": ["./node_modules/@kestra-io/kestra-sdk/dist/KestraClient.d.ts"]
+      "@kestra-io/kestra-sdk": ["./node_modules/@kestra-io/kestra-sdk/dist/KestraClient.d.ts"],
+      "@kestra-io/kestra-sdk/dist/model/*": ["./node_modules/@kestra-io/kestra-sdk/dist/model/*"]
     }
   },
   "include": ["src"]

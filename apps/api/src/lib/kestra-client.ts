@@ -11,6 +11,9 @@
  */
 
 import SdkClient from "@kestra-io/kestra-sdk"
+import type Execution from "@kestra-io/kestra-sdk/dist/model/Execution"
+import type ExecutionControllerExecutionResponse from "@kestra-io/kestra-sdk/dist/model/ExecutionControllerExecutionResponse"
+import type FlowWithSource from "@kestra-io/kestra-sdk/dist/model/FlowWithSource"
 import { propagation, context, withSpan } from "./tracing.js"
 import type { KestraLogPage } from "./kestra-types.js"
 
@@ -47,15 +50,6 @@ export function toKestraError(err: unknown): never {
 
 import { isTerminalState } from "@weave/shared"
 export { isTerminalState }
-
-/** SDK execution 返回值的最小类型（避免引用 SDK 内部类型） */
-export interface KestraExecResult {
-  id: string
-  state: { current: string; startDate?: Date; endDate?: Date; duration?: string | number }
-  taskRunList?: Array<{ id: string; taskId: string; state: { current: string } }>
-  inputs?: Record<string, unknown>
-  outputs?: Record<string, unknown>
-}
 
 // ========== State ==========
 
@@ -102,10 +96,10 @@ function createKestra() {
   return {
     // ─── Flow ───
     flows: {
-      create: (yaml: string): Promise<any> =>
+      create: (yaml: string): Promise<FlowWithSource> =>
         withSpan("Kestra flows.create", {}, () =>
           c.flowsApi.createFlow(t, yaml).catch(toKestraError)),
-      get: (ns: string, id: string): Promise<any> =>
+      get: (ns: string, id: string): Promise<FlowWithSource> =>
         withSpan("Kestra flows.get", {}, () =>
           c.flowsApi.flow(ns, id, false, false, t).catch(toKestraError)),
       delete: (ns: string, id: string): Promise<void> =>
@@ -115,19 +109,19 @@ function createKestra() {
 
     // ─── Execution ───
     executions: {
-      trigger: (ns: string, id: string, inputs?: Record<string, string>): Promise<KestraExecResult> =>
+      trigger: (ns: string, id: string, inputs?: Record<string, string>): Promise<ExecutionControllerExecutionResponse> =>
         withSpan("Kestra executions.trigger", {}, () =>
           c.executionsApi.createExecution(ns, id, false, t, {}, inputs).catch(toKestraError)),
-      get: (execId: string): Promise<KestraExecResult> =>
+      get: (execId: string): Promise<Execution> =>
         withSpan("Kestra executions.get", {}, () =>
           c.executionsApi.execution(execId, t).catch(toKestraError)),
       kill: (execId: string): Promise<void> =>
         withSpan("Kestra executions.kill", {}, () =>
           c.executionsApi.killExecution(execId, false, t).catch(toKestraError)),
-      restart: (execId: string): Promise<KestraExecResult> =>
+      restart: (execId: string): Promise<Execution> =>
         withSpan("Kestra executions.restart", {}, () =>
           c.executionsApi.restartExecution(execId, t).catch(toKestraError)),
-      replay: (execId: string, taskRunId: string): Promise<KestraExecResult> =>
+      replay: (execId: string, taskRunId: string): Promise<Execution> =>
         withSpan("Kestra executions.replay", {}, () =>
           c.executionsApi.replayExecution(execId, t, { taskRunId }).catch(toKestraError)),
       /** SDK 未覆盖：带 state 过滤的列表查询 */
