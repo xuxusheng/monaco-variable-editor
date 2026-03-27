@@ -8,6 +8,7 @@ import {
 } from "@/types/workflow";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { fuzzyMatch } from "@/lib/fuzzyMatch";
 
 const CATEGORY_LABELS: Record<PluginCategory, string> = {
   flow: "控制流",
@@ -35,18 +36,6 @@ function tagToCategories(tag: FilterTag): Set<PluginCategory> | "all" {
   if (tag === "script") return new Set(["script"]);
   if (tag === "task") return new Set(["http", "jdbc", "serdes", "storage", "other"]);
   return new Set<PluginCategory>();
-}
-
-function fuzzyMatch(query: string, text: string): boolean {
-  if (!query) return true;
-  const q = query.toLowerCase();
-  const t = text.toLowerCase();
-  if (t.includes(q)) return true;
-  let qi = 0;
-  for (let ti = 0; ti < t.length && qi < q.length; ti++) {
-    if (t[ti] === q[qi]) qi++;
-  }
-  return qi === q.length;
 }
 
 interface MobileNodePanelProps {

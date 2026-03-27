@@ -2,6 +2,7 @@ import { useCallback, useRef, useMemo, useEffect, memo, useState, lazy, Suspense
 import { useParams, Link } from "@tanstack/react-router";
 import { Panel, Group, Separator } from "react-resizable-panels";
 import type { RunningSnapshot } from "@/stores/workflow";
+import type { RightPanel } from "@/stores/types";
 import {
   toExecutionSummary,
   inferEdgeType,
@@ -52,11 +53,11 @@ import { EditorTabBar, type TabKey } from "@/components/flow/EditorTabBar";
 import { CanvasToolbar } from "@/components/flow/CanvasToolbar";
 import { SearchOverlay } from "@/components/flow/SearchOverlay";
 import { ReferenceStatusBar } from "@/components/flow/ReferenceStatusBar";
+import { KeyboardShortcutsDialog } from "@/components/flow/KeyboardShortcutsDialog";
 import type { WorkflowTemplate } from "@/lib/templates";
 import { saveUserTemplate } from "@/lib/templates";
 import { getLayoutedElements } from "@/lib/autoLayout";
 import { filterVisibleNodes, filterVisibleEdges } from "@/lib/containerUtils";
-import { isContainer } from "@/types/container";
 import {
   Rocket,
   Play,
@@ -71,12 +72,15 @@ import {
   Settings2,
   Pencil,
   Power,
+  Package,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 
 import { toast } from "sonner";
-import { useHotkeys } from "react-hotkeys-hook";
+import { useEditorHotkeys } from "@/hooks/useEditorHotkeys";
+import { useEditorDragDrop } from "@/hooks/useEditorDragDrop";
+import { genNodeId, genEdgeId } from "@/lib/ids";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Dialog,
@@ -103,10 +107,6 @@ import { useWorkflowStore, useUndo, useRedo, useCanUndo, useCanRedo } from "@/st
 const nodeTypes = { workflowNode: WorkflowNodeComponent };
 const edgeTypes = { workflowEdge: WorkflowEdgeComponent };
 
-// ---- ID 生成：使用 crypto.randomUUID，无冲突风险 ----
-const genNodeId = () => `node_${crypto.randomUUID().slice(0, 8)}`;
-const genEdgeId = () => `edge_${crypto.randomUUID().slice(0, 8)}`;
-
 // ========== FitView 工具（首次加载自适应） ==========
 
 const FitViewOnMount = memo(function FitViewOnMount() {
@@ -124,11 +124,13 @@ const FitViewOnMount = memo(function FitViewOnMount() {
 });
 
 /** 缩放百分比指示器 — 悬浮在画布右下角 */
-const ZoomIndicator = memo(function ZoomIndicator() {
+const ZoomIndicator = memo(function ZoomIndicator({ hasStatusBar }: { hasStatusBar?: boolean }) {
   const { zoom } = useViewport();
   const pct = Math.round(zoom * 100);
   return (
-    <div className="absolute bottom-3 right-3 z-10 select-none rounded-md border border-border bg-card/90 backdrop-blur-sm px-2 py-1 text-xs font-mono text-muted-foreground shadow-sm">
+    <div
+      className={`absolute ${hasStatusBar ? "bottom-16" : "bottom-3"} right-3 z-10 select-none rounded-md border border-border bg-card/90 backdrop-blur-sm px-2 py-1 text-xs font-mono text-muted-foreground shadow-sm`}
+    >
       {pct}%
     </div>
   );
@@ -223,11 +225,15 @@ export default function WorkflowEditorPage() {
   const [dragOverContainerId, setDragOverContainerId] = useState<string | null>(null);
   const [settingsTab, setSettingsTab] = useState<"variables" | "secrets">("variables");
 
-  /** 跳转到 Namespace Settings 的指定 tab */
+  /** 跳转到 Namespace Settings 或 Inputs 面板 */
   const navigateToSettings = useCallback(
-    (tab: "variables" | "secrets") => {
-      setSettingsTab(tab);
-      setRightPanel("settings");
+    (tab: "variables" | "secrets" | "inputs") => {
+      if (tab === "inputs") {
+        setRightPanel("inputs");
+      } else {
+        setSettingsTab(tab);
+        setRightPanel("settings");
+      }
     },
     [setRightPanel],
   );
@@ -243,25 +249,37 @@ export default function WorkflowEditorPage() {
   );
 
   const handleSaveAsTemplate = useCallback(() => {
-    const name = prompt("模板名称：");
+    setSaveTemplateOpen(true);
+  }, []);
+
+  // ---- 保存为模板对话框 ----
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const [templateDesc, setTemplateDesc] = useState("");
+
+  const handleConfirmSaveTemplate = useCallback(() => {
+    const name = templateName.trim();
     if (!name) return;
-    const description = prompt("模板描述：") ?? "";
     const id = `user-${Date.now()}`;
     saveUserTemplate({
       id,
       name,
-      description,
+      description: templateDesc.trim(),
       category: "自定义",
       nodes: wfNodes,
       edges: wfEdges,
       inputs,
     });
     toast.success(`已保存为模板「${name}」`);
-  }, [wfNodes, wfEdges, inputs]);
+    setSaveTemplateOpen(false);
+    setTemplateName("");
+    setTemplateDesc("");
+  }, [templateName, templateDesc, wfNodes, wfEdges, inputs]);
 
   // ---- 节点搜索定位 (Ctrl+F) ----
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [helpOpen, setHelpOpen] = useState(false);
   const [_searchHighlightId, setSearchHighlightId] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -481,88 +499,10 @@ export default function WorkflowEditorPage() {
   }, []);
 
   // ---- 拖拽创建节点 ----
-  const onDragOver = useCallback(
-    (event: React.DragEvent) => {
-      event.preventDefault();
-      event.dataTransfer.dropEffect = "move";
-
-      const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
-      let found: string | null = null;
-      for (const [nodeId, bounds] of nodeBoundsMap) {
-        if (!isContainer(bounds.type) || bounds.collapsed) continue;
-        if (
-          position.x >= bounds.x &&
-          position.x <= bounds.x + bounds.width &&
-          position.y >= bounds.y &&
-          position.y <= bounds.y + bounds.height
-        ) {
-          found = nodeId;
-        }
-      }
-      setDragOverContainerId(found);
-    },
-    [screenToFlowPosition, nodeBoundsMap],
+  const { onDragOver, onDrop, onDragLeave } = useEditorDragDrop(
+    nodeBoundsMap,
+    setDragOverContainerId,
   );
-
-  const onDrop = useCallback(
-    (event: React.DragEvent) => {
-      event.preventDefault();
-      const rawData = event.dataTransfer.getData("application/reactflow");
-      if (!rawData) return;
-
-      let type: string, name: string, defaultSpec: Record<string, unknown> | undefined;
-      try {
-        const parsed = JSON.parse(rawData);
-        type = parsed.type;
-        name = parsed.name;
-        defaultSpec = parsed.defaultSpec;
-      } catch {
-        toast.error("拖拽数据异常，请重试");
-        return;
-      }
-
-      const position = screenToFlowPosition({
-        x: event.clientX,
-        y: event.clientY,
-      });
-
-      const currentNodes = useWorkflowStore.getState().nodes;
-
-      let targetContainerId: string | null = null;
-      for (const [nodeId, bounds] of nodeBoundsMap) {
-        if (!isContainer(bounds.type) || bounds.collapsed) continue;
-        if (
-          position.x >= bounds.x &&
-          position.x <= bounds.x + bounds.width &&
-          position.y >= bounds.y &&
-          position.y <= bounds.y + bounds.height
-        ) {
-          targetContainerId = nodeId;
-        }
-      }
-
-      const siblings = currentNodes.filter((n) => n.containerId === targetContainerId);
-      const maxSort = siblings.reduce((max, n) => Math.max(max, n.sortIndex), -1);
-
-      const newNode: WorkflowNode = {
-        id: genNodeId(),
-        type,
-        name,
-        containerId: targetContainerId,
-        sortIndex: maxSort + 1,
-        spec: defaultSpec ?? {},
-        ui: { x: position.x, y: position.y },
-      };
-
-      setWfNodes((prev) => [...prev, newNode]);
-      setDragOverContainerId(null);
-    },
-    [screenToFlowPosition, setWfNodes, nodeBoundsMap],
-  );
-
-  const onDragLeave = useCallback(() => {
-    setDragOverContainerId(null);
-  }, []);
 
   // ---- 任务配置更新：解析 YAML 回写 spec ----
   const handleTaskUpdate = useCallback(
@@ -684,74 +624,6 @@ export default function WorkflowEditorPage() {
     setWfNodes((prev) => syncPositions(prev, layoutedNodes));
     setTimeout(() => fitView({ padding: 0.2, maxZoom: 1 }), 50);
   }, [visibleWfNodes, visibleWfEdges, nodesWithMissingRefs, setWfNodes, fitView]);
-
-  // ---- 键盘快捷键 ----
-  // 编辑器面板打开时禁用会与 Monaco 冲突的快捷键
-  const isEditorPanelOpen =
-    rightPanel === "task" || rightPanel === "inputs" || rightPanel === "yaml";
-  useHotkeys("mod+z", () => undo(), { enabled: canUndo && !isEditorPanelOpen });
-  useHotkeys("mod+shift+z", () => redo(), { enabled: canRedo && !isEditorPanelOpen });
-  useHotkeys("delete, backspace", () => handleDeleteSelected(), {
-    enabled: !!selectedNodeId && !isEditorPanelOpen,
-  });
-  useHotkeys(
-    "mod+s",
-    (e) => {
-      e.preventDefault();
-      handleSaveDraft();
-    },
-    { enabled: !isEditorPanelOpen },
-  );
-  useHotkeys(
-    "mod+a",
-    (e) => {
-      e.preventDefault();
-      // Select all visible nodes — mark all as selected in React Flow
-      if (visibleWfNodes.length > 0) {
-        setWfNodes((prev) =>
-          prev.map((n) => ({
-            ...n,
-            selected: visibleWfNodes.some((v) => v.id === n.id),
-          })),
-        );
-      }
-    },
-    { enabled: !isEditorPanelOpen },
-  );
-  useHotkeys(
-    "mod+d",
-    (e) => {
-      e.preventDefault();
-      if (selectedNodeId) handleDuplicate();
-    },
-    { enabled: !isEditorPanelOpen },
-  );
-  useHotkeys("escape", () => {
-    setWfNodes((prev) => prev.map((n) => ({ ...n, selected: false })));
-    setSelectedNodeId(null);
-    setRightPanel("none");
-    setContextMenu(null);
-    setSearchOpen(false);
-    setSearchQuery("");
-  });
-  useHotkeys("mod+f", (e) => {
-    e.preventDefault();
-    setSearchOpen(true);
-    setSearchQuery("");
-    setTimeout(() => searchInputRef.current?.focus(), 50);
-  });
-  useHotkeys(
-    "shift+a",
-    (e) => {
-      e.preventDefault();
-      void handleAutoLayout();
-    },
-    { enabled: !isEditorPanelOpen && viewMode !== "running" },
-  );
-  useHotkeys("shift+f", (e) => {
-    e.preventDefault();
-    void fitView({ padding: 0.2, maxZoom: 1 });
-  });
 
   // ---- 保存/加载（tRPC useUtils） ----
   const utils = trpc.useUtils();
@@ -885,6 +757,48 @@ export default function WorkflowEditorPage() {
     },
   });
 
+  // Save draft action — 缺失引用只 toast 提示，不阻塞
+  const handleSaveDraft = useCallback(
+    (message?: string) => {
+      if (!savedWorkflowId) {
+        toast.warning("请先保存工作流到 API");
+        return;
+      }
+      if (missingRefs.length > 0) {
+        toast.warning(`有 ${missingRefs.length} 个缺失引用，已保存但请注意修复`);
+      }
+      draftSave.mutate({
+        workflowId: savedWorkflowId,
+        message,
+        nodes: wfNodes,
+        edges: wfEdges,
+        inputs,
+        variables: wfVariables,
+      });
+    },
+    [savedWorkflowId, draftSave, missingRefs, wfNodes, wfEdges, inputs, wfVariables],
+  );
+
+  // ---- 键盘快捷键 ----
+  useEditorHotkeys({
+    rightPanel,
+    selectedNodeId,
+    viewMode,
+    canUndo,
+    canRedo,
+    undo,
+    redo,
+    onSaveDraft: handleSaveDraft,
+    onDeleteSelected: handleDeleteSelected,
+    onDuplicate: handleDuplicate,
+    onAutoLayout: handleAutoLayout,
+    searchInputRef,
+    setSearchOpen,
+    setSearchQuery,
+    setContextMenu,
+    setHelpOpen,
+  });
+
   const draftRollback = trpc.workflowDraft.rollback.useMutation({
     onError: (err) => {
       toast.error(`回滚失败: ${err.message}`);
@@ -944,28 +858,6 @@ export default function WorkflowEditorPage() {
   }, [triggersData, setTriggers]);
 
   // Sync query data (drafts/releases fetched via tRPC, displayed directly)
-
-  // Save draft action — 缺失引用只 toast 提示，不阻塞
-  const handleSaveDraft = useCallback(
-    (message?: string) => {
-      if (!savedWorkflowId) {
-        toast.warning("请先保存工作流到 API");
-        return;
-      }
-      if (missingRefs.length > 0) {
-        toast.warning(`有 ${missingRefs.length} 个缺失引用，已保存但请注意修复`);
-      }
-      draftSave.mutate({
-        workflowId: savedWorkflowId,
-        message,
-        nodes: wfNodes,
-        edges: wfEdges,
-        inputs,
-        variables: wfVariables,
-      });
-    },
-    [savedWorkflowId, draftSave, missingRefs, wfNodes, wfEdges, inputs, wfVariables],
-  );
 
   // Draft rollback action
   const handleDraftRollback = useCallback(
@@ -1226,7 +1118,10 @@ export default function WorkflowEditorPage() {
           </Link>
           <span className="text-xs text-muted-foreground hidden sm:inline">工作流</span>
           <span className="text-xs text-muted-foreground hidden sm:inline">&gt;</span>
-          <span className="text-sm font-semibold truncate max-w-[120px] md:max-w-[200px]">
+          <span
+            className="text-sm font-semibold truncate max-w-[120px] md:max-w-[200px]"
+            title={workflowMeta.name || workflowMeta.flowId}
+          >
             {workflowMeta.name || workflowMeta.flowId}
           </span>
           <Button
@@ -1496,16 +1391,23 @@ export default function WorkflowEditorPage() {
       {!isMobile && (
         <EditorTabBar
           activeTab={
-            rightPanel === "task" ||
-            rightPanel === "drafts" ||
-            rightPanel === "production-executions"
-              ? "canvas"
-              : rightPanel === "none"
-                ? "canvas"
-                : (rightPanel as TabKey)
+            (
+              {
+                none: "canvas",
+                task: "canvas",
+                yaml: "yaml",
+                inputs: "inputs",
+                executions: "executions",
+                releases: "versions",
+                triggers: "triggers",
+                settings: "settings",
+                drafts: "canvas",
+                "production-executions": "canvas",
+              } satisfies Record<RightPanel, TabKey>
+            )[rightPanel]
           }
           onTabChange={(tab) => {
-            const panelMap: Record<string, typeof rightPanel> = {
+            const panelMap: Record<TabKey, RightPanel> = {
               canvas: "none",
               yaml: "yaml",
               inputs: "inputs",
@@ -1532,7 +1434,28 @@ export default function WorkflowEditorPage() {
       )}
 
       <Group orientation="horizontal" className="flex-1">
-        <Panel defaultSize={rightPanel === "none" ? 100 : 70} minSize={50}>
+        {/* 左侧插件面板 — 桌面端，可拖拽调整宽度 */}
+        {!isMobile && panelOpen && (
+          <>
+            <Panel defaultSize={20} minSize={15} maxSize={35}>
+              <NodeCreatePanel isOpen={panelOpen} onToggle={() => setPanelOpen(!panelOpen)} />
+            </Panel>
+            <Separator className="w-1 bg-border hover:bg-primary/50 transition-colors" />
+          </>
+        )}
+
+        <Panel
+          defaultSize={
+            rightPanel === "none"
+              ? panelOpen && !isMobile
+                ? 80
+                : 100
+              : panelOpen && !isMobile
+                ? 50
+                : 70
+          }
+          minSize={30}
+        >
           <div className="h-full relative">
             <div
               ref={reactFlowWrapper}
@@ -1577,7 +1500,7 @@ export default function WorkflowEditorPage() {
               >
                 <FitViewOnMount />
                 <Controls
-                  className="!bg-card !border !border-border !rounded-lg !shadow-sm !left-3 !bottom-14"
+                  className={`!bg-card !border !border-border !rounded-lg !shadow-sm !left-3 ${missingRefs.length > 0 ? "!bottom-24" : "!bottom-14"}`}
                   showZoom
                   showFitView
                   showInteractive={false}
@@ -1595,7 +1518,7 @@ export default function WorkflowEditorPage() {
                   pannable
                   zoomable
                 />
-                <ZoomIndicator />
+                <ZoomIndicator hasStatusBar={missingRefs.length > 0} />
               </ReactFlow>
             </div>
 
@@ -1606,6 +1529,7 @@ export default function WorkflowEditorPage() {
                 onFitView={() => fitView({ padding: 0.2, maxZoom: 1 })}
                 onFromTemplate={() => setTemplateDialogOpen(true)}
                 onSaveAsTemplate={handleSaveAsTemplate}
+                readOnly={viewMode === "running"}
               />
             )}
 
@@ -1627,9 +1551,15 @@ export default function WorkflowEditorPage() {
               />
             )}
 
-            {/* 左侧插件面板 — 桌面端 */}
-            {!isMobile && (
-              <NodeCreatePanel isOpen={panelOpen} onToggle={() => setPanelOpen(!panelOpen)} />
+            {/* 左侧插件面板关闭按钮 — 桌面端 */}
+            {!isMobile && !panelOpen && (
+              <button
+                onClick={() => setPanelOpen(true)}
+                className="absolute left-3 top-3 z-10 w-9 h-9 rounded-lg bg-card border border-border shadow-sm flex items-center justify-center text-sm hover:bg-muted transition-colors"
+                title="插件面板"
+              >
+                <Package className="w-4 h-4" />
+              </button>
             )}
           </div>
         </Panel>
@@ -1768,6 +1698,8 @@ export default function WorkflowEditorPage() {
         onSelect={handleTemplateSelect}
       />
 
+      <KeyboardShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} />
+
       {/* 编辑名称/描述 */}
       <Dialog open={editMetaOpen} onOpenChange={setEditMetaOpen}>
         <DialogContent className="sm:max-w-md">
@@ -1801,6 +1733,42 @@ export default function WorkflowEditorPage() {
               onClick={handleSaveMeta}
               disabled={!editName.trim() || workflowUpdate.isPending}
             >
+              保存
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 保存为模板 */}
+      <Dialog open={saveTemplateOpen} onOpenChange={setSaveTemplateOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>保存为模板</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-1.5">
+              <Label>模板名称</Label>
+              <Input
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                placeholder="输入模板名称"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>描述</Label>
+              <Textarea
+                value={templateDesc}
+                onChange={(e) => setTemplateDesc(e.target.value)}
+                placeholder="可选描述"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSaveTemplateOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={handleConfirmSaveTemplate} disabled={!templateName.trim()}>
               保存
             </Button>
           </DialogFooter>

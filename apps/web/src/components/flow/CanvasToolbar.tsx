@@ -7,6 +7,7 @@ interface CanvasToolbarProps {
   onFitView: () => void;
   onFromTemplate: () => void;
   onSaveAsTemplate: () => void;
+  readOnly?: boolean;
 }
 
 export const CanvasToolbar = memo(function CanvasToolbar({
@@ -14,6 +15,7 @@ export const CanvasToolbar = memo(function CanvasToolbar({
   onFitView,
   onFromTemplate,
   onSaveAsTemplate,
+  readOnly,
 }: CanvasToolbarProps) {
   return (
     <div className="absolute top-14 left-3 z-10 flex items-center gap-0.5 rounded-lg border border-border bg-card/95 backdrop-blur-sm shadow-sm p-1">
@@ -21,6 +23,7 @@ export const CanvasToolbar = memo(function CanvasToolbar({
         variant="ghost"
         size="icon"
         onClick={onAutoLayout}
+        disabled={readOnly}
         className="w-8 h-8 text-muted-foreground hover:text-foreground"
         title="自动布局 (Shift+A)"
       >
@@ -40,6 +43,7 @@ export const CanvasToolbar = memo(function CanvasToolbar({
         variant="ghost"
         size="icon"
         onClick={onFromTemplate}
+        disabled={readOnly}
         className="w-8 h-8 text-muted-foreground hover:text-foreground"
         title="从模板创建"
       >
@@ -49,6 +53,7 @@ export const CanvasToolbar = memo(function CanvasToolbar({
         variant="ghost"
         size="icon"
         onClick={onSaveAsTemplate}
+        disabled={readOnly}
         className="w-8 h-8 text-muted-foreground hover:text-foreground"
         title="保存为模板"
       >

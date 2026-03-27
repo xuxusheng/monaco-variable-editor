@@ -6,7 +6,7 @@ import type { MissingReference } from "@/lib/referenceChecker";
 
 interface ReferenceStatusBarProps {
   missingRefs: MissingReference[];
-  onNavigateToSettings: (tab: "variables" | "secrets") => void;
+  onNavigateToSettings: (tab: "variables" | "secrets" | "inputs") => void;
 }
 
 export const ReferenceStatusBar = memo(function ReferenceStatusBar({
@@ -18,7 +18,7 @@ export const ReferenceStatusBar = memo(function ReferenceStatusBar({
   if (missingRefs.length === 0) return null;
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-40 border-t bg-card/95 backdrop-blur-sm">
+    <div className="border-t bg-card/95 backdrop-blur-sm shrink-0">
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center gap-2 px-4 py-2 text-xs hover:bg-muted/50 transition-colors"
@@ -38,9 +38,9 @@ export const ReferenceStatusBar = memo(function ReferenceStatusBar({
 
       {expanded && (
         <div className="px-4 pb-3 space-y-1.5 max-h-48 overflow-y-auto border-t">
-          {missingRefs.map((ref, i) => (
+          {missingRefs.map((ref) => (
             <div
-              key={i}
+              key={`${ref.type}:${ref.name}`}
               className="flex items-center justify-between gap-2 text-sm bg-muted/50 rounded-md px-3 py-1.5"
             >
               <div className="min-w-0 flex items-center gap-2">
@@ -69,6 +69,19 @@ export const ReferenceStatusBar = memo(function ReferenceStatusBar({
                   }}
                 >
                   去创建
+                </Button>
+              )}
+              {ref.type === "input" && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0 text-xs"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onNavigateToSettings("inputs");
+                  }}
+                >
+                  去配置
                 </Button>
               )}
             </div>

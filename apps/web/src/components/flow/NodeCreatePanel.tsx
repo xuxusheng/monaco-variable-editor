@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, type DragEvent } from "react";
-import { Package, Clock, Search, X, ChevronRight } from "lucide-react";
+import { Clock, Search, X, ChevronRight } from "lucide-react";
 import {
   PLUGIN_CATALOG,
   CATEGORY_COLORS,
@@ -9,6 +9,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+import { fuzzyMatch } from "@/lib/fuzzyMatch";
 
 const CATEGORY_LABELS: Record<PluginCategory, string> = {
   flow: "控制流",
@@ -25,7 +26,6 @@ const FILTER_TAGS = [
   { key: "all", label: "全部" },
   { key: "flow", label: "Flow" },
   { key: "task", label: "Task" }, // http, jdbc, storage, serdes, other
-  { key: "trigger", label: "Trigger" }, // placeholder — no trigger plugins yet
   { key: "script", label: "Script" },
 ] as const;
 
@@ -36,9 +36,7 @@ function tagToCategories(tag: FilterTag): Set<PluginCategory> | "all" {
   if (tag === "all") return "all";
   if (tag === "flow") return new Set(["flow"]);
   if (tag === "script") return new Set(["script"]);
-  if (tag === "task") return new Set(["http", "jdbc", "serdes", "storage", "other"]);
-  // trigger — no plugins yet, return empty set
-  return new Set<PluginCategory>();
+  return new Set(["http", "jdbc", "serdes", "storage", "other"]); // task
 }
 
 // ---------- Recently-used (localStorage) ----------
@@ -60,22 +58,6 @@ function pushRecent(type: string) {
   const list = loadRecent().filter((t) => t !== type);
   list.unshift(type);
   localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, MAX_RECENT)));
-}
-
-// ---------- Fuzzy match ----------
-
-function fuzzyMatch(query: string, text: string): boolean {
-  if (!query) return true;
-  const q = query.toLowerCase();
-  const t = text.toLowerCase();
-  // substring match first
-  if (t.includes(q)) return true;
-  // character-sequence match
-  let qi = 0;
-  for (let ti = 0; ti < t.length && qi < q.length; ti++) {
-    if (t[ti] === q[qi]) qi++;
-  }
-  return qi === q.length;
 }
 
 // ---------- Component ----------
@@ -151,20 +133,10 @@ export function NodeCreatePanel({ isOpen, onToggle }: NodeCreatePanelProps) {
     setRecentTypes(loadRecent());
   }, []);
 
-  if (!isOpen) {
-    return (
-      <button
-        onClick={onToggle}
-        className="absolute left-3 top-3 z-10 w-9 h-9 rounded-lg bg-card border border-border shadow-sm flex items-center justify-center text-sm hover:bg-muted transition-colors"
-        title="插件面板"
-      >
-        <Package className="w-4 h-4" />
-      </button>
-    );
-  }
+  if (!isOpen) return null;
 
   return (
-    <div className="absolute left-0 top-0 bottom-0 w-64 bg-card border-r border-border shadow-sm z-10 flex flex-col">
+    <div className="h-full bg-card border-r border-border shadow-sm z-10 flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-border">
         <span className="text-sm font-semibold">插件面板</span>
