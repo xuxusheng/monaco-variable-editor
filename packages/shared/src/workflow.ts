@@ -162,6 +162,7 @@ export interface PluginEntry {
   type: string
   name: string
   category: PluginCategory
+  description?: string
   defaultSpec?: Record<string, unknown>
 }
 
@@ -170,78 +171,91 @@ export const PLUGIN_CATALOG: PluginEntry[] = [
     type: "io.kestra.plugin.core.log.Log",
     name: "Log Message",
     category: "flow",
+    description: "输出日志到执行记录",
     defaultSpec: { message: "Hello from Weave" },
   },
   {
     type: "io.kestra.plugin.core.http.Request",
     name: "HTTP Request",
     category: "http",
+    description: "发送 HTTP 请求并获取响应",
     defaultSpec: { uri: "https://api.example.com", method: "GET" },
   },
   {
     type: "io.kestra.plugin.core.http.Download",
     name: "HTTP Download",
     category: "http",
+    description: "下载远程文件到本地存储",
     defaultSpec: { uri: "https://example.com/file.csv" },
   },
   {
     type: "io.kestra.plugin.core.jdbc.Query",
     name: "JDBC Query",
     category: "jdbc",
+    description: "执行 SQL 查询数据库",
     defaultSpec: { url: "jdbc:postgresql://localhost:5432/db", sql: "SELECT 1" },
   },
   {
     type: "io.kestra.plugin.scripts.shell.Script",
     name: "Shell Script",
     category: "script",
+    description: "执行 Shell/Bash 脚本",
     defaultSpec: { script: "echo 'Hello'" },
   },
   {
     type: "io.kestra.plugin.scripts.python.Script",
     name: "Python Script",
     category: "script",
+    description: "执行 Python 脚本",
     defaultSpec: { script: "print('Hello')" },
   },
   {
     type: "io.kestra.plugin.scripts.node.Script",
     name: "Node.js Script",
     category: "script",
+    description: "执行 Node.js 脚本",
     defaultSpec: { script: "console.log('Hello')" },
   },
   {
     type: "io.kestra.plugin.core.storage.LocalFiles",
     name: "Local Files",
     category: "storage",
+    description: "在任务间传递本地文件",
     defaultSpec: {},
   },
   {
     type: "io.kestra.plugin.core.flow.ForEach",
     name: "ForEach Loop",
     category: "flow",
+    description: "遍历集合并为每个元素执行子任务",
     defaultSpec: { values: ["item1", "item2"] },
   },
   {
     type: "io.kestra.plugin.core.flow.If",
     name: "If Condition",
     category: "flow",
+    description: "根据条件执行不同分支",
     defaultSpec: { condition: "{{ inputs.enabled }}" },
   },
   {
     type: "io.kestra.plugin.core.flow.Switch",
     name: "Switch",
     category: "flow",
+    description: "根据值匹配执行对应分支",
     defaultSpec: { cases: [] },
   },
   {
     type: "io.kestra.plugin.core.flow.Parallel",
     name: "Parallel",
     category: "flow",
+    description: "并行执行多个子任务",
     defaultSpec: {},
   },
   {
     type: "io.kestra.plugin.core.flow.Sequential",
     name: "Sequential",
     category: "flow",
+    description: "按顺序串行执行子任务",
     defaultSpec: {},
   },
 ]

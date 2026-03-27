@@ -21,24 +21,6 @@ const CATEGORY_LABELS: Record<PluginCategory, string> = {
   other: "其他",
 };
 
-// Task/Trigger/Script filter tags — map to underlying categories
-const FILTER_TAGS = [
-  { key: "all", label: "全部" },
-  { key: "flow", label: "Flow" },
-  { key: "task", label: "Task" }, // http, jdbc, storage, serdes, other
-  { key: "script", label: "Script" },
-] as const;
-
-type FilterTag = (typeof FILTER_TAGS)[number]["key"];
-
-/** Map a filter tag to the set of PluginCategory values it covers */
-function tagToCategories(tag: FilterTag): Set<PluginCategory> | "all" {
-  if (tag === "all") return "all";
-  if (tag === "flow") return new Set(["flow"]);
-  if (tag === "script") return new Set(["script"]);
-  return new Set(["http", "jdbc", "serdes", "storage", "other"]); // task
-}
-
 // ---------- Recently-used (localStorage) ----------
 
 const RECENT_KEY = "weave-recent-plugins";
@@ -65,30 +47,18 @@ function pushRecent(type: string) {
 interface NodeCreatePanelProps {
   isOpen: boolean;
   onToggle: () => void;
+  onPluginClick?: (plugin: PluginEntry) => void;
 }
 
-export function NodeCreatePanel({ isOpen, onToggle }: NodeCreatePanelProps) {
+export function NodeCreatePanel({ isOpen, onToggle, onPluginClick }: NodeCreatePanelProps) {
   const [search, setSearch] = useState("");
-  const [activeTag, setActiveTag] = useState<FilterTag>("all");
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [recentTypes, setRecentTypes] = useState<string[]>(() => loadRecent());
 
   const filteredPlugins = useMemo(() => {
-    let pool = PLUGIN_CATALOG;
-
-    // Category tag filter
-    const cats = tagToCategories(activeTag);
-    if (cats !== "all") {
-      pool = pool.filter((p) => cats.has(p.category));
-    }
-
-    // Fuzzy search
-    if (search) {
-      pool = pool.filter((p) => fuzzyMatch(search, p.name) || fuzzyMatch(search, p.type));
-    }
-
-    return pool;
-  }, [search, activeTag]);
+    if (!search) return PLUGIN_CATALOG;
+    return PLUGIN_CATALOG.filter((p) => fuzzyMatch(search, p.name) || fuzzyMatch(search, p.type));
+  }, [search]);
 
   const grouped = useMemo(
     () =>
@@ -106,12 +76,12 @@ export function NodeCreatePanel({ isOpen, onToggle }: NodeCreatePanelProps) {
 
   // Recently-used plugin entries
   const recentPlugins = useMemo(() => {
-    if (search || activeTag !== "all") return []; // hide when filtering
+    if (search) return []; // hide when searching
     return recentTypes
       .map((t) => PLUGIN_CATALOG.find((p) => p.type === t))
       .filter((p): p is PluginEntry => !!p)
       .slice(0, MAX_RECENT);
-  }, [recentTypes, search, activeTag]);
+  }, [recentTypes, search]);
 
   const toggleCategory = useCallback((cat: string) => {
     setCollapsedCategories((prev) => {
@@ -132,6 +102,15 @@ export function NodeCreatePanel({ isOpen, onToggle }: NodeCreatePanelProps) {
     pushRecent(plugin.type);
     setRecentTypes(loadRecent());
   }, []);
+
+  const handleClick = useCallback(
+    (plugin: PluginEntry) => {
+      pushRecent(plugin.type);
+      setRecentTypes(loadRecent());
+      onPluginClick?.(plugin);
+    },
+    [onPluginClick],
+  );
 
   if (!isOpen) return null;
 
@@ -155,6 +134,9 @@ export function NodeCreatePanel({ isOpen, onToggle }: NodeCreatePanelProps) {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setSearch("");
+            }}
             placeholder="搜索插件..."
             className="pl-7 pr-7 h-7 text-sm"
           />
@@ -169,27 +151,9 @@ export function NodeCreatePanel({ isOpen, onToggle }: NodeCreatePanelProps) {
         </div>
       </div>
 
-      {/* Category filter tags */}
-      <div className="flex flex-wrap gap-1 px-3 py-2 border-b border-border">
-        {FILTER_TAGS.map((tag) => (
-          <button
-            key={tag.key}
-            onClick={() => setActiveTag(tag.key)}
-            className={cn(
-              "px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors",
-              activeTag === tag.key
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:bg-muted/80",
-            )}
-          >
-            {tag.label}
-          </button>
-        ))}
-      </div>
-
       {/* Plugin list */}
       <div className="flex-1 overflow-y-auto">
-        {/* Recently used — only shown when no search/filter */}
+        {/* Recently used — only shown when no search */}
         {recentPlugins.length > 0 && (
           <div className="border-b border-border">
             <div className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
@@ -202,6 +166,7 @@ export function NodeCreatePanel({ isOpen, onToggle }: NodeCreatePanelProps) {
                   key={`recent-${plugin.type}`}
                   draggable
                   onDragStart={(e) => onDragStart(e, plugin)}
+                  onClick={() => handleClick(plugin)}
                   className="mx-2 mb-1 px-3 py-1.5 rounded-md border border-transparent hover:border-border hover:bg-muted/50 cursor-grab active:cursor-grabbing transition-colors"
                 >
                   <div className="text-sm font-medium">{plugin.name}</div>
@@ -215,6 +180,7 @@ export function NodeCreatePanel({ isOpen, onToggle }: NodeCreatePanelProps) {
         )}
 
         {Object.entries(grouped).map(([cat, plugins]) => {
+          if (plugins.length === 0) return null;
           const isCollapsed = collapsedCategories.has(cat);
           return (
             <Collapsible key={cat} open={!isCollapsed} onOpenChange={() => toggleCategory(cat)}>
@@ -241,12 +207,18 @@ export function NodeCreatePanel({ isOpen, onToggle }: NodeCreatePanelProps) {
                       key={plugin.type}
                       draggable
                       onDragStart={(e) => onDragStart(e, plugin)}
+                      onClick={() => handleClick(plugin)}
                       className="mx-2 mb-1 px-3 py-2 rounded-md border border-transparent hover:border-border hover:bg-muted/50 cursor-grab active:cursor-grabbing transition-colors"
                     >
                       <div className="text-sm font-medium">{plugin.name}</div>
                       <div className="text-[10px] text-muted-foreground font-mono mt-0.5 truncate">
                         {plugin.type.split(".").pop()}
                       </div>
+                      {plugin.description && (
+                        <div className="text-[11px] text-muted-foreground/80 mt-0.5 truncate">
+                          {plugin.description}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -264,7 +236,7 @@ export function NodeCreatePanel({ isOpen, onToggle }: NodeCreatePanelProps) {
 
       {/* Hint */}
       <div className="px-3 py-2 border-t border-border text-[10px] text-muted-foreground">
-        拖拽插件到画布创建节点
+        拖拽或点击插件创建节点
       </div>
     </div>
   );

@@ -92,7 +92,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { WorkflowNode, WorkflowEdge, WorkflowInput } from "@/types/workflow";
+import type { WorkflowNode, WorkflowEdge, WorkflowInput, PluginEntry } from "@/types/workflow";
 import type { KestraInput } from "@/types/kestra";
 import type {
   ApiWorkflowNode,
@@ -224,6 +224,38 @@ export default function WorkflowEditorPage() {
   // ---- 引用检测 ----
   const [dragOverContainerId, setDragOverContainerId] = useState<string | null>(null);
   const [settingsTab, setSettingsTab] = useState<"variables" | "secrets">("variables");
+
+  // ---- 点击插件创建节点 ----
+  const handlePluginClick = useCallback(
+    (plugin: PluginEntry) => {
+      const rect = reactFlowWrapper.current?.getBoundingClientRect();
+      if (!rect) return;
+      const center = screenToFlowPosition({
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+      });
+
+      const currentNodes = useWorkflowStore.getState().nodes;
+      const siblings = currentNodes.filter((n) => n.containerId === null);
+      const maxSort = siblings.reduce((max, n) => Math.max(max, n.sortIndex), -1);
+
+      const newNodeId = genNodeId();
+      const newNode: WorkflowNode = {
+        id: newNodeId,
+        type: plugin.type,
+        name: plugin.name,
+        containerId: null,
+        sortIndex: maxSort + 1,
+        spec: plugin.defaultSpec ?? {},
+        ui: { x: center.x, y: center.y },
+      };
+
+      setWfNodes((prev) => [...prev, newNode]);
+      setSelectedNodeId(newNodeId);
+      setRightPanel("task");
+    },
+    [screenToFlowPosition, setWfNodes, setSelectedNodeId, setRightPanel],
+  );
 
   /** 跳转到 Namespace Settings 或 Inputs 面板 */
   const navigateToSettings = useCallback(
@@ -1438,7 +1470,11 @@ export default function WorkflowEditorPage() {
         {!isMobile && panelOpen && (
           <>
             <Panel defaultSize={20} minSize={15} maxSize={35}>
-              <NodeCreatePanel isOpen={panelOpen} onToggle={() => setPanelOpen(!panelOpen)} />
+              <NodeCreatePanel
+                isOpen={panelOpen}
+                onToggle={() => setPanelOpen(!panelOpen)}
+                onPluginClick={handlePluginClick}
+              />
             </Panel>
             <Separator className="w-1 bg-border hover:bg-primary/50 transition-colors" />
           </>
